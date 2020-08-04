@@ -3,9 +3,9 @@ import time
 from pynput import mouse
 from pynput.mouse import Button, Controller
 from PIL import Image
-import cv2
 import ctypes
 import ctypes.util
+import cv2
 import mss
 import msvcrt
 import numpy as np
@@ -27,25 +27,11 @@ def set_clickbot_num_coords(x, y, button, pressed):
         #debug
         print(f"{length-1} is at {x},{y}")
 
-def set_ocr_for_raw_prediction(x, y, button, pressed):
-    global bbox
-    if pressed:
-        bbox.append(x)
-        bbox.append(y)
-        length = len(bbox)
-        if length == 4:
-            print(f"Bounding box set. Program can now begin.")
-        else:
-            print(f"Clicked top left corner, now click bottom right corner.")
-            print(f"x: {x}, y: {y}")
-
-
 def main():
     global coords
     global bbox
     sct = mss.mss()
     
-    '''
     print("Click the clickbot's buttons in order from 0-36 to set the coordinates. Start at 0, end at 36.")
     listener = mouse.Listener(on_click=set_clickbot_num_coords)
     listener.start()
@@ -56,7 +42,6 @@ def main():
 
     listener.stop()            
     listener.join()
-    '''
 
     m = Controller()
 
@@ -72,9 +57,8 @@ def main():
 
     print(f"Bounding box: {bbox}")
 
-    config = "--psm 7"
     m = Controller()
-    tess = Tesseract()
+    p = PyTessy()
 
     while True:
         direction = input("Type A for anticlockwise or C for clockwise, then hit ENTER: ").lower()
@@ -87,13 +71,15 @@ def main():
         width = bbox[2]-bbox[0]
         height = bbox[3]-bbox[1]
         sct_img = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
-        image = Image.frombytes("RGB", sct_img.size, sct_img.bgra, "raw", "BGRX")
+        pil_image = Image.frombytes('RGB', sct_img.size, sct_img.rgb)
+        open_cv_image = np.array(pil_image)
+        open_cv_image = open_cv_image[:, :, ::-1].copy() 
+        finalimage = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2GRAY)
         #image.show()
         end = time.time()
 
         now_2 = time.time()
-        frame_piece = FramePiece(image)	
-        prediction = tesseract_process_image2(tess, frame_piece)
+        prediction = p.read(finalimage.ctypes, finalimage.shape[1], finalimage.shape[0], 1) 
         end_2 = time.time()
 
         print(f"Image grab took {end-now}")
@@ -110,7 +96,6 @@ def main():
             continue
 
         
-        '''
         m.position = coords[prediction]
         if direction == "a":
             m.press(Button.left)
@@ -120,7 +105,6 @@ def main():
             m.release(Button.right)
 
         print(f"Clicked at {coords[prediction]}")
-        '''
 
 
 main()

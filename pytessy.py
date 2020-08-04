@@ -83,7 +83,9 @@ class TesseractHandler(object):
         self._check_setup()
         return self._lib.TessBaseAPIGetUTF8Text(self._api)
 
-
+    def set_variable(self, key, val):
+        self._check_setup()
+        self._lib.TessBaseAPISetVariable(self._api, key, val)
 
     def set_image(self, imagedata, width, height, bytes_per_pixel, bytes_per_line,
                   resolution):
@@ -191,11 +193,13 @@ class PyTessy(object):
     TESSERACT_DIRNAME = 'Tesseract-OCR'
     TESSERACT_DEFAULT_HORIZONTAL_DPI = 70
     VERSION = '0.0.1'
+    LIB_PATH = r"C:\Program Files\Tesseract-OCR\libtesseract-5.dll"
+    DATA_PATH = r"C:\Program Files\Tesseract-OCR\tessdada"
 
 
 
-    def __init__(self, tesseract_path=None, api_version=None, lib_path=r"C:\Program Files\Tesseract-OCR\libtesseract-5.dll",
-                 data_path=None, language='eng', verbose_search=False):
+    def __init__(self, tesseract_path=None, api_version=None, lib_path=LIB_PATH,
+                 data_path=DATA_PATH, language='eng', verbose_search=False):
         """
         Initializes PyTessy instance
         ----------------------------
@@ -308,6 +312,7 @@ class PyTessy(object):
                                                         as utf-8 string.
         """
 
+        self._tess.set_variable("tessedit_pageseg_mode", "7")
         self._tess.set_image(raw_image_ctypes, width, height, bytes_per_pixel,
                              bytes_per_line, resolution)
         return self._tess.get_text()
@@ -330,6 +335,7 @@ class PyTessy(object):
                                                         as raw bytes data.
         """
 
+        self._tess.set_variable("tessedit_pageseg_mode", "7")
         self._tess.set_image(raw_image_ctypes, width, height, bytes_per_pixel,
                              bytes_per_line, resolution)
         return self._tess.get_text()
