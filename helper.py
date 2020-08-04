@@ -80,6 +80,7 @@ def main():
     config = "--psm 7"
 
     while True:
+        direction = input("Type A for anticlockwise or C for clockwise, then hit ENTER: ").lower()
         print("Press SPACE when the raw prediction appears, and it will automatically click the correct clickbot number. Press CTRL+C to exit.")
         while True:
             if msvcrt.kbhit():
@@ -110,8 +111,13 @@ def main():
 
         
         m.position = coords[prediction]
-        m.press(Button.left)
-        m.release(Button.left)
+        if direction == "a":
+            m.press(Button.left)
+            m.release(Button.left)
+        else:
+            m.press(Button.right)
+            m.release(Button.right)
+
         print(f"Clicked at {coords[prediction]}")
 
 
