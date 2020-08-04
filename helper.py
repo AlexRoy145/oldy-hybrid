@@ -5,6 +5,7 @@ from pynput.mouse import Button, Controller
 from PIL import Image
 import mss
 import pytesseract
+import msvcrt
 
 # index is raw prediction, value is (x,y) pixel coordinates of the clickbot numbers
 coords = []
@@ -51,7 +52,18 @@ def main():
     listener.stop()            
     listener.join()
 
-    print("Click the upper left corner of the detection zone for the raw prediction number, then click the bottom right corner.")
+    m = Controller()
+
+    input("Hover the mouse over the upper left corner of the detection zone for the raw prediction number, then hit ENTER.")
+    x_top,y_top = m.position
+    bbox.append(x_top)
+    bbox.append(y_top)
+
+    input("Hover the mouse over the bottom right corner of the detection zone, then hit ENTER.")
+    x_bot,y_bot = m.position
+    bbox.append(x_bot)
+    bbox.append(y_bot)
+    '''
     listener = mouse.Listener(on_click=set_ocr_for_raw_prediction)
     listener.start()
     while True:
@@ -61,22 +73,31 @@ def main():
 
     listener.stop()
     listener.join()
+    '''
 
-    m = Controller()
+    print(f"Bounding box: {bbox}")
+
+    config = "--psm 7"
 
     while True:
-        input("Press ENTER when the raw prediction appears, and it will automatically click the correct clickbot number.")
+        print("Press SPACE when the raw prediction appears, and it will automatically click the correct clickbot number. Press CTRL+C to exit.")
+        while True:
+            if msvcrt.kbhit():
+                if ord(msvcrt.getch()) == 32:
+                    break
         now = time.time()
         sct_img = sct.grab({"left": bbox[0], "top": bbox[1], "width": bbox[2]-bbox[0], "height": bbox[3]-bbox[1], "mon":0})
         image = Image.frombytes("RGB", sct_img.size, sct_img.bgra, "raw", "BGRX")
+        #image.show()
         end = time.time()
 
         now_2 = time.time()
-        prediction = pytesseract.image_to_string(image)
+        prediction = pytesseract.image_to_string(image, config=config)
         end_2 = time.time()
 
         print(f"Image grab took {end-now}")
         print(f"OCR took {end_2-now_2}")
+        print(f"RAW PREDICTION: {prediction}")
         try:
             prediction = int(prediction)
         except ValueError:
@@ -87,7 +108,6 @@ def main():
             print("ERROR: Incorrectly detected raw prediction, could not click.")
             continue
 
-        print(f"RAW PREDICTION: {prediction}")
         
         m.position = coords[prediction]
         m.press(Button.left)
