@@ -82,8 +82,8 @@ def main():
         prediction = p.read(finalimage.ctypes, finalimage.shape[1], finalimage.shape[0], 1) 
         end_2 = time.time()
 
-        print(f"Image grab took {end-now}")
-        print(f"OCR took {end_2-now_2}")
+        print(f"Image grab took {end-now:.5f} seconds")
+        print(f"OCR took {end_2-now_2:.5f} seconds")
         print(f"RAW PREDICTION: {prediction}")
         try:
             prediction = int(prediction)
