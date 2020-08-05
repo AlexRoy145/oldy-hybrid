@@ -312,7 +312,6 @@ class PyTessy(object):
                                                         as utf-8 string.
         """
 
-        self._tess.set_variable("tessedit_pageseg_mode", "7")
         self._tess.set_image(raw_image_ctypes, width, height, bytes_per_pixel,
                              bytes_per_line, resolution)
         return self._tess.get_text()
@@ -335,7 +334,6 @@ class PyTessy(object):
                                                         as raw bytes data.
         """
 
-        self._tess.set_variable("tessedit_pageseg_mode", "7")
         self._tess.set_image(raw_image_ctypes, width, height, bytes_per_pixel,
                              bytes_per_line, resolution)
         return self._tess.get_text()
@@ -359,6 +357,8 @@ class PyTessy(object):
         """
 
         bytes_per_line = width * bytes_per_pixel
+        self._tess.set_variable("tessedit_pageseg_mode", "7")
+        self._tess.set_variable("tesseract_char_whitelist", "0123456789")
         if raw:
             return self.justread_raw(imagedata, width, height, bytes_per_pixel,
                                      bytes_per_line, resolution)

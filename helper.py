@@ -38,7 +38,7 @@ def main():
     while True:
         if len(coords) == 37:
             break
-        time.sleep(1)
+        time.sleep(.3)
 
     listener.stop()            
     listener.join()
