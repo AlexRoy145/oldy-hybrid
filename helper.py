@@ -87,7 +87,7 @@ def main():
         print(f"RAW PREDICTION: {prediction}")
         try:
             prediction = int(prediction)
-        except ValueError:
+        except (ValueError, TypeError) as e:
             print("ERROR: Incorrectly detected raw prediction, could not click.")
             continue
 
