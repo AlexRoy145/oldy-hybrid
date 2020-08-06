@@ -340,7 +340,7 @@ class PyTessy(object):
 
 
 
-    def read(self, imagedata, width, height, bytes_per_pixel, resolution=96,
+    def read(self, imagedata, width, height, bytes_per_pixel, resolution=300,
              raw=False):
         """
         Reads text from image data
@@ -357,8 +357,7 @@ class PyTessy(object):
         """
 
         bytes_per_line = width * bytes_per_pixel
-        self._tess.set_variable("tessedit_pageseg_mode", "7")
-        self._tess.set_variable("tesseract_char_whitelist", "0123456789")
+        self._tess.set_variable("tessedit_pageseg_mode", "0")
         if raw:
             return self.justread_raw(imagedata, width, height, bytes_per_pixel,
                                      bytes_per_line, resolution)
