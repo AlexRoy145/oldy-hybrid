@@ -62,11 +62,14 @@ def main():
     bbox = set_detection_zone(m)
 
     while True:
-        direction = input("Type A for anticlockwise, C for clockwise, or D to change detection zone, then hit ENTER: ").lower()
+        direction = input("Type A for anticlockwise, C for clockwise, D to change detection zone, or T for test mode (do NOT make clicks), then hit ENTER: ").lower()
         if direction == "d":
             bbox = set_detection_zone(m)
             continue
-        print("Press SPACE when the raw prediction appears, and it will automatically click the correct clickbot number. Press CTRL+C to exit.")
+        if direction == "t":
+            print ("TEST MODE: Press SPACE when the raw prediction appears, and will print what OCR thinks the raw is.") 
+        else:
+            print("Press SPACE when the raw prediction appears, and it will automatically click the correct clickbot number. Press CTRL+C to exit.")
         while True:
             if msvcrt.kbhit():
                 if ord(msvcrt.getch()) == 32:
@@ -107,15 +110,15 @@ def main():
             print("ERROR: Incorrectly detected raw prediction, could not click.")
             continue
 
-        
-        m.position = coords[prediction]
-        if direction == "a":
-            m.press(Button.left)
-            m.release(Button.left)
-        else:
-            m.press(Button.right)
-            m.release(Button.right)
-        print(f"Clicked at {coords[prediction]}")
+        if direction != "t": 
+            m.position = coords[prediction]
+            if direction == "a":
+                m.press(Button.left)
+                m.release(Button.left)
+            else:
+                m.press(Button.right)
+                m.release(Button.right)
+            print(f"Clicked at {coords[prediction]}")
 
 def post_process(prediction):
     if prediction:
