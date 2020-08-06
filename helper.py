@@ -45,7 +45,6 @@ def main():
     global coords
     sct = mss.mss()
     
-    '''
     print("Click the clickbot's buttons in order from 0-36 to set the coordinates. Start at 0, end at 36.")
     listener = mouse.Listener(on_click=set_clickbot_num_coords)
     listener.start()
@@ -56,7 +55,6 @@ def main():
 
     listener.stop()            
     listener.join()
-    '''
     
     m = Controller()
     p = PyTessy()
@@ -83,8 +81,10 @@ def main():
 
 
         finalimage = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2GRAY)
+        '''
         cv2.imshow("before", finalimage)
         cv2.waitKey(0)
+        '''
         end = time.time()
 
         now_2 = time.time()
@@ -108,7 +108,6 @@ def main():
             continue
 
         
-        '''
         m.position = coords[prediction]
         if direction == "a":
             m.press(Button.left)
@@ -117,7 +116,6 @@ def main():
             m.press(Button.right)
             m.release(Button.right)
         print(f"Clicked at {coords[prediction]}")
-        '''
 
 def post_process(prediction):
     if prediction:
