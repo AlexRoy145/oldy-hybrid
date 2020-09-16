@@ -84,10 +84,16 @@ def main():
 
 
         finalimage = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2GRAY)
+        ret,thresholded = cv2.threshold(finalimage, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+
         '''
-        cv2.imshow("before", finalimage)
+        cv2.imshow('before binarization', finalimage)
+        cv2.waitKey(0)
+        cv2.imshow('after binarization', thresholded)
         cv2.waitKey(0)
         '''
+
+        finalimage = thresholded
         end = time.time()
 
         now_2 = time.time()
