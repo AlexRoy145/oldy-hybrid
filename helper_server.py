@@ -1,0 +1,212 @@
+import sys
+import socket
+import time
+import pickle
+from pynput import mouse
+from pynput.mouse import Button, Controller
+from PIL import Image
+from message import Message
+import ctypes
+import ctypes.util
+import cv2
+import mss
+import msvcrt
+import numpy as np
+from pytessy import PyTessy
+
+SOCKET_TIMEOUT = 30
+
+# index is raw prediction, value is (x,y) pixel coordinates of the clickbot numbers
+coords = []
+
+def set_clickbot_num_coords(x, y, button, pressed):
+    global coords
+    if pressed:
+        coords.append((x, y))
+        length = len(coords)
+        if length == 37:
+            print(f"Clicked 36, finished setting up clickbot macro.")
+        else:
+            print(f"Clicked {length-1}, now click {length}.")
+        #debug
+        print(f"{length-1} is at {x},{y}")
+
+def set_detection_zone(m):
+    bbox = []
+    input("Hover the mouse over the upper left corner of the detection zone for the raw prediction number, then hit ENTER.")
+    x_top,y_top = m.position
+    bbox.append(x_top)
+    bbox.append(y_top)
+
+    input("Hover the mouse over the bottom right corner of the detection zone, then hit ENTER.")
+    x_bot,y_bot = m.position
+    bbox.append(x_bot)
+    bbox.append(y_bot)
+
+    print(f"Bounding box: {bbox}")
+    return bbox
+
+def accept_new_connections(sock, num_connections):
+    clients = []
+    while len(clients) != num_connections: 
+        # establish connection with client 
+        c, addr = sock.accept() 
+        clients.append((c,addr))
+        print(f"Accepted new connection from {addr}")
+    return clients
+
+def send_message(clients, msg):
+    for c, addr in clients:
+        print(f"Sending command to {addr}...")
+        c.send(pickle.dumps(msg))
+    
+
+def main():
+    global coords
+
+    if len(sys.argv) > 2:
+        server_ip = sys.argv[1]
+        server_port = int(sys.argv[2])
+    else:
+        print("Usage: py helper_server.py server_ip_address server_port")
+        exit()
+
+    sct = mss.mss()
+    
+    print("Click the clickbot's buttons in order from 0-36 to set the coordinates. Start at 0, end at 36.")
+    listener = mouse.Listener(on_click=set_clickbot_num_coords)
+    listener.start()
+    while True:
+        if len(coords) == 37:
+            break
+        time.sleep(.3)
+
+    listener.stop()            
+    listener.join()
+    
+    m = Controller()
+    p = PyTessy()
+
+    bbox = set_detection_zone(m)
+
+    # set up the server
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+    s.bind((server_ip, server_port)) 
+  
+    # put the socket into listening mode 
+    s.listen() 
+    print(f"Server now running and listening for connections. Clients should run the client program and connect to {server_ip}:{server_port}.") 
+    num_connections = int(input("Enter how many connections you are expecting. The program will continue only after receiving that many connections: "))
+
+    clients = accept_new_connections(s, num_connections)
+      
+    while True:
+        msg = Message()
+        direction = input("Type A for anticlockwise, C for clockwise, D to change detection zone, T for test mode (do NOT make clicks, but send TEST send commands to clients), or N to close all connections and get connections again, then hit ENTER: ").lower()
+        if direction == "n":
+            for c, addr in clients:
+                c.shutdown()
+                c.close()
+                print(f"Closed connection to {addr}")
+            num_connections = int(input("Enter how many connections you are expecting. The program will continue only after receiving that many connections: "))
+            clients = accept_new_connections(s, num_connections)
+            continue
+        if direction == "d":
+            bbox = set_detection_zone(m)
+            continue
+        if direction == "t":
+            print ("TEST MODE: Press SPACE when the raw prediction appears, and will print what OCR thinks the raw is.") 
+            msg.test_mode = True
+        else:
+            print("Press SPACE when the raw prediction appears, and it will automatically click the correct clickbot number. Press CTRL+C to exit.")
+        while True:
+            if msvcrt.kbhit():
+                if ord(msvcrt.getch()) == 32:
+                    break
+        now = time.time()
+        width = bbox[2]-bbox[0]
+        height = bbox[3]-bbox[1]
+        sct_img = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
+        pil_image = Image.frombytes('RGB', sct_img.size, sct_img.rgb)
+        open_cv_image = np.array(pil_image)
+        open_cv_image = open_cv_image[:, :, ::-1].copy() 
+
+
+        finalimage = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2GRAY)
+        ret,thresholded = cv2.threshold(finalimage, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+
+        '''
+        cv2.imshow('before binarization', finalimage)
+        cv2.waitKey(0)
+        cv2.imshow('after binarization', thresholded)
+        cv2.waitKey(0)
+        '''
+
+        finalimage = thresholded
+        end = time.time()
+
+        now_2 = time.time()
+        prediction = p.read(finalimage.ctypes, finalimage.shape[1], finalimage.shape[0], 1) 
+        end_2 = time.time()
+
+        # post processing of prediction
+        prediction = post_process(prediction)
+
+        print(f"Image grab took {end-now:.5f} seconds")
+        print(f"OCR took {end_2-now_2:.5f} seconds")
+        print(f"RAW PREDICTION: {prediction}")
+        try:
+            prediction = int(prediction)
+        except (ValueError, TypeError) as e:
+            err = "ERROR: Incorrectly detected raw prediction, could not click."
+            print(err)
+            msg.error_message = err
+            send_message(clients, msg)
+            continue
+
+        if prediction < 0 or prediction > 36:
+            err = "ERROR: Incorrectly detected raw prediction, could not click."
+            print(err)
+            msg.error_message = err
+            send_message(clients, err)
+            continue
+
+        if direction != "t": 
+            m.position = coords[prediction]
+            if direction == "a":
+                m.press(Button.left)
+                m.release(Button.left)
+            else:
+                m.press(Button.right)
+                m.release(Button.right)
+            print(f"Clicked at {coords[prediction]}")
+
+        msg.direction = direction
+        msg.prediction = prediction
+        send_message(clients, msg)
+
+def post_process(prediction):
+    if prediction:
+        prediction = prediction.replace("s", "5")
+        prediction = prediction.replace("S", "5")
+
+        prediction = prediction.replace("Z", "2")
+        prediction = prediction.replace("z", "2")
+
+        prediction = prediction.replace("l", "1")
+        prediction = prediction.replace("L", "1")
+
+        prediction = prediction.replace("g", "9")
+        prediction = prediction.replace("G", "9")
+
+        prediction = prediction.replace("A", "4")
+
+        prediction = prediction.replace("O", "0")
+        prediction = prediction.replace("o", "0")
+
+        prediction = prediction.replace("B", "8")
+
+    return prediction
+
+
+main()
