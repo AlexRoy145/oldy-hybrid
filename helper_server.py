@@ -1,5 +1,6 @@
 import sys
 import socket
+import select
 import time
 import pickle
 from pynput import mouse
@@ -46,19 +47,29 @@ def set_detection_zone(m):
     print(f"Bounding box: {bbox}")
     return bbox
 
-def accept_new_connections(sock, num_connections):
-    clients = []
+def accept_new_connections(server_ip, server_port):
+    num_connections = int(input("Enter how many connections you are expecting. The program will continue only after receiving that many connections: "))
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
+    s.bind((server_ip, server_port)) 
+    clients = {}
+    s.listen(0)
     while len(clients) != num_connections: 
         # establish connection with client 
-        c, addr = sock.accept() 
-        clients.append((c,addr))
+        c, addr = s.accept() 
+        clients[addr] = c
         print(f"Accepted new connection from {addr}")
+
+    s.close()
     return clients
 
 def send_message(clients, msg):
-    for c, addr in clients:
+    for addr, c in clients.items():
         print(f"Sending command to {addr}...")
-        c.send(pickle.dumps(msg))
+        try:
+            ret = c.send(pickle.dumps(msg))
+            print(f"Sent {ret} bytes")
+        except OSError:
+            print(f"***ERROR*** Failed to send because {addr} is disconnected. If you want this client to be able to receive commands, select menu option N to reset and reconnect all clients.")
     
 
 def main():
@@ -88,34 +99,29 @@ def main():
     p = PyTessy()
 
     bbox = set_detection_zone(m)
-
-    # set up the server
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
-    s.bind((server_ip, server_port)) 
-  
-    # put the socket into listening mode 
-    s.listen() 
-    print(f"Server now running and listening for connections. Clients should run the client program and connect to {server_ip}:{server_port}.") 
-    num_connections = int(input("Enter how many connections you are expecting. The program will continue only after receiving that many connections: "))
-
-    clients = accept_new_connections(s, num_connections)
+      
+    clients = accept_new_connections(server_ip, server_port)
       
     while True:
+        
+
         msg = Message()
-        print("""A: Anticlockwise, click for yourself and send click command to clients.
+        print("""\nA: Anticlockwise, click for yourself and send click command to clients.
 C: Clockwise, click for yourself and send click command to clients.
 D: Change the detection zone.
 T: Test mode (do NOT make clicks, but send TEST send commands to clients to test connectivity).
+N: Close all current connections with clients, and listen/accept new connections. Use this to refresh the state of connections (for example, clients dying and wanting to reconnect, or adding a new client.)
 AM: Anticlockwise Me Only, click for yourself and DON'T send click commands to clients.
-CM: Clockwise Me Only, click for yourself and DON'T send click commands to clients.""")
+CM: Clockwise Me Only, click for yourself and DON'T send click commands to clients.\n""")
         direction = input("Enter menu option: ").lower()
+        if not direction:
+            continue
         if direction == "n":
-            for c, addr in clients:
+            for addr, c in clients.items():
                 c.shutdown(socket.SHUT_RDWR)
                 c.close()
                 print(f"Closed connection to {addr}")
-            num_connections = int(input("Enter how many connections you are expecting. The program will continue only after receiving that many connections: "))
-            clients = accept_new_connections(s, num_connections)
+            clients = accept_new_connections(server_ip, server_port)
             continue
         if direction == "d":
             bbox = set_detection_zone(m)
