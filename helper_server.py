@@ -102,10 +102,16 @@ def main():
       
     while True:
         msg = Message()
-        direction = input("Type A for anticlockwise, C for clockwise, D to change detection zone, T for test mode (do NOT make clicks, but send TEST send commands to clients), or N to close all connections and get connections again, then hit ENTER: ").lower()
+        print("""A: Anticlockwise, click for yourself and send click command to clients.
+C: Clockwise, click for yourself and send click command to clients.
+D: Change the detection zone.
+T: Test mode (do NOT make clicks, but send TEST send commands to clients to test connectivity).
+AM: Anticlockwise Me Only, click for yourself and DON'T send click commands to clients.
+CM: Clockwise Me Only, click for yourself and DON'T send click commands to clients.""")
+        direction = input("Enter menu option: ").lower()
         if direction == "n":
             for c, addr in clients:
-                c.shutdown()
+                c.shutdown(socket.SHUT_RDWR)
                 c.close()
                 print(f"Closed connection to {addr}")
             num_connections = int(input("Enter how many connections you are expecting. The program will continue only after receiving that many connections: "))
@@ -161,14 +167,16 @@ def main():
             err = "ERROR: Incorrectly detected raw prediction, could not click."
             print(err)
             msg.error_message = err
-            send_message(clients, msg)
+            if not "m" in direction:
+                send_message(clients, msg)
             continue
 
         if prediction < 0 or prediction > 36:
             err = "ERROR: Incorrectly detected raw prediction, could not click."
             print(err)
             msg.error_message = err
-            send_message(clients, err)
+            if not "m" in direction:
+                send_message(clients, err)
             continue
 
         if direction != "t": 
@@ -181,9 +189,10 @@ def main():
                 m.release(Button.right)
             print(f"Clicked at {coords[prediction]}")
 
-        msg.direction = direction
-        msg.prediction = prediction
-        send_message(clients, msg)
+        if not "m" in direction:
+            msg.direction = direction
+            msg.prediction = prediction
+            send_message(clients, msg)
 
 def post_process(prediction):
     if prediction:

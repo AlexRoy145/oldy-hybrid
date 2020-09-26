@@ -28,7 +28,9 @@ def connect_to_server(ip, port):
     print(f"Attempting to connect to {ip}:{port}...")
     ret = 1
     while ret != 0:
+        start = time.perf_counter()
         ret = client.connect_ex((ip, port))
+        print('Latency', (time.perf_counter()-start)*1000,' ms')
         if ret == 0:
             print("Connected successfully.")
             return client
@@ -64,11 +66,12 @@ def main():
 
     while True:
         input("Press ENTER when ready to receive command:")
-        msg = client.recv(128)
+        msg = client.recv(1024)
         if not msg:
             print("Connection closed, attempting to reconnect...")
             client.close()
             client = connect_to_server(server_ip, server_port)
+            continue
         
         msg = pickle.loads(msg)
         print("Received message:\n", msg)
