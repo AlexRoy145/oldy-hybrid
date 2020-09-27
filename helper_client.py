@@ -10,6 +10,8 @@ import numpy as np
 
 # index is raw prediction, value is (x,y) pixel coordinates of the clickbot numbers
 coords = []
+MAX_MSG_LEN = 90
+BUF_SIZ = 4096
 
 def set_clickbot_num_coords(x, y, button, pressed):
     global coords
@@ -66,24 +68,27 @@ def main():
 
     while True:
         input("Press ENTER when ready to receive command:")
-        msg = client.recv(4096)
+        msg = client.recv(BUF_SIZ)
+        while len(msg) > MAX_MSG_LEN:
+            msg = client.recv(BUF_SIZ)
         if not msg:
             print("Connection closed, attempting to reconnect...")
             client.close()
             client = connect_to_server(server_ip, server_port)
             continue
-        
+
         try:
             msg = pickle.loads(msg)
-        except:
-            print("Error receiving message from server, probably due to server sending commands while you were not receiving.")
+        except pickle.UnpicklingError as e:
+            print(f"Error receiving message from server: {e}")
             continue
+
         print("Received message:\n", msg)
 
         if msg.test_mode:
             print("TEST MODE, NOT CLICKING.")
         else:
-            if msg.error_msg:
+            if msg.error:
                 print("Error detecting raw prediction. Skipping this spin.")
                 continue
             m.position = coords[msg.prediction]

@@ -48,7 +48,13 @@ def set_detection_zone(m):
     return bbox
 
 def accept_new_connections(server_ip, server_port):
-    num_connections = int(input("Enter how many connections you are expecting. The program will continue only after receiving that many connections: "))
+    while True:
+        try:
+            num_connections = int(input("Enter how many connections you are expecting. The program will continue only after receiving that many connections: "))
+            break
+        except ValueError:
+            print("Invalid number.")
+            continue
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
     s.bind((server_ip, server_port)) 
     clients = {}
@@ -67,7 +73,7 @@ def send_message(clients, msg):
         print(f"Sending command to {addr}...")
         try:
             ret = c.send(pickle.dumps(msg))
-            print(f"Sent {ret} bytes")
+            print(f"Sent {ret} byte message: {msg}")
         except OSError:
             print(f"***ERROR*** Failed to send because {addr} is disconnected. If you want this client to be able to receive commands, select menu option N to reset and reconnect all clients.")
     
@@ -163,6 +169,7 @@ CM: Clockwise Me Only, click for yourself and DON'T send click commands to clien
 
         # post processing of prediction
         prediction = post_process(prediction)
+        msg.direction = direction
 
         print(f"Image grab took {end-now:.5f} seconds")
         print(f"OCR took {end_2-now_2:.5f} seconds")
@@ -170,17 +177,15 @@ CM: Clockwise Me Only, click for yourself and DON'T send click commands to clien
         try:
             prediction = int(prediction)
         except (ValueError, TypeError) as e:
-            err = "ERROR: Incorrectly detected raw prediction, could not click."
-            print(err)
-            msg.error_message = err
+            print("ERROR: Incorrectly detected raw prediction, could not click.")
+            msg.error = True
             if not "m" in direction:
                 send_message(clients, msg)
             continue
 
         if prediction < 0 or prediction > 36:
-            err = "ERROR: Incorrectly detected raw prediction, could not click."
-            print(err)
-            msg.error_message = err
+            print("ERROR: Incorrectly detected raw prediction, could not click.")
+            msg.error = True
             if not "m" in direction:
                 send_message(clients, err)
             continue
@@ -196,7 +201,6 @@ CM: Clockwise Me Only, click for yourself and DON'T send click commands to clien
             print(f"Clicked at {coords[prediction]}")
 
         if not "m" in direction:
-            msg.direction = direction
             msg.prediction = prediction
             send_message(clients, msg)
 
