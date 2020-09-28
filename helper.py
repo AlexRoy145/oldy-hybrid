@@ -6,6 +6,8 @@ from PIL import Image
 import ctypes
 import ctypes.util
 import cv2
+import os.path
+import pickle
 import mss
 import msvcrt
 import numpy as np
@@ -13,6 +15,7 @@ from pytessy import PyTessy
 
 # index is raw prediction, value is (x,y) pixel coordinates of the clickbot numbers
 coords = []
+CLICKBOT_PROFILE = "profile.dat"
 
 def set_clickbot_num_coords(x, y, button, pressed):
     global coords
@@ -44,18 +47,46 @@ def set_detection_zone(m):
 def main():
     global coords
     sct = mss.mss()
-    
-    print("Click the clickbot's buttons in order from 0-36 to set the coordinates. Start at 0, end at 36.")
-    listener = mouse.Listener(on_click=set_clickbot_num_coords)
-    listener.start()
-    while True:
-        if len(coords) == 37:
-            break
-        time.sleep(.3)
 
-    listener.stop()            
-    listener.join()
-    
+    set_coords = False
+    if os.path.isfile(CLICKBOT_PROFILE):
+        choice = input("Previous clickbot profile found, use this instead? (Y/N): ").lower()
+        if choice == "y":
+            with open(CLICKBOT_PROFILE, "rb") as f:
+                try:
+                    coords = pickle.load(f)
+                except pickle.UnpicklingError:
+                    print("Error loading clickbot profile file, corrupted or not the right file?")
+                    exit()
+        else:
+            set_coords = True
+
+    else:
+        set_coords = True
+        
+
+    if set_coords:
+        print("Click the clickbot's buttons in order from 0-36 to set the coordinates. Start at 0, end at 36.")
+        listener = mouse.Listener(on_click=set_clickbot_num_coords)
+        listener.start()
+        while True:
+            if len(coords) == 37:
+                listener.stop()            
+                listener.join()
+                if os.path.isfile(CLICKBOT_PROFILE):
+                    choice = input("Found clickbot profile: overwrite it? (Y/N): ").lower()
+                    if choice == "y":
+                        with open(CLICKBOT_PROFILE, "wb") as f:
+                            pickle.dump(coords, f)
+                            print(f"Wrote profile to {CLICKBOT_PROFILE}.")
+                else:
+                    print("Writing coordinates to profile file.")
+                    with open(CLICKBOT_PROFILE, "wb") as f:
+                        pickle.dump(coords, f)
+
+                break
+            time.sleep(.3)
+        
     m = Controller()
     p = PyTessy()
 
@@ -121,7 +152,7 @@ def main():
 
         if direction != "t": 
             m.position = coords[prediction]
-            if direction == "a":
+            if direction == "c":
                 m.press(Button.left)
                 m.release(Button.left)
             else:
@@ -148,6 +179,7 @@ def post_process(prediction):
 
         prediction = prediction.replace("O", "0")
         prediction = prediction.replace("o", "0")
+        prediction = prediction.replace("Q", "0")
 
         prediction = prediction.replace("B", "8")
 
