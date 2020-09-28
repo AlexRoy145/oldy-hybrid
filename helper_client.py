@@ -66,11 +66,9 @@ def main():
 
     client = connect_to_server(server_ip, server_port)
 
+    print("Listening for commands...")
     while True:
-        input("Press ENTER when ready to receive command:")
         msg = client.recv(BUF_SIZ)
-        while len(msg) > MAX_MSG_LEN:
-            msg = client.recv(BUF_SIZ)
         if not msg:
             print("Connection closed, attempting to reconnect...")
             client.close()
@@ -92,7 +90,7 @@ def main():
                 print("Error detecting raw prediction. Skipping this spin.")
                 continue
             m.position = coords[msg.prediction]
-            if msg.direction == "a":
+            if msg.direction == "c":
                 m.press(Button.left)
                 m.release(Button.left)
             else:
