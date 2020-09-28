@@ -227,7 +227,6 @@ CM: Clockwise Me Only, click for yourself and DON'T send click commands to clien
                 send_message(clients, err)
             continue
 
-        '''
         if direction != "t": 
             m.position = coords[prediction]
             if direction == "c":
@@ -237,7 +236,6 @@ CM: Clockwise Me Only, click for yourself and DON'T send click commands to clien
                 m.press(Button.right)
                 m.release(Button.right)
             print(f"Clicked at {coords[prediction]}")
-        '''
 
         if not "m" in direction:
             msg.prediction = prediction
