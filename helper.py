@@ -136,6 +136,7 @@ def post_process(prediction):
 
         prediction = prediction.replace("l", "1")
         prediction = prediction.replace("L", "1")
+        prediciton = prediction.replace("i", "1")
 
         prediction = prediction.replace("g", "9")
         prediction = prediction.replace("G", "9")
