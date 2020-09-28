@@ -196,7 +196,7 @@ CM: Clockwise Me Only, click for yourself and DON'T send click commands to clien
 
         if direction != "t": 
             m.position = coords[prediction]
-            if direction == "a":
+            if direction == "c":
                 m.press(Button.left)
                 m.release(Button.left)
             else:
