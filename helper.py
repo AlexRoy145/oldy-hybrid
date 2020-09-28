@@ -70,10 +70,13 @@ def main():
             print ("TEST MODE: Press SPACE when the raw prediction appears, and will print what OCR thinks the raw is.") 
         else:
             print("Press SPACE when the raw prediction appears, and it will automatically click the correct clickbot number. Press CTRL+C to exit.")
-        while True:
-            if msvcrt.kbhit():
-                if ord(msvcrt.getch()) == 32:
-                    break
+        try:
+            while True:
+                if msvcrt.kbhit():
+                    if ord(msvcrt.getch()) == 32:
+                        break
+        except KeyboardInterrupt:
+            continue
         now = time.time()
         width = bbox[2]-bbox[0]
         height = bbox[3]-bbox[1]
