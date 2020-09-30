@@ -3,8 +3,10 @@ import socket
 import time
 import pickle
 import os.path
+import mss
 from pynput import mouse
 from pynput.mouse import Button, Controller
+from pynput import keyboard
 from message import Message
 import msvcrt
 import numpy as np
@@ -13,6 +15,7 @@ import numpy as np
 coords = []
 BUF_SIZ = 4096
 CLICKBOT_PROFILE = "profile.dat"
+RED_THRESH = 150
 
 def set_clickbot_num_coords(x, y, button, pressed):
     global coords
@@ -27,11 +30,11 @@ def set_clickbot_num_coords(x, y, button, pressed):
         print(f"{length-1} is at {x},{y}")
 
 def connect_to_server(ip, port):
-    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client.settimeout(5)
     print(f"Attempting to connect to {ip}:{port} with timeout of 5 seconds...")
     ret = 1
     while ret != 0:
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client.settimeout(5)
         start = time.perf_counter()
         ret = client.connect_ex((ip, port))
         latency = (time.perf_counter() - start)*1000
@@ -41,9 +44,37 @@ def connect_to_server(ip, port):
             return client
         else:
             print("Failed to connect. Trying again..") 
+            time.sleep(2)
 
 def main():
     global coords
+
+    sct = mss.mss()
+    '''
+    # pixel test
+    bbox = []
+    m = Controller()
+    input("Hover the mouse over RED outside bet, then press ENTER:")
+    x,y = m.position
+    bbox.append(x)
+    bbox.append(y)
+
+    sct = mss.mss()
+    sct_img = sct.grab({"left": bbox[0], "top": bbox[1], "width": 1, "height": 1, "mon":0})
+    pixel = sct_img.pixel(0, 0)
+    print(pixel)
+
+    sct_img = sct.grab({"left": bbox[0], "top": bbox[1], "width": 1, "height": 1, "mon":0})
+    pixel = sct_img.pixel(0, 0)
+    #if pixel[0] < RED_THRESH:
+    k = keyboard.Controller()
+    m.position = (bbox[0],bbox[1])
+    m.press(Button.left)
+    m.release(Button.left)
+    k.press(keyboard.Key.f5)
+    k.release(keyboard.Key.f5)
+    exit()
+    '''
 
     if len(sys.argv) > 2:
         server_ip = sys.argv[1]
@@ -94,7 +125,14 @@ def main():
 
 
     m = Controller()
-    
+
+    bbox = []
+    input("Hover the mouse over RED outside bet, then press ENTER:")
+    x,y = m.position
+    bbox.append(x)
+    bbox.append(y)
+
+    input("Press ENTER when ready to connect to server:")
     client = connect_to_server(server_ip, server_port)
 
     while True:
@@ -128,6 +166,18 @@ def main():
             else:
                 m.press(Button.right)
                 m.release(Button.right)
+
+        time.sleep(3)
+        sct_img = sct.grab({"left": bbox[0], "top": bbox[1], "width": 1, "height": 1, "mon":0})
+        pixel = sct_img.pixel(0, 0)
+        if pixel[0] < RED_THRESH:
+            k = keyboard.Controller()
+            m.position = (bbox[0],bbox[1])
+            m.press(Button.left)
+            m.release(Button.left)
+            k.press(keyboard.Key.f5)
+            k.release(keyboard.Key.f5)
+
 
 
 main()
