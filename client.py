@@ -30,13 +30,14 @@ class Client:
                 print("Failed to connect. Trying again..") 
                 time.sleep(2)
 
+
     def recv_msg(self):
         msg = self.client.recv(Client.BUF_SIZ)
 
         if not msg:
             print("Connection closed, attempting to reconnect...")
             self.client.close()
-            self.client = self.connect_to_server(server_ip, server_port)
+            self.client = self.connect_to_server()
             return None
 
         try:
@@ -48,3 +49,6 @@ class Client:
         print("Received message:\n", msg)
         return msg
 
+
+    def close(self):
+        self.client.close()

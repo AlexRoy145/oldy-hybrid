@@ -42,7 +42,7 @@ class Macro:
     
     def set_screen_condition(self):
         input("Hover over the red outside bet and press ENTER:")
-        self.screen_condition = m.position
+        self.screen_condition = self.m.position
 
 
     def is_screen_condition_true(self):

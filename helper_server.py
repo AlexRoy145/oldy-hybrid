@@ -1,19 +1,12 @@
 import sys
 import time
 import pickle
-from PIL import Image
-import ctypes
-import ctypes.util
-import cv2
-import os.path
-import mss
 import msvcrt
-import numpy as np
-
 from pytessy import PyTessy
 from clickbot import Clickbot
 from message import Message
 from server import Server
+from ocr import OCR
 
 CLICKBOT_PROFILE = "profile.dat"
 
@@ -26,8 +19,6 @@ def main():
         print("Usage: py helper_server.py server_ip_address server_port")
         exit()
 
-    sct = mss.mss()
-
     clickbot = Clickbot()
     if not clickbot.load_profile(CLICKBOT_PROFILE):
         print("Could not find profile. Setting up from scratch.")
@@ -36,9 +27,10 @@ def main():
         clickbot.set_detection_zone()
         clickbot.save_profile(CLICKBOT_PROFILE)
 
-    p = PyTessy()
     server = Server(server_ip, server_port)
     server.accept_new_connections()
+
+    ocr = OCR(clickbot.detection_zone)
       
     while True:
         msg = Message()
@@ -58,6 +50,7 @@ CM: Clockwise Me Only, click for yourself and DON'T send click commands to clien
             continue
         if direction == "d":
             clickbot.set_detection_zone()
+            ocr.detection_zone = clickbot.detection_zone
             clickbot.save_profile(CLICKBOT_PROFILE)
             continue
         if direction == "j":
@@ -76,40 +69,9 @@ CM: Clockwise Me Only, click for yourself and DON'T send click commands to clien
                         break
         except KeyboardInterrupt:
             continue
+
+        prediction = ocr.read_prediction()
             
-        bbox = clickbot.detection_zone
-        now = time.time()
-        width = bbox[2]-bbox[0]
-        height = bbox[3]-bbox[1]
-        sct_img = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
-        pil_image = Image.frombytes('RGB', sct_img.size, sct_img.rgb)
-        open_cv_image = np.array(pil_image)
-        open_cv_image = open_cv_image[:, :, ::-1].copy() 
-
-        finalimage = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2GRAY)
-        ret,thresholded = cv2.threshold(finalimage, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
-
-        '''
-        cv2.imshow('before binarization', finalimage)
-        cv2.waitKey(0)
-        cv2.imshow('after binarization', thresholded)
-        cv2.waitKey(0)
-        '''
-
-        finalimage = thresholded
-        end = time.time()
-
-        now_2 = time.time()
-        prediction = p.read(finalimage.ctypes, finalimage.shape[1], finalimage.shape[0], 1) 
-        end_2 = time.time()
-
-        # post processing of prediction
-        prediction = post_process(prediction)
-        msg.direction = direction
-
-        print(f"Image grab took {end-now:.5f} seconds")
-        print(f"OCR took {end_2-now_2:.5f} seconds")
-        print(f"RAW PREDICTION: {prediction}")
         try:
             prediction = int(prediction)
         except (ValueError, TypeError) as e:
@@ -126,36 +88,11 @@ CM: Clockwise Me Only, click for yourself and DON'T send click commands to clien
                 server.send_message(msg)
             continue
 
-        clickbot.make_clicks(direction, prediction)
+        clickbot.make_clicks_given_raw(direction, prediction)
         
         if not "m" in direction:
-            msg.prediction = prediction
+            msg.raw_prediction = prediction
+            msg.tuned_predictions = clickbot.get_tuned_from_raw(direction, prediction)
             server.send_message(msg)
-
-def post_process(prediction):
-    if prediction:
-        prediction = prediction.replace("s", "5")
-        prediction = prediction.replace("S", "5")
-
-        prediction = prediction.replace("Z", "2")
-        prediction = prediction.replace("z", "2")
-
-        prediction = prediction.replace("l", "1")
-        prediction = prediction.replace("L", "1")
-        prediction = prediction.replace("i", "1")
-
-        prediction = prediction.replace("g", "9")
-        prediction = prediction.replace("G", "9")
-
-        prediction = prediction.replace("A", "4")
-
-        prediction = prediction.replace("O", "0")
-        prediction = prediction.replace("o", "0")
-        prediction = prediction.replace("Q", "0")
-
-        prediction = prediction.replace("B", "8")
-
-    return prediction
-
 
 main()

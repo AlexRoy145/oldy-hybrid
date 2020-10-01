@@ -54,9 +54,11 @@ class Clickbot:
     def set_jump_values(self):
         while True:
             try:
+                self.jump_anti = []
                 anti_range = input("Input range for anticlockwise (example: 1 to 15, -18 to -5): ")
                 self.set_jump_helper(anti_range, self.jump_anti)
 
+                self.jump_clock = []
                 clock_range = input("Input range for clockwise (example: 1 to 15, -18 to -5, -1): ")
                 self.set_jump_helper(clock_range, self.jump_clock)
                 break
@@ -88,23 +90,34 @@ class Clickbot:
             print(f"Number {i} at ({x},{y}).")
 
 
-    def make_clicks(self, direction, prediction):
-        if direction != "t":
-            if direction == "a":
-                jumps = self.jump_anti
+    def get_tuned_from_raw(self, direction, raw_prediction):
+        if direction == "a":
+            jumps = self.jump_anti
+        else:
+            jumps = self.jump_clock
+
+        tuned_predictions = []
+        for jump in jumps:
+            length = len(self.european_wheel)
+            raw_idx = self.european_wheel.index(raw_prediction)
+
+            tuned_idx = raw_idx + jump
+            if tuned_idx > (length - 1):
+                tuned_predictions.append(self.european_wheel[tuned_idx % length])
             else:
-                jumps = self.jump_clock
+                tuned_predictions.append(self.european_wheel[tuned_idx])
 
-            for jump in jumps:
-                length = len(self.european_wheel)
-                raw_idx = self.european_wheel.index(prediction)
+        return tuned_predictions
 
-                tuned_idx = raw_idx + jump
-                if tuned_idx > (length - 1):
-                    tuned = self.european_wheel[tuned_idx % length]
-                else:
-                    tuned = self.european_wheel[tuned_idx]
 
-                self.m.position = self.number_coords[tuned]
+    def make_clicks_given_raw(self, direction, raw_prediction):
+        if direction != "t":
+            self.make_clicks(direction, self.get_tuned_from_raw(direction, raw_prediction))
+        
+
+    def make_clicks(self, direction, tuned_predictions):
+        if direction != "t":
+            for tuned_prediction in tuned_predictions:
+                self.m.position = self.number_coords[tuned_prediction]
                 self.m.click(Button.left)
             
