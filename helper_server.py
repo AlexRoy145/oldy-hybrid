@@ -1,12 +1,7 @@
 import sys
-import socket
-import select
 import time
 import pickle
-from pynput import mouse
-from pynput.mouse import Button, Controller
 from PIL import Image
-from message import Message
 import ctypes
 import ctypes.util
 import cv2
@@ -14,50 +9,14 @@ import os.path
 import mss
 import msvcrt
 import numpy as np
+
 from pytessy import PyTessy
 from clickbot import Clickbot
+from message import Message
+from server import Server
 
-SOCKET_TIMEOUT = 30
 CLICKBOT_PROFILE = "profile.dat"
 
-# index is raw prediction, value is (x,y) pixel coordinates of the clickbot numbers
-seq_num = 0
-
-def accept_new_connections(server_ip, server_port):
-    while True:
-        try:
-            num_connections = int(input("Enter how many connections you are expecting. The program will continue only after receiving that many connections: "))
-            break
-        except ValueError:
-            print("Invalid number.")
-            continue
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) 
-    s.bind((server_ip, server_port)) 
-    clients = {}
-    s.listen(0)
-    while len(clients) != num_connections: 
-        # establish connection with client 
-        c, addr = s.accept() 
-        clients[addr] = c
-        print(f"Accepted new connection from {addr}")
-
-    s.close()
-    return clients
-
-
-def send_message(clients, msg):
-    global seq_num
-    msg.seq_num = seq_num
-    seq_num += 1
-    for addr, c in clients.items():
-        print(f"Sending command to {addr}...")
-        try:
-            ret = c.send(pickle.dumps(msg))
-            print(f"Sent {ret} byte message: {msg}")
-        except OSError:
-            print(f"***ERROR*** Failed to send because {addr} is disconnected. If you want this client to be able to receive commands, select menu option N to reset and reconnect all clients.")
-
-    
 def main():
 
     if len(sys.argv) > 2:
@@ -77,10 +36,9 @@ def main():
         clickbot.set_detection_zone()
         clickbot.save_profile(CLICKBOT_PROFILE)
 
-    m = Controller()
     p = PyTessy()
-
-    clients = accept_new_connections(server_ip, server_port)
+    server = Server(server_ip, server_port)
+    server.accept_new_connections()
       
     while True:
         msg = Message()
@@ -96,11 +54,7 @@ CM: Clockwise Me Only, click for yourself and DON'T send click commands to clien
         if not direction:
             continue
         if direction == "n":
-            for addr, c in clients.items():
-                c.shutdown(socket.SHUT_RDWR)
-                c.close()
-                print(f"Closed connection to {addr}")
-            clients = accept_new_connections(server_ip, server_port)
+            server.close_and_reaccept_connections()
             continue
         if direction == "d":
             clickbot.set_detection_zone()
@@ -162,21 +116,21 @@ CM: Clockwise Me Only, click for yourself and DON'T send click commands to clien
             print("ERROR: Incorrectly detected raw prediction, could not click.")
             msg.error = True
             if not "m" in direction:
-                send_message(clients, msg)
+                server.send_message(msg)
             continue
 
         if prediction < 0 or prediction > 36:
             print("ERROR: Incorrectly detected raw prediction, could not click.")
             msg.error = True
             if not "m" in direction:
-                send_message(clients, msg)
+                server.send_message(msg)
             continue
 
         clickbot.make_clicks(direction, prediction)
         
         if not "m" in direction:
             msg.prediction = prediction
-            send_message(clients, msg)
+            server.send_message(msg)
 
 def post_process(prediction):
     if prediction:

@@ -48,7 +48,7 @@ class Macro:
     def is_screen_condition_true(self):
         sct_img = self.sct.grab({"left": self.screen_condition[0], "top": self.screen_condition[1], "width": 1, "height": 1, "mon":0})
         pixel = sct_img.pixel(0, 0)
-        return pixel[0] < Macro.RED_THRESH:
+        return pixel[0] < Macro.RED_THRESH
 
 
     def on_click(self, x, y, button, pressed):
