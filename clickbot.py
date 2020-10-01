@@ -30,30 +30,34 @@ class Clickbot:
     def set_jump_helper(self, range_str, jump_list):
         range_split = range_str.split(",")
         for rang in range_split:
-            split = rang.split(".")
-            start = int(split[0])
+            split = rang.split(" to ")
+            start = int(split[0].strip())
             if len(split) == 1:
-                end = start + 1
+                end = start
             else:
-                end = int(split[1])
+                end = int(split[1].strip())
 
             if start > 18 or end > 18:
                 raise ValueError("Number cannot be greater than 18.")
             if start < -18 or end < -18:
                 raise ValueError("Number cannot be less than -18.")
             if start > end:
-                raise ValueError("Starting value cannot be greater than ending value. If you're using negative numbers, it needs to be -8.-2 instead of -2.-8")
-            for jump_value in range(start, end):
+                temp = start
+                start = end
+                end = temp
+            for jump_value in range(start, end + 1):
                 jump_list.append(jump_value)
+
+        print(f"Jump Values: {jump_list}")
 
 
     def set_jump_values(self):
         while True:
             try:
-                anti_range = input("Input range for anticlockwise (example: 1.15,-18.-5): ")
+                anti_range = input("Input range for anticlockwise (example: 1 to 15, -18 to -5): ")
                 self.set_jump_helper(anti_range, self.jump_anti)
 
-                clock_range = input("Input range for clockwise (example: 1.15,-18.-5,-1): ")
+                clock_range = input("Input range for clockwise (example: 1 to 15, -18 to -5, -1): ")
                 self.set_jump_helper(clock_range, self.jump_clock)
                 break
             except ValueError as e:
@@ -102,6 +106,5 @@ class Clickbot:
                     tuned = self.european_wheel[tuned_idx]
 
                 self.m.position = self.number_coords[tuned]
-                self.m.press(Button.left)
-                self.m.release(Button.left)
+                self.m.click(Button.left)
             

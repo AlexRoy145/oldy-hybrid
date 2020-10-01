@@ -2,19 +2,18 @@ import sys
 import socket
 import time
 import pickle
-import os.path
-import mss
-from pynput import mouse
-from pynput.mouse import Button, Controller
-from pynput import keyboard
-from message import Message
 import msvcrt
-import numpy as np
+import mss
 from clickbot import Clickbot
+from message import Message
+from macro import Macro
 
 BUF_SIZ = 4096
 CLICKBOT_PROFILE = "profile.dat"
-RED_THRESH = 150
+MACRO_PROFILE = "macro.dat"
+
+REFRESH_BET_MACRO = "Refresh page if kicked for late bets"
+RESIGNIN_MACRO = "Resign into the website and pull up betting interface"
 
 def connect_to_server(ip, port):
     print(f"Attempting to connect to {ip}:{port} with timeout of 5 seconds...")
@@ -34,11 +33,6 @@ def connect_to_server(ip, port):
             time.sleep(2)
 
 def main():
-    sct = mss.mss()
-
-    #TODO remove this once macro controls are separated from main driver
-    m = Controller()
-    
     if len(sys.argv) > 2:
         server_ip = sys.argv[1]
         server_port = int(sys.argv[2])
@@ -52,13 +46,13 @@ def main():
         clickbot.set_clicks()
         clickbot.set_jump_values()
         clickbot.save_profile(CLICKBOT_PROFILE)
-   
-    # TODO remove this once macro controls are separated from main driver
-    bbox = []
-    input("Hover the mouse over RED outside bet, then press ENTER:")
-    x,y = m.position
-    bbox.append(x)
-    bbox.append(y)
+
+    macro = Macro()
+    if not macro.load_profile(MACRO_PROFILE):
+        macro.set_screen_condition()
+        macro.record_macro(REFRESH_BET_MACRO)
+        macro.record_macro(RESIGNIN_MACRO)
+        macro.save_profile()
 
     input("Press ENTER when ready to connect to server:")
     client = connect_to_server(server_ip, server_port)
@@ -89,17 +83,13 @@ def main():
                 continue
             clickbot.make_clicks(msg.direction, msg.prediction)
 
-        # TODO separate macro functions from driver program
         time.sleep(4)
-        sct_img = sct.grab({"left": bbox[0], "top": bbox[1], "width": 1, "height": 1, "mon":0})
-        pixel = sct_img.pixel(0, 0)
-        if pixel[0] < RED_THRESH:
-            k = keyboard.Controller()
-            m.position = (bbox[0],bbox[1])
-            m.press(Button.left)
-            m.release(Button.left)
-            k.press(keyboard.Key.f5)
-            k.release(keyboard.Key.f5)
+        if macro.is_screen_condition_true():
+            while True:
+                macro.execute_macro(REFRESH_BET_MACRO)
+                time.sleep(6)
+                if macro.is_screen_condition_true():
+                    macro.execute_macro(RESIGNIN_MACRO)
 
 
 main()

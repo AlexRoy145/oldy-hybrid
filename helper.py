@@ -31,7 +31,11 @@ def main():
         direction = input("Type A for anticlockwise, C for clockwise, D to change detection zone, J to change jump values, or T for test mode (do NOT make clicks), then hit ENTER: ").lower()
         if direction == "d":
             clickbot.set_detection_zone()
+            clickbot.save_profile(CLICKBOT_PROFILE)
             continue
+        if direction == "j":
+            clickbot.set_jump_values()
+            clickbot.save_profile(CLICKBOT_PROFILE)
         if direction == "t":
             print ("TEST MODE: Press SPACE when the raw prediction appears, and will print what OCR thinks the raw is.") 
         else:

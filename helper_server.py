@@ -104,9 +104,12 @@ CM: Clockwise Me Only, click for yourself and DON'T send click commands to clien
             continue
         if direction == "d":
             clickbot.set_detection_zone()
+            clickbot.save_profile(CLICKBOT_PROFILE)
             continue
         if direction == "j":
             clickbot.set_jump_values()
+            clickbot.save_profile(CLICKBOT_PROFILE)
+            continue
         if direction == "t":
             print ("TEST MODE: Press SPACE when the raw prediction appears, and will print what OCR thinks the raw is.") 
             msg.test_mode = True
