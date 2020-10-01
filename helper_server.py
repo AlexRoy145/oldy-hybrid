@@ -15,40 +15,13 @@ import mss
 import msvcrt
 import numpy as np
 from pytessy import PyTessy
+from clickbot import Clickbot
 
 SOCKET_TIMEOUT = 30
 CLICKBOT_PROFILE = "profile.dat"
 
 # index is raw prediction, value is (x,y) pixel coordinates of the clickbot numbers
-coords = []
 seq_num = 0
-
-def set_clickbot_num_coords(x, y, button, pressed):
-    global coords
-    if pressed:
-        coords.append((x, y))
-        length = len(coords)
-        if length == 37:
-            print(f"Clicked 36, finished setting up clickbot macro.")
-        else:
-            print(f"Clicked {length-1}, now click {length}.")
-        #debug
-        print(f"{length-1} is at {x},{y}")
-
-def set_detection_zone(m):
-    bbox = []
-    input("Hover the mouse over the upper left corner of the detection zone for the raw prediction number, then hit ENTER.")
-    x_top,y_top = m.position
-    bbox.append(x_top)
-    bbox.append(y_top)
-
-    input("Hover the mouse over the bottom right corner of the detection zone, then hit ENTER.")
-    x_bot,y_bot = m.position
-    bbox.append(x_bot)
-    bbox.append(y_bot)
-
-    print(f"Bounding box: {bbox}")
-    return bbox
 
 def accept_new_connections(server_ip, server_port):
     while True:
@@ -71,6 +44,7 @@ def accept_new_connections(server_ip, server_port):
     s.close()
     return clients
 
+
 def send_message(clients, msg):
     global seq_num
     msg.seq_num = seq_num
@@ -84,9 +58,7 @@ def send_message(clients, msg):
             print(f"***ERROR*** Failed to send because {addr} is disconnected. If you want this client to be able to receive commands, select menu option N to reset and reconnect all clients.")
 
     
-
 def main():
-    global coords
 
     if len(sys.argv) > 2:
         server_ip = sys.argv[1]
@@ -96,51 +68,18 @@ def main():
         exit()
 
     sct = mss.mss()
-   
-    set_coords = False
-    if os.path.isfile(CLICKBOT_PROFILE):
-        choice = input("Previous clickbot profile found, use this instead? (Y/N): ").lower()
-        if choice == "y":
-            with open(CLICKBOT_PROFILE, "rb") as f:
-                try:
-                    coords = pickle.load(f)
-                except pickle.UnpicklingError:
-                    print("Error loading clickbot profile file, corrupted or not the right file?")
-                    exit()
-        else:
-            set_coords = True
 
-    else:
-        set_coords = True
-        
+    clickbot = Clickbot()
+    if not clickbot.load_profile(CLICKBOT_PROFILE):
+        print("Could not find profile. Setting up from scratch.")
+        clickbot.set_clicks()
+        clickbot.set_jump_values()
+        clickbot.set_detection_zone()
+        clickbot.save_profile(CLICKBOT_PROFILE)
 
-    if set_coords:
-        print("Click the clickbot's buttons in order from 0-36 to set the coordinates. Start at 0, end at 36.")
-        listener = mouse.Listener(on_click=set_clickbot_num_coords)
-        listener.start()
-        while True:
-            if len(coords) == 37:
-                listener.stop()            
-                listener.join()
-                if os.path.isfile(CLICKBOT_PROFILE):
-                    choice = input("Found clickbot profile: overwrite it? (Y/N): ").lower()
-                    if choice == "y":
-                        with open(CLICKBOT_PROFILE, "wb") as f:
-                            pickle.dump(coords, f)
-                            print(f"Wrote profile to {CLICKBOT_PROFILE}.")
-                else:
-                    print("Writing coordinates to profile file.")
-                    with open(CLICKBOT_PROFILE, "wb") as f:
-                        pickle.dump(coords, f)
-
-                break
-            time.sleep(.3)
-        
     m = Controller()
     p = PyTessy()
 
-    bbox = set_detection_zone(m)
-      
     clients = accept_new_connections(server_ip, server_port)
       
     while True:
@@ -149,6 +88,7 @@ def main():
 C: Clockwise, click for yourself and send click command to clients.
 D: Change the detection zone.
 T: Test mode (do NOT make clicks, but send TEST send commands to clients to test connectivity).
+J: Change jump values.
 N: Close all current connections with clients, and listen/accept new connections. Use this to refresh the state of connections (for example, clients dying and wanting to reconnect, or adding a new client.)
 AM: Anticlockwise Me Only, click for yourself and DON'T send click commands to clients.
 CM: Clockwise Me Only, click for yourself and DON'T send click commands to clients.\n""")
@@ -163,8 +103,10 @@ CM: Clockwise Me Only, click for yourself and DON'T send click commands to clien
             clients = accept_new_connections(server_ip, server_port)
             continue
         if direction == "d":
-            bbox = set_detection_zone(m)
+            clickbot.set_detection_zone()
             continue
+        if direction == "j":
+            clickbot.set_jump_values()
         if direction == "t":
             print ("TEST MODE: Press SPACE when the raw prediction appears, and will print what OCR thinks the raw is.") 
             msg.test_mode = True
@@ -178,6 +120,7 @@ CM: Clockwise Me Only, click for yourself and DON'T send click commands to clien
         except KeyboardInterrupt:
             continue
             
+        bbox = clickbot.detection_zone
         now = time.time()
         width = bbox[2]-bbox[0]
         height = bbox[3]-bbox[1]
@@ -185,7 +128,6 @@ CM: Clockwise Me Only, click for yourself and DON'T send click commands to clien
         pil_image = Image.frombytes('RGB', sct_img.size, sct_img.rgb)
         open_cv_image = np.array(pil_image)
         open_cv_image = open_cv_image[:, :, ::-1].copy() 
-
 
         finalimage = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2GRAY)
         ret,thresholded = cv2.threshold(finalimage, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
@@ -224,19 +166,11 @@ CM: Clockwise Me Only, click for yourself and DON'T send click commands to clien
             print("ERROR: Incorrectly detected raw prediction, could not click.")
             msg.error = True
             if not "m" in direction:
-                send_message(clients, err)
+                send_message(clients, msg)
             continue
 
-        if direction != "t": 
-            m.position = coords[prediction]
-            if direction == "c":
-                m.press(Button.left)
-                m.release(Button.left)
-            else:
-                m.press(Button.right)
-                m.release(Button.right)
-            print(f"Clicked at {coords[prediction]}")
-
+        clickbot.make_clicks(direction, prediction)
+        
         if not "m" in direction:
             msg.prediction = prediction
             send_message(clients, msg)

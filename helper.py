@@ -1,8 +1,5 @@
 import sys
 import time
-from pynput import mouse
-from pynput.mouse import Button, Controller
-from PIL import Image
 import ctypes
 import ctypes.util
 import cv2
@@ -11,91 +8,29 @@ import pickle
 import mss
 import msvcrt
 import numpy as np
+from PIL import Image
 from pytessy import PyTessy
+from clickbot import Clickbot
 
 # index is raw prediction, value is (x,y) pixel coordinates of the clickbot numbers
-coords = []
 CLICKBOT_PROFILE = "profile.dat"
 
-def set_clickbot_num_coords(x, y, button, pressed):
-    global coords
-    if pressed:
-        coords.append((x, y))
-        length = len(coords)
-        if length == 37:
-            print(f"Clicked 36, finished setting up clickbot macro.")
-        else:
-            print(f"Clicked {length-1}, now click {length}.")
-        #debug
-        print(f"{length-1} is at {x},{y}")
-
-def set_detection_zone(m):
-    bbox = []
-    input("Hover the mouse over the upper left corner of the detection zone for the raw prediction number, then hit ENTER.")
-    x_top,y_top = m.position
-    bbox.append(x_top)
-    bbox.append(y_top)
-
-    input("Hover the mouse over the bottom right corner of the detection zone, then hit ENTER.")
-    x_bot,y_bot = m.position
-    bbox.append(x_bot)
-    bbox.append(y_bot)
-
-    print(f"Bounding box: {bbox}")
-    return bbox
-
 def main():
-    global coords
     sct = mss.mss()
-
-    set_coords = False
-    if os.path.isfile(CLICKBOT_PROFILE):
-        choice = input("Previous clickbot profile found, use this instead? (Y/N): ").lower()
-        if choice == "y":
-            with open(CLICKBOT_PROFILE, "rb") as f:
-                try:
-                    coords = pickle.load(f)
-                except pickle.UnpicklingError:
-                    print("Error loading clickbot profile file, corrupted or not the right file?")
-                    exit()
-        else:
-            set_coords = True
-
-    else:
-        set_coords = True
-        
-
-    if set_coords:
-        print("Click the clickbot's buttons in order from 0-36 to set the coordinates. Start at 0, end at 36.")
-        listener = mouse.Listener(on_click=set_clickbot_num_coords)
-        listener.start()
-        while True:
-            if len(coords) == 37:
-                listener.stop()            
-                listener.join()
-                if os.path.isfile(CLICKBOT_PROFILE):
-                    choice = input("Found clickbot profile: overwrite it? (Y/N): ").lower()
-                    if choice == "y":
-                        with open(CLICKBOT_PROFILE, "wb") as f:
-                            pickle.dump(coords, f)
-                            print(f"Wrote profile to {CLICKBOT_PROFILE}.")
-                else:
-                    print("Writing coordinates to profile file.")
-                    with open(CLICKBOT_PROFILE, "wb") as f:
-                        pickle.dump(coords, f)
-
-                break
-            time.sleep(.3)
-        
-    m = Controller()
     p = PyTessy()
 
-    bbox = set_detection_zone(m)
-
+    clickbot = Clickbot()
+    if not clickbot.load_profile(CLICKBOT_PROFILE):
+        print("Could not find profile. Setting up from scratch.")
+        clickbot.set_clicks()
+        clickbot.set_jump_values()
+        clickbot.set_detection_zone()
+        clickbot.save_profile(CLICKBOT_PROFILE)
+             
     while True:
-        direction = input("Type A for anticlockwise, C for clockwise, D to change detection zone, or T for test mode (do NOT make clicks), then hit ENTER: ").lower()
+        direction = input("Type A for anticlockwise, C for clockwise, D to change detection zone, J to change jump values, or T for test mode (do NOT make clicks), then hit ENTER: ").lower()
         if direction == "d":
-            bbox = set_detection_zone(m)
+            clickbot.set_detection_zone()
             continue
         if direction == "t":
             print ("TEST MODE: Press SPACE when the raw prediction appears, and will print what OCR thinks the raw is.") 
@@ -108,7 +43,9 @@ def main():
                         break
         except KeyboardInterrupt:
             continue
+
         now = time.time()
+        bbox = clickbot.detection_zone
         width = bbox[2]-bbox[0]
         height = bbox[3]-bbox[1]
         sct_img = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
@@ -116,16 +53,8 @@ def main():
         open_cv_image = np.array(pil_image)
         open_cv_image = open_cv_image[:, :, ::-1].copy() 
 
-
         finalimage = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2GRAY)
         ret,thresholded = cv2.threshold(finalimage, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
-
-        '''
-        cv2.imshow('before binarization', finalimage)
-        cv2.waitKey(0)
-        cv2.imshow('after binarization', thresholded)
-        cv2.waitKey(0)
-        '''
 
         finalimage = thresholded
         end = time.time()
@@ -150,15 +79,8 @@ def main():
             print("ERROR: Incorrectly detected raw prediction, could not click.")
             continue
 
-        if direction != "t": 
-            m.position = coords[prediction]
-            if direction == "c":
-                m.press(Button.left)
-                m.release(Button.left)
-            else:
-                m.press(Button.right)
-                m.release(Button.right)
-            print(f"Clicked at {coords[prediction]}")
+        clickbot.make_clicks(direction, prediction)
+
 
 def post_process(prediction):
     if prediction:
