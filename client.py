@@ -1,4 +1,5 @@
 import socket
+import signal
 import select
 import time
 import pickle
@@ -12,7 +13,7 @@ class Client:
         self.server_ip = server_ip
         self.server_port = server_port
         self.client = None
-
+        
 
     def connect_to_server(self):
         print(f"Attempting to connect to {self.server_ip}:{self.server_port} with timeout of 5 seconds...")
@@ -32,12 +33,13 @@ class Client:
 
 
     def recv_msg(self):
+        read_ready, write_ready, except_ready = select.select([self.client], [], [])
         msg = self.client.recv(Client.BUF_SIZ)
 
         if not msg:
             print("Connection closed, attempting to reconnect...")
             self.client.close()
-            self.client = self.connect_to_server()
+            self.connect_to_server()
             return None
 
         try:

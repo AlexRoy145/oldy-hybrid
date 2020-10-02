@@ -12,6 +12,8 @@ class Server:
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.seq_num = 0
 
+        signal.signal(signal.SIGINT, self.sig_handler)
+
 
     def accept_new_connections(self):
         while True:
@@ -44,6 +46,9 @@ class Server:
                 print(f"Sent {ret} byte message: {msg}")
             except OSError:
                 print(f"***ERROR*** Failed to send because {addr} is disconnected. If you want this client to be able to receive commands, select menu option N to reset and reconnect all clients.")
+                c.shutdown(socket.SHUT_RDWR)
+                c.close()
+                del self.clients[addr]
         
 
     def close_and_reaccept_connections(self):

@@ -89,12 +89,33 @@ class Clickbot:
             self.number_coords.append((x,y))
             print(f"Number {i} at ({x},{y}).")
 
+    
+    def adjust_jumps_for_green_swap(self, direction, jumps, green_swap):
+        if green_swap == 1:
+            # For green at 3-9 diamonds, BASE CASE, NO SCATTER CHANGE
+            shift = 0
+        elif green_swap == 2:
+            # For green at 12-6 diamonds
+            shift = 9
+        elif green_swap == 3:
+            # For green at 1.5-7.5 diamonds
+            shift = 4
+        elif green_swap == 4:
+            # For green at 4.5-10.5 diamonds
+            shift = 4
 
-    def get_tuned_from_raw(self, direction, raw_prediction):
+        jumps = [x + shift for x in jumps] 
+        return jumps
+
+
+    def get_tuned_from_raw(self, direction, raw_prediction, green_swap=None):
         if direction == "a":
             jumps = self.jump_anti
         else:
             jumps = self.jump_clock
+
+        if green_swap:
+            jumps = self.adjust_jumps_for_green_swap(direction, jumps, green_swap)
 
         tuned_predictions = []
         for jump in jumps:
@@ -110,9 +131,9 @@ class Clickbot:
         return tuned_predictions
 
 
-    def make_clicks_given_raw(self, direction, raw_prediction):
+    def make_clicks_given_raw(self, direction, raw_prediction, green_swap=None):
         if direction != "t":
-            self.make_clicks(direction, self.get_tuned_from_raw(direction, raw_prediction))
+            self.make_clicks(direction, self.get_tuned_from_raw(direction, raw_prediction, green_swap=None))
         
 
     def make_clicks(self, direction, tuned_predictions):

@@ -68,9 +68,11 @@ def main():
                         client.close()
                         exit()
                     macro.execute_macro(REFRESH_BET_MACRO)
-                    time.sleep(6)
+                    time.sleep(10)
                     if macro.is_screen_condition_true():
                         macro.execute_macro(RESIGNIN_MACRO)
+                        if not macro.is_screen_condition_true():
+                            break
                         macro_count += 1
                     else:
                         break

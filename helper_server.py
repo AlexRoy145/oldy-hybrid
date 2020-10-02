@@ -12,11 +12,12 @@ CLICKBOT_PROFILE = "profile.dat"
 
 def main():
 
-    if len(sys.argv) > 2:
+    if len(sys.argv) > 3:
         server_ip = sys.argv[1]
         server_port = int(sys.argv[2])
+        use_green_swap = bool(sys.argv[3])
     else:
-        print("Usage: py helper_server.py server_ip_address server_port")
+        print("Usage: py helper_server.py server_ip_address server_port use_green_swap(True or False)")
         exit()
 
     clickbot = Clickbot()
@@ -61,6 +62,20 @@ CM: Clockwise Me Only, click for yourself and DON'T send click commands to clien
             print ("TEST MODE: Press SPACE when the raw prediction appears, and will print what OCR thinks the raw is.") 
             msg.test_mode = True
         else:
+            if use_green_swap:
+                # Do Green Swapping
+                while True:
+                    try:
+                        green_swap = int(input("Enter 1: 3-9 green, 2: 12-6 green, 3: 1.5-7.5 green, 4: 4.5-10.5 green : "))
+                        if green_swap < 1 or green_swap > 4:
+                            print("Invalid number.")
+                            continue
+                        else:
+                            break
+                    except ValueError:
+                        print("Invalid number.")
+                        continue
+
             print("Press SPACE when the raw prediction appears, and it will automatically click the correct clickbot number. Press CTRL+C to exit.")
         try:
             while True:
@@ -88,11 +103,13 @@ CM: Clockwise Me Only, click for yourself and DON'T send click commands to clien
                 server.send_message(msg)
             continue
 
-        clickbot.make_clicks_given_raw(direction, prediction)
+        if not use_green_swap:
+            green_swap = None
+        clickbot.make_clicks_given_raw(direction, prediction, green_swap=green_swap)
         
         if not "m" in direction:
             msg.raw_prediction = prediction
-            msg.tuned_predictions = clickbot.get_tuned_from_raw(direction, prediction)
+            msg.tuned_predictions = clickbot.get_tuned_from_raw(direction, prediction, green_swap=green_swap)
             server.send_message(msg)
 
 main()
