@@ -1,7 +1,12 @@
 import socket
-import select
 import pickle
 from message import Message
+
+# 60s
+KEEPALIVE_TIMEOUT_MS = 60000
+
+# 3s
+KEEPALIVE_INTERVAL_MS = 3000
 
 class Server:
 
@@ -11,8 +16,6 @@ class Server:
         self.clients = {}
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.seq_num = 0
-
-        signal.signal(signal.SIGINT, self.sig_handler)
 
 
     def accept_new_connections(self):
@@ -31,6 +34,8 @@ class Server:
             # establish connection with client 
             c, addr = self.s.accept() 
             self.clients[addr] = c
+
+            c.ioctl(socket.SIO_KEEPALIVE_VALS, (1, KEEPALIVE_TIMEOUT_MS, KEEPALIVE_INTERVAL_MS))
             print(f"Accepted new connection from {addr}")
 
         self.s.close()
@@ -40,10 +45,10 @@ class Server:
         msg.seq_num = self.seq_num
         self.seq_num += 1
         for addr, c in self.clients.items():
-            print(f"Sending command to {addr}...")
+            #print(f"Sending command to {addr}...")
             try:
                 ret = c.send(pickle.dumps(msg))
-                print(f"Sent {ret} byte message: {msg}")
+                #print(f"Sent {ret} byte message: {msg}")
             except OSError:
                 print(f"***ERROR*** Failed to send because {addr} is disconnected. If you want this client to be able to receive commands, select menu option N to reset and reconnect all clients.")
                 c.shutdown(socket.SHUT_RDWR)

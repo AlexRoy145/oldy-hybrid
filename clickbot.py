@@ -27,6 +27,7 @@ class Clickbot:
         with open(data_file, "wb") as f:
             pickle.dump(self.__dict__, f)
 
+
     def set_jump_helper(self, range_str, jump_list):
         range_split = range_str.split(",")
         for rang in range_split:
@@ -66,6 +67,10 @@ class Clickbot:
                 print(f"Invalid format: {e}")
 
 
+    def get_jump_values(self):
+        return self.jump_anti, self.jump_clock
+
+
     def set_detection_zone(self):
         self.detection_zone = []
 
@@ -90,7 +95,7 @@ class Clickbot:
             print(f"Number {i} at ({x},{y}).")
 
     
-    def adjust_jumps_for_green_swap(self, direction, jumps, green_swap):
+    def adjust_raw_for_green_swap(self, raw_prediction, green_swap):
         if green_swap == 1:
             # For green at 3-9 diamonds, BASE CASE, NO SCATTER CHANGE
             shift = 0
@@ -102,20 +107,24 @@ class Clickbot:
             shift = 4
         elif green_swap == 4:
             # For green at 4.5-10.5 diamonds
-            shift = 4
+            shift = -4
+        else:
+            return None
 
-        jumps = [x + shift for x in jumps] 
-        return jumps
+        length = len(self.european_wheel)
+        raw_idx = self.european_wheel.index(raw_prediction)
+        new_raw_idx = raw_idx + shift
+        if new_raw_idx > (length - 1):
+            return self.european_wheel[new_raw_idx % length]
+        else:
+            return self.european_wheel[new_raw_idx]
 
 
-    def get_tuned_from_raw(self, direction, raw_prediction, green_swap=None):
+    def get_tuned_from_raw(self, direction, raw_prediction):
         if direction == "a":
             jumps = self.jump_anti
         else:
             jumps = self.jump_clock
-
-        if green_swap:
-            jumps = self.adjust_jumps_for_green_swap(direction, jumps, green_swap)
 
         tuned_predictions = []
         for jump in jumps:
@@ -131,12 +140,12 @@ class Clickbot:
         return tuned_predictions
 
 
-    def make_clicks_given_raw(self, direction, raw_prediction, green_swap=None):
+    def make_clicks_given_raw(self, direction, raw_prediction):
         if direction != "t":
-            self.make_clicks(direction, self.get_tuned_from_raw(direction, raw_prediction, green_swap=None))
+            self.make_clicks_given_tuned(direction, self.get_tuned_from_raw(direction, raw_prediction))
         
 
-    def make_clicks(self, direction, tuned_predictions):
+    def make_clicks_given_tuned(self, direction, tuned_predictions):
         if direction != "t":
             for tuned_prediction in tuned_predictions:
                 self.m.position = self.number_coords[tuned_prediction]

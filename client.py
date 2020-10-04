@@ -1,9 +1,13 @@
 import socket
-import signal
-import select
 import time
 import pickle
 from message import Message
+
+# 60s
+KEEPALIVE_TIMEOUT_MS = 60000
+
+# 3s
+KEEPALIVE_INTERVAL_MS = 3000
 
 class Client:
 
@@ -27,13 +31,14 @@ class Client:
             if ret == 0:
                 print(f"Connected successfully with latency {latency}ms")
                 self.client.settimeout(None)
+
+                self.client.ioctl(socket.SIO_KEEPALIVE_VALS, (1, KEEPALIVE_TIMEOUT_MS, KEEPALIVE_INTERVAL_MS))
             else:
                 print("Failed to connect. Trying again..") 
                 time.sleep(2)
 
 
     def recv_msg(self):
-        read_ready, write_ready, except_ready = select.select([self.client], [], [])
         msg = self.client.recv(Client.BUF_SIZ)
 
         if not msg:

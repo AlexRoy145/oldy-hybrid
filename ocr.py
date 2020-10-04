@@ -37,10 +37,6 @@ class OCR:
 
         prediction = self.post_process(prediction)
 
-        print(f"Image grab took {end-now:.5f} seconds")
-        print(f"OCR took {end_2-now_2:.5f} seconds")
-        print(f"RAW PREDICTION: {prediction}")
-
         return prediction
 
 

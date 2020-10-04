@@ -20,20 +20,34 @@ def main():
     ocr = OCR(clickbot.detection_zone)
              
     while True:
-        direction = input("Type A for anticlockwise, C for clockwise, D to change detection zone, J to change jump values, or T for test mode (do NOT make clicks), then hit ENTER: ").lower()
+        print("""
+A: Anticlockwise 
+C: Clockwise
+D: Change detection zone
+J: Change jump values
+SJ: Show jump values
+T: Test mode (do NOT make clicks)\n""")
+        direction = input("Enter menu choice: ")
         if direction == "d":
             clickbot.set_detection_zone()
             ocr.detection_zone = clickbot.detection_zone
             clickbot.save_profile(CLICKBOT_PROFILE)
             continue
-        if direction == "j":
+        elif direction == "j":
             clickbot.set_jump_values()
             clickbot.save_profile(CLICKBOT_PROFILE)
             continue
-        if direction == "t":
-            print ("TEST MODE: Press SPACE when the raw prediction appears, and will print what OCR thinks the raw is.") 
-        else:
-            print("Press SPACE when the raw prediction appears, and it will automatically click the correct clickbot number. Press CTRL+C to exit.")
+        elif direction == "sj":
+            jump_anti, jump_clock = clickbot.get_jump_values()
+            print(f"Anticlockwise jump values: {jump_anti}")
+            print(f"Clockwise jump values: {jump_clock}")
+            continue
+        elif direction == "t":
+            print ("TEST MODE: Press SPACE when the raw prediction appears, and program will print what OCR thinks the raw is. It will also yield tuned predictions for CLOCKWISE.") 
+        elif direction != "a" and direction != "c":
+            print("Invalid menu option.")
+            continue
+        print("Press SPACE when the raw prediction appears, and it will automatically click the correct clickbot number. Press CTRL+C to exit.")
         try:
             while True:
                 if msvcrt.kbhit():
@@ -42,19 +56,23 @@ def main():
         except KeyboardInterrupt:
             continue
 
-        prediction = ocr.read_prediction()
+        raw_prediction = ocr.read_prediction()
+        print(f"RAW PREDICTION: {raw_prediction}")
 
         try:
-            prediction = int(prediction)
+            raw_prediction = int(raw_prediction)
         except (ValueError, TypeError) as e:
             print("ERROR: Incorrectly detected raw prediction, could not click.")
             continue
 
-        if prediction < 0 or prediction > 36:
+        if raw_prediction < 0 or raw_prediction > 36:
             print("ERROR: Incorrectly detected raw prediction, could not click.")
             continue
 
-        clickbot.make_clicks_given_raw(direction, prediction)
+        tuned_predictions = clickbot.get_tuned_from_raw(direction, raw_prediction)
+        print(f"TUNED PREDICTIONS: {tuned_predictions}")
+
+        clickbot.make_clicks_given_tuned(direction, tuned_predictions)
 
 
 main()
