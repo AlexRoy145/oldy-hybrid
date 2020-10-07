@@ -7,8 +7,15 @@ from clickbot import Clickbot
 from message import Message
 from server import Server
 from ocr import OCR
+from macro import Macro
 
 CLICKBOT_PROFILE = "profile.dat"
+MACRO_PROFILE = "macro.dat"
+
+REFRESH_BET_MACRO = "Refresh page if kicked for late bets"
+RESIGNIN_MACRO = "Resign into the website and pull up betting interface"
+
+MAX_MACRO_COUNT = 3
 
 def main():
 
@@ -16,7 +23,12 @@ def main():
     parser.add_argument("server_ip", type=str, help="The server's IP address.")
     parser.add_argument("server_port", type=int, help="The server's port.")
     parser.add_argument("--use-green-swap", action="store_true")
+    parser.add_argument("--use-refresh-macro", action="store_true")
+    parser.add_argument("--use-signin-macro", action="store_true")
+
     args = parser.parse_args()
+
+    use_macro = args.use_refresh_macro or args.use_signin_macro
 
     clickbot = Clickbot()
     if not clickbot.load_profile(CLICKBOT_PROFILE):
@@ -25,6 +37,17 @@ def main():
         clickbot.set_jump_values()
         clickbot.set_detection_zone()
         clickbot.save_profile(CLICKBOT_PROFILE)
+
+    if use_macro:
+        macro = Macro()
+        if not macro.load_profile(MACRO_PROFILE):
+            macro.set_screen_condition()
+            if args.use_refresh_macro:
+                macro.record_macro(REFRESH_BET_MACRO)
+            if args.use_signin_macro:
+                macro.record_macro(RESIGNIN_MACRO)
+            macro.save_profile(MACRO_PROFILE)
+
 
     server = Server(args.server_ip, args.server_port)
     server.accept_new_connections()
@@ -124,8 +147,31 @@ CM: Clockwise Me Only, click for yourself and DON'T send click commands to clien
             clickbot.make_clicks_given_tuned(direction, tuned_predictions)
         
         if not "m" in direction:
+            msg.direction = direction
             msg.raw_prediction = raw_prediction
             msg.tuned_predictions = tuned_predictions
             server.send_message(msg)
+
+        if use_macro:
+            macro_count = 0
+            time.sleep(4)
+            if macro.is_screen_condition_true():
+                while True:
+                    if macro_count > MAX_MACRO_COUNT:
+                        print("Used macro too many times. State unknown. Quitting...")
+                        client.close()
+                        exit()
+                    if args.use_refresh_macro:
+                        macro.execute_macro(REFRESH_BET_MACRO)
+                        time.sleep(10)
+                    if macro.is_screen_condition_true():
+                        if args.use_signin_macro:
+                            macro.execute_macro(RESIGNIN_MACRO)
+                            if not macro.is_screen_condition_true():
+                                break
+                            macro_count += 1
+                    else:
+                        break
+
 
 main()
