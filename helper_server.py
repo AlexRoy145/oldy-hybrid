@@ -22,6 +22,7 @@ def main():
     parser = argparse.ArgumentParser(description="Run the server betting program.")
     parser.add_argument("server_ip", type=str, help="The server's IP address.")
     parser.add_argument("server_port", type=int, help="The server's port.")
+    parser.add_argument("--no-bet", action="store_true")
     parser.add_argument("--use-green-swap", action="store_true")
     parser.add_argument("--use-refresh-macro", action="store_true")
     parser.add_argument("--use-signin-macro", action="store_true")
@@ -143,7 +144,7 @@ CM: Clockwise Me Only, click for yourself and DON'T send click commands to clien
             print(f"GREEN ADJUSTED RAW PREDICTION: {raw_prediction}")
             print(f"GREEN ADJUSTED TUNED PREDICTIONS: {tuned_predictions}")
 
-        if direction != "t":
+        if direction != "t" and not args.no_bet:
             clickbot.make_clicks_given_tuned(direction, tuned_predictions)
         
         if not "m" in direction:
