@@ -39,7 +39,10 @@ class Client:
 
 
     def recv_msg(self):
-        msg = self.client.recv(Client.BUF_SIZ)
+        try:
+            msg = self.client.recv(Client.BUF_SIZ)
+        except ConnectionResetError:
+            msg = None
 
         if not msg:
             print("Connection closed, attempting to reconnect...")

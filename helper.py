@@ -81,7 +81,7 @@ T: Test mode (do NOT make clicks)\n""")
         except KeyboardInterrupt:
             continue
 
-        raw_prediction = ocr.read_prediction()
+        raw_prediction = ocr.read()
         print(f"RAW PREDICTION: {raw_prediction}")
 
         try:

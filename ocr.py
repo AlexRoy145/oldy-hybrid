@@ -15,7 +15,7 @@ class OCR:
         self.p = PyTessy()
 
 
-    def read_prediction(self):
+    def read(self):
         now = time.time()
         bbox = self.detection_zone
         width = bbox[2]-bbox[0]

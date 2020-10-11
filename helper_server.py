@@ -36,7 +36,7 @@ def main():
         print("Could not find profile. Setting up from scratch.")
         clickbot.set_clicks()
         clickbot.set_jump_values()
-        clickbot.set_detection_zone()
+        clickbot.set_detection_zone("raw prediction number")
         clickbot.save_profile(CLICKBOT_PROFILE)
 
     if use_macro:
@@ -51,7 +51,7 @@ def main():
 
 
     server = Server(args.server_ip, args.server_port)
-    server.accept_new_connections()
+    server.accept_connections()
 
     ocr = OCR(clickbot.detection_zone)
       
@@ -63,19 +63,20 @@ D: Change the detection zone.
 T: Test mode (do NOT make clicks, but send TEST send commands to clients to test connectivity).
 SJ: Show jump values.
 J: Change jump values.
-N: Close all current connections with clients, and listen/accept new connections. Use this to refresh the state of connections (for example, clients dying and wanting to reconnect, or adding a new client.)
+SC: Show connected clients.
 AM: Anticlockwise Me Only, click for yourself and DON'T send click commands to clients.
 CM: Clockwise Me Only, click for yourself and DON'T send click commands to clients.\n""")
         direction = input("Enter menu option: ").lower()
         if not direction:
             continue
-        elif direction == "n":
-            server.close_and_reaccept_connections()
-            continue
         elif direction == "d":
             clickbot.set_detection_zone()
             ocr.detection_zone = clickbot.detection_zone
             clickbot.save_profile(CLICKBOT_PROFILE)
+            continue
+        elif direction == "sc":
+            for addr in server.clients.keys():
+                print(addr)
             continue
         elif direction == "j":
             clickbot.set_jump_values()
@@ -114,7 +115,7 @@ CM: Clockwise Me Only, click for yourself and DON'T send click commands to clien
         except KeyboardInterrupt:
             continue
 
-        raw_prediction = ocr.read_prediction()
+        raw_prediction = ocr.read()
         if raw_prediction != None:
             raw_prediction = raw_prediction.strip()
         print(f"RAW PREDICTION: {raw_prediction}")
