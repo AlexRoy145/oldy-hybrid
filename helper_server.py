@@ -9,7 +9,7 @@ from server import Server
 from ocr import OCR
 from macro import Macro
 
-PROFILE_DIR = "saved_profiles"
+PROFILE_DIR = "../../../Documents/crm_saved_profiles"
 CLICKBOT_PROFILE = "profile.dat"
 MACRO_PROFILE = "macro.dat"
 

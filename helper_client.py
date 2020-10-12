@@ -15,7 +15,7 @@ from macro import Macro
 from client import Client
 from ocr import OCR
 
-PROFILE_DIR = "saved_profiles"
+PROFILE_DIR = "../../../Documents/crm_saved_profiles"
 CLICKBOT_PROFILE = "profile.dat"
 MACRO_PROFILE = "macro.dat"
 
