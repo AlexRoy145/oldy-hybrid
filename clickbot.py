@@ -1,22 +1,27 @@
-from pynput import mouse
-from pynput.mouse import Button, Controller
+import os
 import os.path
 import pickle
+from pynput import mouse
+from pynput.mouse import Button, Controller
 
 class Clickbot:
 
-    def __init__(self):
+    def __init__(self, profile_dir):
         self.m = Controller()
         self.number_coords = []
         self.jump_anti = []
         self.jump_clock = []
         self.detection_zone = []
         self.european_wheel = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26]
+        self.profile_dir = profile_dir
+        if not os.path.isdir(self.profile_dir):
+            os.mkdir(self.profile_dir)
 
 
     def load_profile(self, data_file):
-        if os.path.isfile(data_file):
-            with open(data_file, "rb") as f:
+        path = os.path.join(self.profile_dir, data_file)
+        if os.path.isfile(path):
+            with open(path, "rb") as f:
                 self.__dict__.update(pickle.load(f))
             return True
         else:
@@ -24,7 +29,8 @@ class Clickbot:
 
 
     def save_profile(self, data_file):
-        with open(data_file, "wb") as f:
+        path = os.path.join(self.profile_dir, data_file)
+        with open(path, "wb") as f:
             pickle.dump(self.__dict__, f)
 
 

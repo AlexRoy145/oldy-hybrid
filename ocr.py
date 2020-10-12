@@ -15,7 +15,7 @@ class OCR:
         self.p = PyTessy()
 
 
-    def read(self):
+    def read(self, test=False):
         now = time.time()
         bbox = self.detection_zone
         width = bbox[2]-bbox[0]
@@ -24,6 +24,9 @@ class OCR:
         pil_image = Image.frombytes('RGB', sct_img.size, sct_img.rgb)
         open_cv_image = np.array(pil_image)
         open_cv_image = open_cv_image[:, :, ::-1].copy() 
+        if test:
+            cv2.imshow("captured image", open_cv_image)
+            cv2.waitKey(0)
 
         finalimage = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2GRAY)
         ret,thresholded = cv2.threshold(finalimage, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
@@ -61,6 +64,7 @@ class OCR:
             prediction = prediction.replace("o", "0")
             prediction = prediction.replace("Q", "0")
 
+            prediction = prediction.replace("a", "8")
             prediction = prediction.replace("B", "8")
 
         return prediction

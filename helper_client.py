@@ -15,6 +15,7 @@ from macro import Macro
 from client import Client
 from ocr import OCR
 
+PROFILE_DIR = "saved_profiles"
 CLICKBOT_PROFILE = "profile.dat"
 MACRO_PROFILE = "macro.dat"
 
@@ -31,12 +32,13 @@ class CRMClient:
     def alert(self, msg):
         self.webhook.send(f"{self.hostname}: {msg}")
 
-    def __init__(self, server_ip, server_port, use_refresh_macro, use_signin_macro):
+    def __init__(self, server_ip, server_port, use_refresh_macro, use_signin_macro, set_acct_balance_zone):
 
         self.server_ip = server_ip
         self.server_port = server_port
         self.use_refresh_macro = use_refresh_macro
         self.use_signin_macro = use_signin_macro
+        self.set_acct_balance_zone = set_acct_balance_zone
         load_dotenv()
         WEBHOOK_ID = os.getenv("WEBHOOK_ID")
         WEBHOOK_TOKEN = os.getenv("WEBHOOK_TOKEN")
@@ -46,18 +48,20 @@ class CRMClient:
         # error metrics
         self.refreshes_used = 0
         self.error_count = 0
+        self.time_received_last_msg = time.time()
 
         self.use_macro = self.use_refresh_macro or self.use_signin_macro
         
-        self.clickbot = Clickbot()
+        self.clickbot = Clickbot(PROFILE_DIR)
         if not self.clickbot.load_profile(CLICKBOT_PROFILE):
             print("Could not find profile. Setting up from scratch.")
             self.clickbot.set_clicks()
             self.clickbot.set_detection_zone("balance of the account")
             self.clickbot.save_profile(CLICKBOT_PROFILE)
 
+        
         if self.use_macro:
-            self.macro = Macro()
+            self.macro = Macro(PROFILE_DIR)
             if not self.macro.load_profile(MACRO_PROFILE):
                 self.macro.set_screen_condition()
                 if self.use_refresh_macro:
@@ -66,10 +70,21 @@ class CRMClient:
                     self.macro.record_macro(RESIGNIN_MACRO)
                 self.macro.save_profile(MACRO_PROFILE)
 
+
+        self.ocr = OCR(self.clickbot.detection_zone)
+        if self.set_acct_balance_zone:
+            while True:
+                self.clickbot.set_detection_zone("balance of the account")
+                self.clickbot.save_profile(CLICKBOT_PROFILE)
+                balance = self.ocr.read(test=True)
+                print("OCR thought balance is: ", balance)
+                choice = input("A picture was shown indicating the detected zone. Close it out to continue. Reset detection zone? (Y/N): ").lower()
+                if choice != "y":
+                    break
+
         input("Press ENTER when ready to connect to server:")
         self.client = Client(self.server_ip, self.server_port)
         self.client.connect_to_server()
-        self.ocr = OCR(self.clickbot.detection_zone)
 
 
     def run(self):
@@ -87,6 +102,10 @@ class CRMClient:
                 if self.error_count > 5:
                     self.alert(f"WARNING: Received {self.error_count} misdetected predictions in the past {CHECK_INTERVAL} minutes.")
 
+                time_since_last_msg = int((time.time() - self.time_received_last_msg) / 60)
+                if self.time_since_last_msg >= CHECK_INTERVAL:
+                    self.alert(f"WARNING: It has been {time_since_last_msg} minutes since receiving the last command.")
+
                 account_balance = self.ocr.read()
                 self.alert(f"INFO: Account balance is {account_balance}")
 
@@ -98,13 +117,9 @@ class CRMClient:
     def start_app(self):
         while True:
 
-            start_time = time.time()
             print("Listening for commands...")
             msg = self.client.recv_msg()
-            end_time = time.time()
-            minutes = int((end_time - start_time) / 60)
-            if minutes > CHECK_INTERVAL:
-                self.alert(f"WARNING: It has been {minutes} minutes since receiving the last command.")
+            self.time_received_last_msg = time.time()
 
             if not msg:
                 continue
@@ -147,11 +162,12 @@ def main():
     parser = argparse.ArgumentParser(description="Run the client betting program.")
     parser.add_argument("server_ip", type=str, help="The server's IP address.")
     parser.add_argument("server_port", type=int, help="The server's port.")
+    parser.add_argument("--set-acct-balance-zone", action="store_true")
     parser.add_argument("--use-refresh-macro", action="store_true")
     parser.add_argument("--use-signin-macro", action="store_true")
     args = parser.parse_args()
 
-    app = CRMClient(args.server_ip, args.server_port, args.use_refresh_macro, args.use_signin_macro)
+    app = CRMClient(args.server_ip, args.server_port, args.use_refresh_macro, args.use_signin_macro, args.set_acct_balance_zone)
     try:
         app.run()
     except KeyboardInterrupt:

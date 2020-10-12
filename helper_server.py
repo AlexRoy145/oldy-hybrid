@@ -9,6 +9,7 @@ from server import Server
 from ocr import OCR
 from macro import Macro
 
+PROFILE_DIR = "saved_profiles"
 CLICKBOT_PROFILE = "profile.dat"
 MACRO_PROFILE = "macro.dat"
 
@@ -31,7 +32,7 @@ def main():
 
     use_macro = args.use_refresh_macro or args.use_signin_macro
 
-    clickbot = Clickbot()
+    clickbot = Clickbot(PROFILE_DIR)
     if not clickbot.load_profile(CLICKBOT_PROFILE):
         print("Could not find profile. Setting up from scratch.")
         clickbot.set_clicks()
@@ -40,7 +41,7 @@ def main():
         clickbot.save_profile(CLICKBOT_PROFILE)
 
     if use_macro:
-        macro = Macro()
+        macro = Macro(PROFILE_DIR)
         if not macro.load_profile(MACRO_PROFILE):
             macro.set_screen_condition()
             if args.use_refresh_macro:

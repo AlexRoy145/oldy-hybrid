@@ -6,7 +6,7 @@ from clickbot import Clickbot
 from macro import Macro
 from ocr import OCR
 
-# index is raw prediction, value is (x,y) pixel coordinates of the clickbot numbers
+PROFILE_DIR = "saved_profiles"
 CLICKBOT_PROFILE = "profile.dat"
 MACRO_PROFILE = "macro.dat"
 
@@ -24,7 +24,7 @@ def main():
 
     use_macro = args.use_refresh_macro or args.use_signin_macro
 
-    clickbot = Clickbot()
+    clickbot = Clickbot(PROFILE_DIR)
     if not clickbot.load_profile(CLICKBOT_PROFILE):
         print("Could not find profile. Setting up from scratch.")
         clickbot.set_clicks()
@@ -33,7 +33,7 @@ def main():
         clickbot.save_profile(CLICKBOT_PROFILE)
 
     if use_macro:
-        macro = Macro()
+        macro = Macro(PROFILE_DIR)
         if not macro.load_profile(MACRO_PROFILE):
             macro.set_screen_condition()
             if args.use_refresh_macro:

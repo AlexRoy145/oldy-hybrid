@@ -1,7 +1,9 @@
 import os.path
+import os
 import mss
 import time
 import pickle
+from pathlib import Path
 from pynput import mouse
 from pynput import keyboard
 
@@ -17,17 +19,21 @@ class Macro:
             self.button = button
 
 
-    def __init__(self):
+    def __init__(self, profile_dir):
         self.m = mouse.Controller()
         self.k = keyboard.Controller()
         self.sct = mss.mss()
         self.macros = {}
         self.screen_condition = None
+        self.profile_dir = profile_dir
+        if not os.path.isdir(self.profile_dir):
+            os.mkdir(self.profile_dir)
 
 
     def load_profile(self, data_file):
-        if os.path.isfile(data_file):
-            with open(data_file, "rb") as f:
+        path = os.path.join(self.profile_dir, data_file)
+        if os.path.isfile(path):
+            with open(path, "rb") as f:
                 self.__dict__.update(pickle.load(f))
             return True
         else:
@@ -35,7 +41,8 @@ class Macro:
 
 
     def save_profile(self, data_file):
-        with open(data_file, "wb") as f:
+        path = os.path.join(self.profile_dir, data_file)
+        with open(path, "wb") as f:
             d = {"screen_condition" : self.screen_condition, "macros" : self.macros}
             pickle.dump(d, f)
 
