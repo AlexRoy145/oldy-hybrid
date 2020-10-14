@@ -11,7 +11,7 @@ class OCR:
 
     def __init__(self, detection_zone):
         self.detection_zone = detection_zone
-        self.sct = mss.mss()
+        #self.sct = mss.mss()
         self.p = PyTessy()
 
 
@@ -20,7 +20,8 @@ class OCR:
         bbox = self.detection_zone
         width = bbox[2]-bbox[0]
         height = bbox[3]-bbox[1]
-        sct_img = self.sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
+        with mss.mss() as sct:
+            sct_img = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
         pil_image = Image.frombytes('RGB', sct_img.size, sct_img.rgb)
         open_cv_image = np.array(pil_image)
         open_cv_image = open_cv_image[:, :, ::-1].copy() 
