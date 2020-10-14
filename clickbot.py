@@ -77,7 +77,7 @@ class Clickbot:
         return self.jump_anti, self.jump_clock
 
 
-    def set_detection_zone(self, for_what):
+    def set_detection_zone(self, for_what="raw prediction"):
         self.detection_zone = []
 
         input(f"Hover the mouse over the upper left corner of the detection zone for the {for_what}, then hit ENTER.")

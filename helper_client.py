@@ -56,7 +56,7 @@ class CRMClient:
         if not self.clickbot.load_profile(CLICKBOT_PROFILE):
             print("Could not find profile. Setting up from scratch.")
             self.clickbot.set_clicks()
-            self.clickbot.set_detection_zone("balance of the account")
+            self.clickbot.set_detection_zone(for_what="balance of the account")
             self.clickbot.save_profile(CLICKBOT_PROFILE)
 
         
@@ -103,7 +103,7 @@ class CRMClient:
                     self.alert(f"WARNING: Received {self.error_count} misdetected predictions in the past {CHECK_INTERVAL} minutes.")
 
                 time_since_last_msg = int((time.time() - self.time_received_last_msg) / 60)
-                if self.time_since_last_msg >= CHECK_INTERVAL:
+                if time_since_last_msg >= CHECK_INTERVAL:
                     self.alert(f"WARNING: It has been {time_since_last_msg} minutes since receiving the last command.")
 
                 account_balance = self.ocr.read()
@@ -133,7 +133,7 @@ class CRMClient:
                     continue
                 self.clickbot.make_clicks_given_tuned(msg.direction, msg.tuned_predictions)
 
-            if self.use_macro:
+            if self.use_macro and not msg.test_mode:
                 macro_count = 0
                 time.sleep(4)
                 if self.macro.is_screen_condition_true():

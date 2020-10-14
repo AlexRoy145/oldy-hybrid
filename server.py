@@ -44,6 +44,8 @@ class Server:
             try:
                 c, addr = self.s.accept() 
                 if not addr[0] in self.allowed_ips:
+                    print(f"Denied connection from {addr[0]}")
+                    print(f"allowed ips: {self.allowed_ips}")
                     c.close()
                     continue
             except socket.timeout:
@@ -51,7 +53,7 @@ class Server:
             with self.clients_lock:
                 if addr in self.clients:
                     self.clients[addr].close()
-                self.clients[addr[0]] = c
+                self.clients[addr] = c
 
             c.ioctl(socket.SIO_KEEPALIVE_VALS, (1, KEEPALIVE_TIMEOUT_MS, KEEPALIVE_INTERVAL_MS))
             #print(f"Accepted new connection from {addr}")
