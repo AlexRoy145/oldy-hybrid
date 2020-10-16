@@ -18,6 +18,7 @@ from ocr import OCR
 PROFILE_DIR = "../../../Documents/crm_saved_profiles"
 CLICKBOT_PROFILE = "profile.dat"
 MACRO_PROFILE = "macro.dat"
+OCR_PROFILE = "ocr.dat"
 
 REFRESH_BET_MACRO = "Refresh page if kicked for late bets"
 RESIGNIN_MACRO = "Resign into the website and pull up betting interface"
@@ -56,8 +57,14 @@ class CRMClient:
         if not self.clickbot.load_profile(CLICKBOT_PROFILE):
             print("Could not find profile. Setting up from scratch.")
             self.clickbot.set_clicks()
-            self.clickbot.set_detection_zone(for_what="balance of the account")
             self.clickbot.save_profile(CLICKBOT_PROFILE)
+
+        
+        self.ocr = OCR(PROFILE_DIR)
+        if not self.ocr.load_profile(OCR_PROFILE):
+            print("Could not find ocr data. Setting up from scratch.")
+            self.ocr.set_acct_detection_zone()
+            self.ocr.save_profile(OCR_PROFILE)
 
         
         if self.use_macro:
@@ -71,11 +78,10 @@ class CRMClient:
                 self.macro.save_profile(MACRO_PROFILE)
 
 
-        self.ocr = OCR(self.clickbot.detection_zone)
         if self.set_acct_balance_zone:
             while True:
-                self.clickbot.set_detection_zone("balance of the account")
-                self.clickbot.save_profile(CLICKBOT_PROFILE)
+                self.ocr.set_acct_detection_zone()
+                self.ocr.save_profile(OCR_PROFILE)
                 balance = self.ocr.read(test=True)
                 print("OCR thought balance is: ", balance)
                 choice = input("A picture was shown indicating the detected zone. Close it out to continue. Reset detection zone? (Y/N): ").lower()
