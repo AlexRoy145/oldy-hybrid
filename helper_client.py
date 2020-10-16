@@ -97,7 +97,7 @@ class CRMClient:
             duration += 1
             if duration >= 60 * CHECK_INTERVAL:
                 if self.refreshes_used > 8:
-                    self.alert(f"WARNING: Used {self.refreshes_used} in the past {CHECK_INTERVAL} minutes.")
+                    self.alert(f"WARNING: Used {self.refreshes_used} refreshes in the past {CHECK_INTERVAL} minutes.")
 
                 if self.error_count > 5:
                     self.alert(f"WARNING: Received {self.error_count} misdetected predictions in the past {CHECK_INTERVAL} minutes.")
