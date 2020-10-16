@@ -144,6 +144,7 @@ CM: Clockwise Me Only, click for yourself and DON'T send click commands to clien
             continue
         '''
 
+        print("Waiting for change in direction...")
         direction, raw_prediction = ocr.start_capture()
         print(f"Direction: {direction}, Raw Prediction: {raw_prediction}")
         if not direction or not raw_prediction:
