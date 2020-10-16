@@ -270,9 +270,9 @@ class OCR:
                         return None, None
 
 
-    def read(self, test=False, capture=None):
+    def read(self, test=False, zone=self.raw_detection_zone):
         now = time.time()
-        bbox = self.raw_detection_zone
+        bbox = zone
         width = bbox[2]-bbox[0]
         height = bbox[3]-bbox[1]
         if capture:

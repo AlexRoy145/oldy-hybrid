@@ -112,7 +112,7 @@ class CRMClient:
                 if time_since_last_msg >= CHECK_INTERVAL:
                     self.alert(f"WARNING: It has been {time_since_last_msg} minutes since receiving the last command.")
 
-                account_balance = self.ocr.read()
+                account_balance = self.ocr.read(zone=self.ocr.acct_detection_zone)
                 self.alert(f"INFO: Account balance is {account_balance}")
 
                 self.refreshes_used = 0
