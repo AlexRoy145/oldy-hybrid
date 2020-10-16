@@ -24,6 +24,7 @@ def main():
     parser = argparse.ArgumentParser(description="Run the server betting program.")
     parser.add_argument("server_ip", type=str, help="The server's IP address.")
     parser.add_argument("server_port", type=int, help="The server's port.")
+    parser.add_argument("--change-scatter", action="store_true")
     parser.add_argument("--no-bet", action="store_true")
     parser.add_argument("--use-green-swap", action="store_true")
     parser.add_argument("--use-refresh-macro", action="store_true")
@@ -34,6 +35,7 @@ def main():
     use_macro = args.use_refresh_macro or args.use_signin_macro
 
     clickbot = Clickbot(PROFILE_DIR)
+
     if not clickbot.load_profile(CLICKBOT_PROFILE):
         print("Could not find clickbot data. Setting up from scratch.")
         clickbot.set_clicks()
@@ -47,6 +49,9 @@ def main():
         ocr.set_raw_detection_zone()
         ocr.save_profile(OCR_PROFILE) 
 
+    if args.change_scatter:
+        clickbot.set_jump_values()
+        clickbot.save_profile(CLICKBOT_PROFILE)
     
     if use_macro:
         macro = Macro(PROFILE_DIR)
@@ -65,92 +70,12 @@ def main():
     while True:
         msg = Message()
 
-        
-        '''
-        print("""\nA: Anticlockwise, click for yourself and send click command to clients.
-C: Clockwise, click for yourself and send click command to clients.
-DW: Change the WHEEL detection zone.
-DR: Change the RAW detection zone.
-T: Test mode (do NOT make clicks, but send TEST send commands to clients to test connectivity).
-SJ: Show jump values.
-J: Change jump values.
-SC: Show connected clients.
-AM: Anticlockwise Me Only, click for yourself and DON'T send click commands to clients.
-CM: Clockwise Me Only, click for yourself and DON'T send click commands to clients.\n""")
-        direction = input("Enter menu option: ").lower()
-        if not direction:
-            continue
-        elif direction == "dw":
-            ocr.set_wheel_detection_zone()
-            ocr.save_profile(OCR_PROFILE)
-            continue
-        elif direction == "dr":
-            ocr.set_raw_detection_zone()
-            ocr.save_profile(OCR_PROFILE)
-            continue
-        elif direction == "sc":
-            for addr in server.clients.keys():
-                print(addr)
-            continue
-        elif direction == "j":
-            clickbot.set_jump_values()
-            clickbot.save_profile(CLICKBOT_PROFILE)
-            continue
-        elif direction == "sj":
-            jump_anti, jump_clock = clickbot.get_jump_values()
-            print(f"Anticlockwise jump values: {jump_anti}")
-            print(f"Clockwise jump values: {jump_clock}")
-            continue
-        elif direction == "t":
-            print ("TEST MODE: Press SPACE when the raw prediction appears, and program will print what OCR thinks the raw is. It will also yield tuned predictions for CLOCKWISE.") 
-            msg.test_mode = True
-        elif not "a" in direction and not "c" in direction:
-            print("Invalid menu option.")
-            continue
-        if args.use_green_swap:
-            while True:
-                try:
-                    green_swap = int(input("Enter 1: 3-9 green, 2: 12-6 green, 3: 1.5-7.5 green, 4: 4.5-10.5 green : "))
-                    if green_swap < 1 or green_swap > 4:
-                        print("Invalid number.")
-                        continue
-                    else:
-                        break
-                except ValueError:
-                    print("Invalid number.")
-                    continue
-
-        print("Press SPACE when the raw prediction appears, and it will automatically click the correct clickbot number. Press CTRL+C to exit.")
-        try:
-            while True:
-                if msvcrt.kbhit():
-                    if ord(msvcrt.getch()) == 32:
-                        break
-        except KeyboardInterrupt:
-            continue
-
-        raw_prediction = ocr.read()
-        if raw_prediction != None:
-            raw_prediction = raw_prediction.strip()
-        print(f"RAW PREDICTION: {raw_prediction}")
-        
-        if ocr.is_valid_raw(raw_prediction):
-            raw_prediction = int(raw_prediction)
-        else:
-            print("ERROR: Incorrectly detected raw prediction, could not click.")
-            msg.error = True
-            if not "m" in direction:
-                server.send_message(msg)
-            continue
-        '''
-
         print("Waiting for change in direction...")
         direction, raw_prediction = ocr.start_capture()
         print(f"Direction: {direction}, Raw Prediction: {raw_prediction}")
         if not direction or not raw_prediction:
             continue
         direction = direction[0]
-
 
         tuned_predictions = clickbot.get_tuned_from_raw(direction, raw_prediction)
         print(f"TUNED PREDICTIONS: {tuned_predictions}")

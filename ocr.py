@@ -17,9 +17,8 @@ class OCR:
 
     GREEN_LOWER = (29, 86, 6)
     GREEN_UPPER = (64, 255, 255)
-    MIN_STABILITY_DURATION = 1.5 #seconds
     GIVE_UP_LOOKING_FOR_RAW = 10 #seconds
-    TIME_FOR_STABLE_DIRECTION = 2 #seconds
+    TIME_FOR_STABLE_DIRECTION = 1.5 #seconds
     MAX_MISDETECTIONS_BEFORE_RESETTING_STATE = 60
     DIFF_RATIO = 9
     MORPH_KERNEL_RATIO = .0005
@@ -99,6 +98,7 @@ class OCR:
     def start_capture(self):
         pts = deque(maxlen=OCR.LOOKBACK)
         current_direction = ""
+        seen_direction_change_start_time = None
         seen_direction_start_time = None
 
         watch_for_direction_change = False
@@ -160,6 +160,7 @@ class OCR:
                     direction_changed = False
                     direction_confirmed = False
                     current_direction = ""
+                    seen_direction_change_start_time = None
                     seen_direction_start_time = None
                     counter = 0
                     pts.clear()
@@ -175,30 +176,43 @@ class OCR:
 
                     if np.abs(dx) > self.diff_thresh or np.abs(dy) > self.diff_thresh:
                         # get direction of wheel movement
-                        is_left = ((previous[0] - wheel_center[0]) * (current[1] - wheel_center[1]) - 
-                                   (previous[1] - wheel_center[1]) * (current[0] - wheel_center[0])) < 0;
+                        is_anticlockwise = ((previous[0] - wheel_center[0]) * (current[1] - wheel_center[1]) - 
+                                            (previous[1] - wheel_center[1]) * (current[0] - wheel_center[0])) < 0;
 
     
-                        if is_left:
+                        if is_anticlockwise:
                             if current_direction == "clockwise":
                                 # if we've already seen the direction change once, reset state as its unstable
                                 if direction_changed:
                                     direction_changed = False
                                 else:
-                                    direction_changed = True
-                                    seen_direction_start_time = time.time()
+                                    if time.time() - seen_direction_start_time > OCR.TIME_FOR_STABLE_DIRECTION:
+                                        direction_changed = True
+                                        seen_direction_change_start_time = time.time()
+                                    else:
+                                        # initial direction changed too rapidly
+                                        current_direction = ""
+                            if current_direction == "":
+                                seen_direction_start_time = time.time()
+                                
                             current_direction = "anticlockwise"
                         else:
                             if current_direction == "anticlockwise":
                                 if direction_changed:
                                     direction_changed = False
                                 else:
-                                    direction_changed = True
-                                    seen_direction_start_time = time.time()
+                                    if time.time() - seen_direction_start_time > OCR.TIME_FOR_STABLE_DIRECTION:
+                                        direction_changed = True
+                                        seen_direction_change_start_time = time.time()
+                                    else:
+                                        current_direction = ""
+                            if current_direction == "":
+                                seen_direction_start_time = time.time()
+
                             current_direction = "clockwise"
 
                 if direction_changed:
-                    duration = time.time() - seen_direction_start_time
+                    duration = time.time() - seen_direction_change_start_time
                     if duration > OCR.TIME_FOR_STABLE_DIRECTION:
                         direction_change_stable = True
 
@@ -218,14 +232,14 @@ class OCR:
                     print(f"Direction change confirmed: {current_direction}. Identifying if raw is present.")
                     previous_raw = self.read(capture=sct)
                     if self.is_valid_raw(previous_raw):
-                        print(f"Raw is valid and is currently: {previous_raw}. Waiting up to {OCR.GIVE_UP_LOOKING_FOR_RAW} seconds for change.")
+                        print(f"Raw is valid and is currently: {previous_raw}. Waiting up to {OCR.GIVE_UP_LOOKING_FOR_RAW} seconds for it to change.")
                         # now wait for a change
                         start_time = time.time()
                         while True:
                             current_raw = self.read(capture=sct)
                             if self.is_valid_raw(current_raw):
                                 if current_raw != previous_raw:
-                                    print(f"Detected change in raw! Pressing space bar...")
+                                    print(f"Detected change in raw!") 
                                     return current_direction, int(current_raw)
 
                             duration = time.time() - start_time
@@ -234,7 +248,7 @@ class OCR:
                                 return None, None
 
                     else:
-                        print(f"Could not detect change in raw prediction properly")
+                        print(f"Could not detect a valid starting raw prediction.")
                         return None, None
 
 
