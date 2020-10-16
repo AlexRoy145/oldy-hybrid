@@ -11,7 +11,6 @@ class Clickbot:
         self.number_coords = []
         self.jump_anti = []
         self.jump_clock = []
-        self.detection_zone = []
         self.european_wheel = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26]
         self.profile_dir = profile_dir
         if not os.path.isdir(self.profile_dir):
@@ -75,22 +74,6 @@ class Clickbot:
 
     def get_jump_values(self):
         return self.jump_anti, self.jump_clock
-
-
-    def set_detection_zone(self, for_what="raw prediction"):
-        self.detection_zone = []
-
-        input(f"Hover the mouse over the upper left corner of the detection zone for the {for_what}, then hit ENTER.")
-        x_top,y_top = self.m.position
-        self.detection_zone.append(x_top)
-        self.detection_zone.append(y_top)
-
-        input("Hover the mouse over the bottom right corner of the detection zone, then hit ENTER.")
-        x_bot,y_bot = self.m.position
-        self.detection_zone.append(x_bot)
-        self.detection_zone.append(y_bot)
-
-        print(f"Bounding box: {self.detection_zone}")
 
 
     def set_clicks(self):

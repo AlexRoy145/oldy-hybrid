@@ -12,6 +12,7 @@ from macro import Macro
 PROFILE_DIR = "../../../Documents/crm_saved_profiles"
 CLICKBOT_PROFILE = "profile.dat"
 MACRO_PROFILE = "macro.dat"
+OCR_PROFILE = "ocr.dat"
 
 REFRESH_BET_MACRO = "Refresh page if kicked for late bets"
 RESIGNIN_MACRO = "Resign into the website and pull up betting interface"
@@ -34,12 +35,19 @@ def main():
 
     clickbot = Clickbot(PROFILE_DIR)
     if not clickbot.load_profile(CLICKBOT_PROFILE):
-        print("Could not find profile. Setting up from scratch.")
+        print("Could not find clickbot data. Setting up from scratch.")
         clickbot.set_clicks()
         clickbot.set_jump_values()
-        clickbot.set_detection_zone("raw prediction number")
         clickbot.save_profile(CLICKBOT_PROFILE)
 
+    ocr = OCR(PROFILE_DIR)
+    if not ocr.load_profile(OCR_PROFILE):
+        print("Could not find ocr data. Setting up from scratch.")
+        ocr.set_wheel_detection_zone()
+        ocr.set_raw_detection_zone()
+        ocr.save_profile(OCR_PROFILE) 
+
+    
     if use_macro:
         macro = Macro(PROFILE_DIR)
         if not macro.load_profile(MACRO_PROFILE):
@@ -54,13 +62,15 @@ def main():
     server = Server(args.server_ip, args.server_port)
     server.accept_connections()
 
-    ocr = OCR(clickbot.detection_zone)
-      
     while True:
         msg = Message()
+
+        
+        '''
         print("""\nA: Anticlockwise, click for yourself and send click command to clients.
 C: Clockwise, click for yourself and send click command to clients.
-D: Change the detection zone.
+DW: Change the WHEEL detection zone.
+DR: Change the RAW detection zone.
 T: Test mode (do NOT make clicks, but send TEST send commands to clients to test connectivity).
 SJ: Show jump values.
 J: Change jump values.
@@ -70,10 +80,13 @@ CM: Clockwise Me Only, click for yourself and DON'T send click commands to clien
         direction = input("Enter menu option: ").lower()
         if not direction:
             continue
-        elif direction == "d":
-            clickbot.set_detection_zone()
-            ocr.detection_zone = clickbot.detection_zone
-            clickbot.save_profile(CLICKBOT_PROFILE)
+        elif direction == "dw":
+            ocr.set_wheel_detection_zone()
+            ocr.save_profile(OCR_PROFILE)
+            continue
+        elif direction == "dr":
+            ocr.set_raw_detection_zone()
+            ocr.save_profile(OCR_PROFILE)
             continue
         elif direction == "sc":
             for addr in server.clients.keys():
@@ -120,22 +133,23 @@ CM: Clockwise Me Only, click for yourself and DON'T send click commands to clien
         if raw_prediction != None:
             raw_prediction = raw_prediction.strip()
         print(f"RAW PREDICTION: {raw_prediction}")
-            
-        try:
+        
+        if ocr.is_valid_raw(raw_prediction):
             raw_prediction = int(raw_prediction)
-        except (ValueError, TypeError) as e:
+        else:
             print("ERROR: Incorrectly detected raw prediction, could not click.")
             msg.error = True
             if not "m" in direction:
                 server.send_message(msg)
             continue
+        '''
 
-        if raw_prediction < 0 or raw_prediction > 36:
-            print("ERROR: Incorrectly detected raw prediction, could not click.")
-            msg.error = True
-            if not "m" in direction:
-                server.send_message(msg)
+        direction, raw_prediction = ocr.start_capture()
+        print(f"Direction: {direction}, Raw Prediction: {raw_prediction}")
+        if not direction or not raw_prediction:
             continue
+        direction = direction[0]
+
 
         tuned_predictions = clickbot.get_tuned_from_raw(direction, raw_prediction)
         print(f"TUNED PREDICTIONS: {tuned_predictions}")

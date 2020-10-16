@@ -9,6 +9,7 @@ from ocr import OCR
 PROFILE_DIR = "../../../Documents/crm_saved_profiles"
 CLICKBOT_PROFILE = "profile.dat"
 MACRO_PROFILE = "macro.dat"
+OCR_PROFILE = "ocr.dat"
 
 REFRESH_BET_MACRO = "Refresh page if kicked for late bets"
 RESIGNIN_MACRO = "Resign into the website and pull up betting interface"
@@ -29,8 +30,13 @@ def main():
         print("Could not find profile. Setting up from scratch.")
         clickbot.set_clicks()
         clickbot.set_jump_values()
-        clickbot.set_detection_zone()
         clickbot.save_profile(CLICKBOT_PROFILE)
+
+    ocr = OCR(OCR_PROFILE)
+    if not ocr.load_profile(OCR_PROFILE):
+        print("Could not find OCR data. Setting up from scratch.")
+        ocr.set_raw_detection_zone()
+        ocr.save_profile(OCR_PROFILE)
 
     if use_macro:
         macro = Macro(PROFILE_DIR)
@@ -54,9 +60,8 @@ SJ: Show jump values
 T: Test mode (do NOT make clicks)\n""")
         direction = input("Enter menu choice: ")
         if direction == "d":
-            clickbot.set_detection_zone()
-            ocr.detection_zone = clickbot.detection_zone
-            clickbot.save_profile(CLICKBOT_PROFILE)
+            ocr.set_detection_zone()
+            ocr.save_profile(CLICKBOT_PROFILE)
             continue
         elif direction == "j":
             clickbot.set_jump_values()
