@@ -12,6 +12,7 @@ class Clickbot:
         self.jump_anti = []
         self.jump_clock = []
         self.european_wheel = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26]
+        self.jump_array = list(range(0,19)) + list(range(-18,0))
         self.profile_dir = profile_dir
         if not os.path.isdir(self.profile_dir):
             os.mkdir(self.profile_dir)
@@ -34,38 +35,38 @@ class Clickbot:
 
 
     def set_jump_helper(self, range_str, jump_list):
-        range_split = range_str.split(",")
-        for rang in range_split:
-            split = rang.split(" to ")
-            start = int(split[0].strip())
-            if len(split) == 1:
-                end = start
-            else:
-                end = int(split[1].strip())
+        split = range_str.split(" to ")
+        if len(split) != 2:
+            raise ValueError("Invalid format.")
+        start = int(split[0].strip())
+        end = int(split[1].strip())
 
-            if start > 18 or end > 18:
-                raise ValueError("Number cannot be greater than 18.")
-            if start < -18 or end < -18:
-                raise ValueError("Number cannot be less than -18.")
-            if start > end:
-                temp = start
-                start = end
-                end = temp
-            for jump_value in range(start, end + 1):
-                jump_list.append(jump_value)
+        if start > 18 or end > 18:
+            raise ValueError("Number cannot be greater than 18.")
+        if start < -18 or end < -18:
+            raise ValueError("Number cannot be less than -18.")
+
+        start_idx = self.jump_array.index(start)
+        end_idx = self.jump_array.index(end)
+        if start_idx < end_idx:
+            jump_list.extend(self.jump_array[start_idx:end_idx+1])
+        else:
+            jump_list.extend(self.jump_array[start_idx:] + self.jump_array[0:end_idx+1])
 
         print(f"Jump Values: {jump_list}")
 
 
     def set_jump_values(self):
+        print(f"Possible jump values: {self.jump_array}")
+        print("When selecting jump values, start with the left edge of the peak and go right. For example, to capture values -8,-7,-6...0,1,2,3,4, do -8 to 4")
         while True:
             try:
                 self.jump_anti = []
-                anti_range = input("Input range for anticlockwise (example: 1 to 15, -18 to -5): ")
+                anti_range = input("Input range for anticlockwise (example: -5 to 8): ")
                 self.set_jump_helper(anti_range, self.jump_anti)
 
                 self.jump_clock = []
-                clock_range = input("Input range for clockwise (example: 1 to 15, -18 to -5, -1): ")
+                clock_range = input("Input range for clockwise (example: 1 to 15): ")
                 self.set_jump_helper(clock_range, self.jump_clock)
                 break
             except ValueError as e:
@@ -136,7 +137,21 @@ class Clickbot:
 
     def make_clicks_given_tuned(self, direction, tuned_predictions):
         if direction != "t":
-            for tuned_prediction in tuned_predictions:
-                self.m.position = self.number_coords[tuned_prediction]
-                self.m.click(Button.left)
-            
+            # tuned predictions are ordered starting from left of scatter and going to right of scatter
+            # prioritize the center of the tuned predictions by iterating inside - out
+            left = tuned_predictions[:len(tuned_predictions)//2][::-1]
+            right = tuned_predictions[len(tuned_predictions)//2:]
+            left_idx = 0
+            right_idx = 0
+            while left_idx < len(left) or right_idx < len(right):
+                if left_idx < len(left):
+                    tuned_prediction = left[left_idx]
+                    self.m.position = self.number_coords[tuned_prediction]
+                    self.m.click(Button.left)
+                    left_idx += 1
+                if right_idx < len(right):
+                    tuned_prediction = right[right_idx]
+                    self.m.position = self.number_coords[tuned_prediction]
+                    self.m.click(Button.left)
+                    right_idx += 1
+

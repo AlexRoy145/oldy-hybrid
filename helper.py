@@ -32,7 +32,7 @@ def main():
         clickbot.set_jump_values()
         clickbot.save_profile(CLICKBOT_PROFILE)
 
-    ocr = OCR(OCR_PROFILE)
+    ocr = OCR(PROFILE_DIR)
     if not ocr.load_profile(OCR_PROFILE):
         print("Could not find OCR data. Setting up from scratch.")
         ocr.set_raw_detection_zone()
@@ -48,8 +48,6 @@ def main():
                 macro.record_macro(RESIGNIN_MACRO)
             macro.save_profile(MACRO_PROFILE)
 
-    ocr = OCR(clickbot.detection_zone)
-             
     while True:
         print("""
 A: Anticlockwise 
@@ -60,8 +58,8 @@ SJ: Show jump values
 T: Test mode (do NOT make clicks)\n""")
         direction = input("Enter menu choice: ")
         if direction == "d":
-            ocr.set_detection_zone()
-            ocr.save_profile(CLICKBOT_PROFILE)
+            ocr.set_raw_detection_zone()
+            ocr.save_profile(OCR_PROFILE)
             continue
         elif direction == "j":
             clickbot.set_jump_values()
