@@ -41,7 +41,7 @@ class Client:
     def recv_msg(self):
         try:
             msg = self.client.recv(Client.BUF_SIZ)
-        except ConnectionResetError:
+        except ConnectionResetError, TimeoutError:
             msg = None
 
         if not msg:
