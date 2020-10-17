@@ -35,6 +35,8 @@ class OCR:
         self.m = mouse.Controller()
         self.profile_dir = profile_dir
 
+        self.is_running = True
+
 
     def load_profile(self, data_file):
         path = os.path.join(self.profile_dir, data_file)
@@ -133,141 +135,148 @@ class OCR:
         height = bbox[3]-bbox[1]
         wheel_center = int(width/2), int(height/2)
 
-        with mss.mss() as sct:
-            while True:
-                frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
+        try:
+            with mss.mss() as sct:
+                while self.is_running:
+                    frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
 
-                frame = Image.frombytes('RGB', frame.size, frame.rgb)
-                frame = np.array(frame)
-                blurred = cv2.GaussianBlur(frame, (11, 11), 0)
-                hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
+                    frame = Image.frombytes('RGB', frame.size, frame.rgb)
+                    frame = np.array(frame)
+                    blurred = cv2.GaussianBlur(frame, (11, 11), 0)
+                    hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
 
-                mask = cv2.inRange(hsv, OCR.GREEN_LOWER, OCR.GREEN_UPPER)
-                mask = cv2.erode(mask, None, iterations=2)
-                mask = cv2.dilate(mask, None, iterations=2)
+                    mask = cv2.inRange(hsv, OCR.GREEN_LOWER, OCR.GREEN_UPPER)
+                    mask = cv2.erode(mask, None, iterations=2)
+                    mask = cv2.dilate(mask, None, iterations=2)
 
-                mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size,kernel_size)));
+                    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size,kernel_size)));
 
-                cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                cnts = imutils.grab_contours(cnts)
+                    cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                    cnts = imutils.grab_contours(cnts)
 
-                center = None
-                if len(cnts) > 0:
-                    c = max(cnts, key=cv2.contourArea)
-                    ((x, y), radius) = cv2.minEnclosingCircle(c)
-                    M = cv2.moments(c)
-                    center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
-                    # only proceed if the radius meets a minimum size
-                    if radius > 10:
-                        # draw the circle and centroid on the frame,
-                        # then update the list of tracked points
-                        cv2.circle(frame, (int(x), int(y)), int(radius),
-                                (0, 255, 255), 2)
-                        cv2.circle(frame, center, 5, (0, 0, 255), -1)
-                        # update the points queue
-                        pts.appendleft(center)
+                    center = None
+                    if len(cnts) > 0:
+                        c = max(cnts, key=cv2.contourArea)
+                        ((x, y), radius) = cv2.minEnclosingCircle(c)
+                        M = cv2.moments(c)
+                        center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+                        # only proceed if the radius meets a minimum size
+                        if radius > 10:
+                            # draw the circle and centroid on the frame,
+                            # then update the list of tracked points
+                            cv2.circle(frame, (int(x), int(y)), int(radius),
+                                    (0, 255, 255), 2)
+                            cv2.circle(frame, center, 5, (0, 0, 255), -1)
+                            # update the points queue
+                            pts.appendleft(center)
+                        else:
+                            misdetections += 1
                     else:
                         misdetections += 1
-                else:
-                    misdetections += 1
 
-                if misdetections > OCR.MAX_MISDETECTIONS_BEFORE_RESETTING_STATE:
-                    # completely reset state
-                    watch_for_direction_change = False
-                    direction_change_stable = False
-                    direction_changed = False
-                    direction_confirmed = False
-                    current_direction = ""
-                    seen_direction_change_start_time = None
-                    seen_direction_start_time = None
-                    counter = 0
-                    pts.clear()
-                    misdetections = 0
-                    continue
+                    if misdetections > OCR.MAX_MISDETECTIONS_BEFORE_RESETTING_STATE:
+                        # completely reset state
+                        watch_for_direction_change = False
+                        direction_change_stable = False
+                        direction_changed = False
+                        direction_confirmed = False
+                        current_direction = ""
+                        seen_direction_change_start_time = None
+                        seen_direction_start_time = None
+                        counter = 0
+                        pts.clear()
+                        misdetections = 0
+                        continue
 
-                if len(pts) == OCR.LOOKBACK: 
-                    previous = pts[-1]
-                    current = pts[0]
+                    if len(pts) == OCR.LOOKBACK: 
+                        previous = pts[-1]
+                        current = pts[0]
 
-                    dx = previous[0] - current[0]
-                    dy = previous[1] - current[1]
+                        dx = previous[0] - current[0]
+                        dy = previous[1] - current[1]
 
-                    if np.abs(dx) > self.diff_thresh or np.abs(dy) > self.diff_thresh:
-                        # get direction of wheel movement
-                        is_anticlockwise = ((previous[0] - wheel_center[0]) * (current[1] - wheel_center[1]) - 
-                                            (previous[1] - wheel_center[1]) * (current[0] - wheel_center[0])) < 0;
+                        if np.abs(dx) > self.diff_thresh or np.abs(dy) > self.diff_thresh:
+                            # get direction of wheel movement
+                            is_anticlockwise = ((previous[0] - wheel_center[0]) * (current[1] - wheel_center[1]) - 
+                                                (previous[1] - wheel_center[1]) * (current[0] - wheel_center[0])) < 0;
 
-    
-                        if is_anticlockwise:
-                            if current_direction == "clockwise":
-                                # if we've already seen the direction change once, reset state as its unstable
-                                if direction_changed:
-                                    direction_changed = False
-                                else:
-                                    if time.time() - seen_direction_start_time > OCR.TIME_FOR_STABLE_DIRECTION:
-                                        direction_changed = True
-                                        seen_direction_change_start_time = time.time()
+        
+                            if is_anticlockwise:
+                                if current_direction == "clockwise":
+                                    # if we've already seen the direction change once, reset state as its unstable
+                                    if direction_changed:
+                                        direction_changed = False
                                     else:
-                                        # initial direction changed too rapidly
-                                        current_direction = ""
-                            if current_direction == "":
-                                seen_direction_start_time = time.time()
-                                
-                            current_direction = "anticlockwise"
+                                        if time.time() - seen_direction_start_time > OCR.TIME_FOR_STABLE_DIRECTION:
+                                            direction_changed = True
+                                            seen_direction_change_start_time = time.time()
+                                        else:
+                                            # initial direction changed too rapidly
+                                            current_direction = ""
+                                if current_direction == "":
+                                    seen_direction_start_time = time.time()
+                                    
+                                current_direction = "anticlockwise"
+                            else:
+                                if current_direction == "anticlockwise":
+                                    if direction_changed:
+                                        direction_changed = False
+                                    else:
+                                        if time.time() - seen_direction_start_time > OCR.TIME_FOR_STABLE_DIRECTION:
+                                            direction_changed = True
+                                            seen_direction_change_start_time = time.time()
+                                        else:
+                                            current_direction = ""
+                                if current_direction == "":
+                                    seen_direction_start_time = time.time()
+
+                                current_direction = "clockwise"
+
+                    if direction_changed:
+                        duration = time.time() - seen_direction_change_start_time
+                        if duration > OCR.TIME_FOR_STABLE_DIRECTION:
+                            direction_change_stable = True
+
+                    cv2.putText(frame, current_direction, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 255), 3)
+                    # show the frame to our screen
+                    cv2.circle(frame, wheel_center, 15, (0, 0, 255), -1)
+                    cv2.imshow("Wheel Detection", frame)
+                    key = cv2.waitKey(1) & 0xFF
+                    frames_seen = (frames_seen + 1) % (OCR.MAX_MISDETECTIONS_BEFORE_RESETTING_STATE + 2)
+
+                    if frames_seen == 0:
+                        misdetections = 0
+                    if counter <= OCR.LOOKBACK:
+                        counter += 1
+
+                    if direction_change_stable:
+                        print(f"Direction change confirmed: {current_direction}. Identifying if raw is present.")
+                        previous_raw = self.read(capture=sct)
+                        if self.is_valid_raw(previous_raw):
+                            print(f"Raw is valid and is currently: {previous_raw}. Waiting up to {OCR.GIVE_UP_LOOKING_FOR_RAW} seconds for it to change.")
+                            # now wait for a change
+                            start_time = time.time()
+                            while True:
+                                current_raw = self.read(capture=sct)
+                                if self.is_valid_raw(current_raw):
+                                    if current_raw != previous_raw:
+                                        print(f"Detected change in raw!") 
+                                        cv2.destroyAllWindows()
+                                        return current_direction, int(current_raw)
+
+                                duration = time.time() - start_time
+                                if duration > OCR.GIVE_UP_LOOKING_FOR_RAW:
+                                    print(f"Could not detect change in raw prediction properly")
+                                    cv2.destroyAllWindows()
+                                    return None, None
+
                         else:
-                            if current_direction == "anticlockwise":
-                                if direction_changed:
-                                    direction_changed = False
-                                else:
-                                    if time.time() - seen_direction_start_time > OCR.TIME_FOR_STABLE_DIRECTION:
-                                        direction_changed = True
-                                        seen_direction_change_start_time = time.time()
-                                    else:
-                                        current_direction = ""
-                            if current_direction == "":
-                                seen_direction_start_time = time.time()
+                            print(f"Could not detect a valid starting raw prediction.")
+                            return None, None
+        except mss.exception.ScreenShotError:
+            print(f"THREADING ERROR!! You need to quit the detection loop!")
 
-                            current_direction = "clockwise"
-
-                if direction_changed:
-                    duration = time.time() - seen_direction_change_start_time
-                    if duration > OCR.TIME_FOR_STABLE_DIRECTION:
-                        direction_change_stable = True
-
-                cv2.putText(frame, current_direction, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 255), 3)
-                # show the frame to our screen
-                cv2.circle(frame, wheel_center, 15, (0, 0, 255), -1)
-                cv2.imshow("Wheel Detection", frame)
-                key = cv2.waitKey(1) & 0xFF
-                frames_seen = (frames_seen + 1) % (OCR.MAX_MISDETECTIONS_BEFORE_RESETTING_STATE + 2)
-
-                if frames_seen == 0:
-                    misdetections = 0
-                if counter <= OCR.LOOKBACK:
-                    counter += 1
-
-                if direction_change_stable:
-                    print(f"Direction change confirmed: {current_direction}. Identifying if raw is present.")
-                    previous_raw = self.read(capture=sct)
-                    if self.is_valid_raw(previous_raw):
-                        print(f"Raw is valid and is currently: {previous_raw}. Waiting up to {OCR.GIVE_UP_LOOKING_FOR_RAW} seconds for it to change.")
-                        # now wait for a change
-                        start_time = time.time()
-                        while True:
-                            current_raw = self.read(capture=sct)
-                            if self.is_valid_raw(current_raw):
-                                if current_raw != previous_raw:
-                                    print(f"Detected change in raw!") 
-                                    return current_direction, int(current_raw)
-
-                            duration = time.time() - start_time
-                            if duration > OCR.GIVE_UP_LOOKING_FOR_RAW:
-                                print(f"Could not detect change in raw prediction properly")
-                                return None, None
-
-                    else:
-                        print(f"Could not detect a valid starting raw prediction.")
-                        return None, None
+        cv2.destroyAllWindows()
 
 
     def read(self, test=False, capture=None, zone=None):
@@ -280,8 +289,12 @@ class OCR:
         if capture:
             sct_img = capture.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
         else:
-            with mss.mss() as sct:
-                sct_img = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
+            try:
+                with mss.mss() as sct:
+                    sct_img = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
+            except mss.exception.ScreenShotError:
+                print("Threading issue!!! Close detection thread?")
+                return None
         pil_image = Image.frombytes('RGB', sct_img.size, sct_img.rgb)
         open_cv_image = np.array(pil_image)
         open_cv_image = open_cv_image[:, :, ::-1].copy() 
