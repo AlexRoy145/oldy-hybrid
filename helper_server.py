@@ -171,30 +171,29 @@ Enter your choice: """).lower()
             '''
 
             if direction != "t" and not self.no_bet:
-                clickbot.make_clicks_given_tuned(direction, tuned_predictions)
+                self.clickbot.make_clicks_given_tuned(direction, tuned_predictions)
             
             if not "m" in direction:
                 msg.direction = direction
                 msg.raw_prediction = raw_prediction
                 msg.tuned_predictions = tuned_predictions
-                server.send_message(msg)
+                self.server.send_message(msg)
 
-            if use_macro:
+            if self.use_macro:
                 macro_count = 0
                 time.sleep(4)
-                if macro.is_screen_condition_true():
+                if self.macro.is_screen_condition_true():
                     while True:
                         if macro_count > MAX_MACRO_COUNT:
                             print("Used macro too many times. State unknown. Quitting...")
-                            client.close()
                             exit()
-                        if args.use_refresh_macro:
-                            macro.execute_macro(REFRESH_BET_MACRO)
+                        if self.use_refresh_macro:
+                            self.macro.execute_macro(REFRESH_BET_MACRO)
                             time.sleep(10)
-                        if macro.is_screen_condition_true():
-                            if args.use_signin_macro:
-                                macro.execute_macro(RESIGNIN_MACRO)
-                                if not macro.is_screen_condition_true():
+                        if self.macro.is_screen_condition_true():
+                            if self.use_signin_macro:
+                                self.macro.execute_macro(RESIGNIN_MACRO)
+                                if not self.macro.is_screen_condition_true():
                                     break
                                 macro_count += 1
                         else:
