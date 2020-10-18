@@ -1,5 +1,6 @@
 import os
 import os.path
+import random
 import pickle
 from pynput import mouse
 from pynput.mouse import Button, Controller
@@ -11,6 +12,7 @@ class Clickbot:
         self.number_coords = []
         self.jump_anti = []
         self.jump_clock = []
+        self.peak_center_idxs = []
         self.european_wheel = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26]
         self.jump_array = list(range(0,19)) + list(range(-18,0))
         self.profile_dir = profile_dir
@@ -35,23 +37,28 @@ class Clickbot:
 
 
     def set_jump_helper(self, range_str, jump_list):
-        split = range_str.split(" to ")
-        if len(split) != 2:
-            raise ValueError("Invalid format.")
-        start = int(split[0].strip())
-        end = int(split[1].strip())
+        self.peak_start_idxs = []
+        range_split = range_str.split(",")
+        for r in range_split:
+            r = r.strip()
+            split = r.split(" to ")
+            if len(split) != 2:
+                raise ValueError("Invalid format.")
+            start = int(split[0].strip())
+            end = int(split[1].strip())
 
-        if start > 18 or end > 18:
-            raise ValueError("Number cannot be greater than 18.")
-        if start < -18 or end < -18:
-            raise ValueError("Number cannot be less than -18.")
+            if start > 18 or end > 18:
+                raise ValueError("Number cannot be greater than 18.")
+            if start < -18 or end < -18:
+                raise ValueError("Number cannot be less than -18.")
 
-        start_idx = self.jump_array.index(start)
-        end_idx = self.jump_array.index(end)
-        if start_idx < end_idx:
-            jump_list.extend(self.jump_array[start_idx:end_idx+1])
-        else:
-            jump_list.extend(self.jump_array[start_idx:] + self.jump_array[0:end_idx+1])
+            start_idx = self.jump_array.index(start)
+            end_idx = self.jump_array.index(end)
+            self.peak_center_idxs.append((start_idx + end_idx) // 2)
+            if start_idx < end_idx:
+                jump_list.extend(self.jump_array[start_idx:end_idx+1])
+            else:
+                jump_list.extend(self.jump_array[start_idx:] + self.jump_array[0:end_idx+1])
 
         print(f"Jump Values: {jump_list}")
 
@@ -62,7 +69,7 @@ class Clickbot:
         while True:
             try:
                 self.jump_anti = []
-                anti_range = input("Input range for anticlockwise (example: -5 to 8): ")
+                anti_range = input("Input range for anticlockwise (example: -3 to 5, 11 to -18): ")
                 self.set_jump_helper(anti_range, self.jump_anti)
 
                 self.jump_clock = []
@@ -139,8 +146,9 @@ class Clickbot:
         if direction != "t":
             # tuned predictions are ordered starting from left of scatter and going to right of scatter
             # prioritize the center of the tuned predictions by iterating inside - out
-            left = tuned_predictions[:len(tuned_predictions)//2][::-1]
-            right = tuned_predictions[len(tuned_predictions)//2:]
+            peak_center = random.choice(self.peak_center_idxs)
+            left = tuned_predictions[:peak_center][::-1]
+            right = tuned_predictions[peak_center:]
             left_idx = 0
             right_idx = 0
             while left_idx < len(left) or right_idx < len(right):
@@ -154,4 +162,5 @@ class Clickbot:
                     self.m.position = self.number_coords[tuned_prediction]
                     self.m.click(Button.left)
                     right_idx += 1
+            
 
