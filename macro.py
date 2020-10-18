@@ -10,6 +10,7 @@ from pynput import keyboard
 class Macro:
 
     RED_THRESH = 150
+    GREEN_THRESH = 200
 
     class MacroEvent:
         def __init__(self, x, y, duration, button):
@@ -47,14 +48,20 @@ class Macro:
             pickle.dump(d, f)
 
     
-    def set_screen_condition(self):
-        input("Hover over the red outside bet and press ENTER:")
+    def set_screen_condition(self, green=False):
+        if green:
+            input("Hover over the green area for 'Place your bets' and press ENTER:")
+        else:
+            input("Hover over the red outside bet and press ENTER:")
         self.screen_condition = self.m.position
 
 
-    def is_screen_condition_true(self):
+    def is_screen_condition_true(self, green=False):
         sct_img = self.sct.grab({"left": self.screen_condition[0], "top": self.screen_condition[1], "width": 1, "height": 1, "mon":0})
         pixel = sct_img.pixel(0, 0)
+        if green:
+            #print(f"pixel 0: {pixel[0]}, pixel 1: {pixel[1]}, pixel 2: {pixel[2]}")
+            return pixel[1] > Macro.GREEN_THRESH and pixel[1] < 240
         return pixel[0] < Macro.RED_THRESH
 
 

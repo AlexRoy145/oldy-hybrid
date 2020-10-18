@@ -146,7 +146,11 @@ class Clickbot:
         if direction != "t":
             # tuned predictions are ordered starting from left of scatter and going to right of scatter
             # prioritize the center of the tuned predictions by iterating inside - out
-            peak_center = random.choice(self.peak_center_idxs)
+            if not self.peak_center_idxs:
+                center_idxs = [len(tuned_predictions)//2]
+            else:
+                center_idxs = self.peak_center_idxs
+            peak_center = random.choice(center_idxs)
             left = tuned_predictions[:peak_center][::-1]
             right = tuned_predictions[peak_center:]
             left_idx = 0
