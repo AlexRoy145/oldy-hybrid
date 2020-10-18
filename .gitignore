@@ -1,0 +1,8 @@
+.env
+__init__.py
+__pycache__/
+dependencies/
+desktop.ini
+pip install.txt
+whitelist.txt
+.git/
