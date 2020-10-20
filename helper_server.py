@@ -155,7 +155,7 @@ Enter your choice: """).lower()
                 continue
 
             print(f"Direction: {direction}, Raw Prediction: {raw_prediction}")
-            if not direction or not raw_prediction:
+            if not direction:
                 continue
             direction = direction[0]
 

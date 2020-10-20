@@ -18,11 +18,12 @@ class OCR:
     GREEN_LOWER = (29, 86, 6)
     GREEN_UPPER = (64, 255, 255)
     GIVE_UP_LOOKING_FOR_RAW = 10 #seconds
-    TIME_FOR_STABLE_DIRECTION = 1.5 #seconds
+    TIME_FOR_STABLE_DIRECTION = 1 #seconds
     MAX_MISDETECTIONS_BEFORE_RESETTING_STATE = 60
     DIFF_RATIO = 9
     MORPH_KERNEL_RATIO = .0005
     LOOKBACK = 20
+    DELAY_FOR_RAW_UPDATE = .05
 
     def __init__(self, profile_dir):
         self.raw_detection_zone = []
@@ -257,6 +258,7 @@ class OCR:
                             # now wait for a change
                             start_time = time.time()
                             while True:
+                                time.sleep(OCR.DELAY_FOR_RAW_UPDATE)
                                 current_raw = self.read(capture=sct)
                                 if self.is_valid_raw(current_raw):
                                     if current_raw != previous_raw:
@@ -267,11 +269,14 @@ class OCR:
                                 duration = time.time() - start_time
                                 if duration > OCR.GIVE_UP_LOOKING_FOR_RAW:
                                     print(f"Could not detect change in raw prediction properly")
+                                    print(f"OCR saw current raw as: {current_raw}")
                                     cv2.destroyAllWindows()
                                     return None, None
 
+
                         else:
                             print(f"Could not detect a valid starting raw prediction.")
+                            print(f"OCR saw starting raw as: {previous_raw}")
                             return None, None
         except mss.exception.ScreenShotError:
             print(f"THREADING ERROR!! You need to quit the detection loop!")
@@ -298,12 +303,13 @@ class OCR:
         pil_image = Image.frombytes('RGB', sct_img.size, sct_img.rgb)
         open_cv_image = np.array(pil_image)
         open_cv_image = open_cv_image[:, :, ::-1].copy() 
-        if test:
-            cv2.imshow("captured image", open_cv_image)
-            cv2.waitKey(0)
-
         finalimage = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2GRAY)
         ret,thresholded = cv2.threshold(finalimage, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+        if test:
+            cv2.imshow("captured image", thresholded)
+            cv2.waitKey(0)
+
+
 
         finalimage = thresholded
         end = time.time()
@@ -340,6 +346,7 @@ class OCR:
 
             prediction = prediction.replace("a", "8")
             prediction = prediction.replace("B", "8")
+            prediction = prediction.replace("&", "8")
 
         return prediction
 

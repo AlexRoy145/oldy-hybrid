@@ -6,7 +6,7 @@ MACRO_PROFILE = "feed_macro.dat"
 
 FEED_BET_MACRO = "Bet 1$ on a random inside bet to keep feed active"
 
-SPIN_INTERVAL = 7
+SPIN_INTERVAL = 9
 SLEEP_SECONDS = 50
 
 def main():
