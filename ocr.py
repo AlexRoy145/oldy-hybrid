@@ -23,7 +23,7 @@ class OCR:
     DIFF_RATIO = 9
     MORPH_KERNEL_RATIO = .0005
     LOOKBACK = 20
-    DELAY_FOR_RAW_UPDATE = .05
+    DELAY_FOR_RAW_UPDATE = .1
 
     def __init__(self, profile_dir):
         self.raw_detection_zone = []
@@ -334,6 +334,9 @@ class OCR:
             prediction = prediction.replace("l", "1")
             prediction = prediction.replace("L", "1")
             prediciton = prediction.replace("i", "1")
+
+            prediction = prediction.replace("¢", "7")
+            prediction = prediction.replace("?", "7")
 
             prediction = prediction.replace("g", "9")
             prediction = prediction.replace("G", "9")
