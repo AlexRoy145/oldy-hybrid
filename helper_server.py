@@ -36,6 +36,7 @@ class CRMServer:
         self.use_macro = self.use_refresh_macro or self.use_signin_macro
 
         self.clickbot = Clickbot(PROFILE_DIR)
+        self.green_swap = 1
         self.is_running = True 
 
         if not self.clickbot.load_profile(CLICKBOT_PROFILE):
@@ -82,6 +83,7 @@ SJ: Show jump values.
 J: Change jump values.
 SC: Show connected clients.
 T: Test raw prediction reading and send test message to clients.
+1, 2, 3 or 4: Choices for green swap.
 Enter your choice: """).lower()
             if choice == "q":   
                 if not self.is_running and not self.ocr.is_running:
@@ -139,6 +141,22 @@ Enter your choice: """).lower()
                 self.server.send_message(msg)
                 print(f"OCR thinks raw is: {raw_prediction}")
                 continue
+            elif choice == "1":
+                # native 3 to 9
+                self.green_swap = 1
+                continue
+            elif choice == "2":
+                # 12 to 6
+                self.green_swap = 2
+                continue
+            elif choice == "3":
+                # 1.5 to 7.5
+                self.green_swap = 3
+                continue
+            elif choice == "4":
+                # 4.5 to 10.5
+                self.green_swap = 4
+                continue
             else:
                 continue
     
@@ -162,13 +180,11 @@ Enter your choice: """).lower()
             tuned_predictions = self.clickbot.get_tuned_from_raw(direction, raw_prediction)
             print(f"TUNED PREDICTIONS: {tuned_predictions}")
 
-            '''
             if self.use_green_swap:
-                raw_prediction = self.clickbot.adjust_raw_for_green_swap(raw_prediction, green_swap)
+                raw_prediction = self.clickbot.adjust_raw_for_green_swap(raw_prediction, self.green_swap)
                 tuned_predictions = self.clickbot.get_tuned_from_raw(direction, raw_prediction)
                 print(f"GREEN ADJUSTED RAW PREDICTION: {raw_prediction}")
                 print(f"GREEN ADJUSTED TUNED PREDICTIONS: {tuned_predictions}")
-            '''
 
             if direction != "t" and not self.no_bet:
                 self.clickbot.make_clicks_given_tuned(direction, tuned_predictions)

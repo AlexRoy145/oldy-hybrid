@@ -28,7 +28,7 @@ class OCR:
     def __init__(self, profile_dir):
         self.raw_detection_zone = []
         self.wheel_detection_zone = []
-        self.acct_detection_zone = []
+        self.screenshot_zone = []
         self.diff_thresh = 0
         self.wheel_detection_area = 0
         
@@ -54,7 +54,7 @@ class OCR:
         with open(path, "wb") as f:
             d = {"raw_detection_zone" : self.raw_detection_zone,
                  "wheel_detection_zone" : self.wheel_detection_zone,
-                 "acct_detection_zone" : self.acct_detection_zone,
+                 "screenshot_zone" : self.screenshot_zone,
                  "diff_thresh" : self.diff_thresh,
                  "wheel_detection_area" :self.wheel_detection_area}
             pickle.dump(d, f)
@@ -100,15 +100,15 @@ class OCR:
         self.wheel_detection_area = width * height
 
 
-    def set_acct_detection_zone(self):
-        self.acct_detection_zone = []
-        zone = self.acct_detection_zone
-        input(f"Hover the mouse over the upper left corner of the detection zone for the account balance, then hit ENTER.")
+    def set_screenshot_zone(self):
+        self.screenshot_zone = []
+        zone = self.screenshot_zone
+        input(f"Hover the mouse over the upper left corner for where to take a screenshot (betting board + acct balance), then hit ENTER.")
         x_top,y_top = self.m.position
         zone.append(x_top)
         zone.append(y_top)
 
-        input("Hover the mouse over the bottom right corner of the detection zone, then hit ENTER.")
+        input("Hover the mouse over the bottom right corner of the screenshot area, then hit ENTER.")
         x_bot,y_bot = self.m.position
         zone.append(x_bot)
         zone.append(y_bot)
@@ -321,6 +321,17 @@ class OCR:
         prediction = self.post_process(prediction)
 
         return prediction
+
+    
+    def take_screenshot(self, filename):
+        bbox = self.screenshot_zone
+        width = bbox[2] - bbox[0]
+        height = bbox[3] - bbox[1]
+        with mss.mss() as sct:
+            sct_img = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
+
+        pil_image = Image.frombytes('RGB', sct_img.size, sct_img.rgb)
+        pil_image.save(filename)
 
 
     def post_process(self, prediction):

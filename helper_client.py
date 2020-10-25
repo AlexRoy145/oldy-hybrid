@@ -19,6 +19,7 @@ PROFILE_DIR = "../../../Documents/crm_saved_profiles"
 CLICKBOT_PROFILE = "profile.dat"
 MACRO_PROFILE = "macro.dat"
 OCR_PROFILE = "ocr.dat"
+SCREENSHOT_FILE = os.path.join(PROFILE_DIR, ".temp_screenshot.jpg")
 
 REFRESH_BET_MACRO = "Refresh page if kicked for late bets"
 RESIGNIN_MACRO = "Resign into the website and pull up betting interface"
@@ -33,13 +34,15 @@ class CRMClient:
     def alert(self, msg):
         self.webhook.send(f"{self.hostname}: {msg}")
 
-    def __init__(self, server_ip, server_port, use_refresh_macro, use_signin_macro, set_acct_balance_zone):
+    def send_screenshot(self):
+        self.webhook.send(f"{self.hostname}", file=discord.File(SCREENSHOT_FILE))
+
+    def __init__(self, server_ip, server_port, use_refresh_macro, use_signin_macro):
 
         self.server_ip = server_ip
         self.server_port = server_port
         self.use_refresh_macro = use_refresh_macro
         self.use_signin_macro = use_signin_macro
-        self.set_acct_balance_zone = set_acct_balance_zone
         load_dotenv()
         WEBHOOK_ID = os.getenv("WEBHOOK_ID")
         WEBHOOK_TOKEN = os.getenv("WEBHOOK_TOKEN")
@@ -63,7 +66,7 @@ class CRMClient:
         self.ocr = OCR(PROFILE_DIR)
         if not self.ocr.load_profile(OCR_PROFILE):
             print("Could not find ocr data. Setting up from scratch.")
-            self.ocr.set_acct_detection_zone()
+            self.ocr.set_screenshot_zone()
             self.ocr.save_profile(OCR_PROFILE)
 
         
@@ -77,16 +80,6 @@ class CRMClient:
                     self.macro.record_macro(RESIGNIN_MACRO)
                 self.macro.save_profile(MACRO_PROFILE)
 
-
-        if self.set_acct_balance_zone:
-            while True:
-                self.ocr.set_acct_detection_zone()
-                self.ocr.save_profile(OCR_PROFILE)
-                balance = self.ocr.read(test=True)
-                print("OCR thought balance is: ", balance)
-                choice = input("A picture was shown indicating the detected zone. Close it out to continue. Reset detection zone? (Y/N): ").lower()
-                if choice != "y":
-                    break
 
         input("Press ENTER when ready to connect to server:")
         self.client = Client(self.server_ip, self.server_port)
@@ -111,9 +104,6 @@ class CRMClient:
                 time_since_last_msg = int((time.time() - self.time_received_last_msg) / 60)
                 if time_since_last_msg >= CHECK_INTERVAL:
                     self.alert(f"WARNING: It has been {time_since_last_msg} minutes since receiving the last command.")
-
-                account_balance = self.ocr.read(zone=self.ocr.acct_detection_zone)
-                self.alert(f"INFO: Account balance is {account_balance}")
 
                 self.refreshes_used = 0
                 self.error_count = 0
@@ -163,17 +153,20 @@ class CRMClient:
                         else:
                             break
 
+            # take screenshot
+            self.ocr.take_screenshot(SCREENSHOT_FILE)
+            self.send_screenshot()
+
 
 def main():
     parser = argparse.ArgumentParser(description="Run the client betting program.")
     parser.add_argument("server_ip", type=str, help="The server's IP address.")
     parser.add_argument("server_port", type=int, help="The server's port.")
-    parser.add_argument("--set-acct-balance-zone", action="store_true")
     parser.add_argument("--use-refresh-macro", action="store_true")
     parser.add_argument("--use-signin-macro", action="store_true")
     args = parser.parse_args()
 
-    app = CRMClient(args.server_ip, args.server_port, args.use_refresh_macro, args.use_signin_macro, args.set_acct_balance_zone)
+    app = CRMClient(args.server_ip, args.server_port, args.use_refresh_macro, args.use_signin_macro)
     try:
         app.run()
     except KeyboardInterrupt:
