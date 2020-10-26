@@ -93,6 +93,7 @@ class CRMClient:
         duration = 0
         while self.app_thread.is_alive():
             time.sleep(1)
+            '''
             duration += 1
             if duration >= 60 * CHECK_INTERVAL:
                 if self.refreshes_used > 8:
@@ -108,6 +109,7 @@ class CRMClient:
                 self.refreshes_used = 0
                 self.error_count = 0
                 duration = 0
+            '''
 
 
     def start_app(self):
