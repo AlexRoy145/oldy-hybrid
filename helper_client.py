@@ -34,8 +34,8 @@ class CRMClient:
     def alert(self, msg):
         self.webhook.send(f"{self.hostname}: {msg}")
 
-    def send_screenshot(self):
-        self.webhook.send(f"{self.hostname}", file=discord.File(SCREENSHOT_FILE))
+    def send_screenshot(self, seq_num):
+        self.webhook.send(f"{self.hostname}, Spin #: {seq_num}", file=discord.File(SCREENSHOT_FILE))
 
     def __init__(self, server_ip, server_port, use_refresh_macro, use_signin_macro):
 
@@ -157,7 +157,7 @@ class CRMClient:
 
             # take screenshot
             self.ocr.take_screenshot(SCREENSHOT_FILE)
-            self.send_screenshot()
+            self.send_screenshot(msg.seq_num)
 
 
 def main():
