@@ -24,7 +24,7 @@ class Macro:
         self.m = mouse.Controller()
         self.k = keyboard.Controller()
         self.sct = mss.mss()
-        self.macros = {}
+        self.macro = []
         self.screen_condition = None
         self.profile_dir = profile_dir
         if not os.path.isdir(self.profile_dir):
@@ -44,7 +44,7 @@ class Macro:
     def save_profile(self, data_file):
         path = os.path.join(self.profile_dir, data_file)
         with open(path, "wb") as f:
-            d = {"screen_condition" : self.screen_condition, "macros" : self.macros}
+            d = {"screen_condition" : self.screen_condition, "macro" : self.macro}
             pickle.dump(d, f)
 
     
@@ -68,24 +68,23 @@ class Macro:
     def on_click(self, x, y, button, pressed):
         if pressed:
             duration = time.perf_counter() - self.macro_start_time
-            self.macros[self.current_macro_name].append(self.MacroEvent(x, y, duration, button))
+            self.macro.append(self.MacroEvent(x, y, duration, button))
             self.macro_start_time = time.perf_counter()
 
 
-    def record_macro(self, macro_name):
-        input(f"Record the macro {macro_name}. Only records mouse clicks for now. Press ENTER to start:")
+    def record_macro(self):
+        input(f"Record the macro. Only records mouse clicks for now. Press ENTER to start:")
         mouse_listener = mouse.Listener(on_click=self.on_click)
         mouse_listener.start()
-        self.current_macro_name = macro_name
-        self.macros[macro_name] = []
+        self.macro = []
         self.macro_start_time = time.perf_counter()
         input("Press ENTER when you are done recording:")
         mouse_listener.stop()
 
 
-    def execute_macro(self, macro_name):
+    def execute_macro(self):
         try:
-            for event in self.macros[macro_name]:
+            for event in self.macro:
                 time.sleep(event.duration)
                 self.m.position = event.x, event.y
                 self.m.click(event.button)

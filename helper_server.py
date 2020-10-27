@@ -14,11 +14,10 @@ from macro import Macro
 
 PROFILE_DIR = "../../../Documents/crm_saved_profiles"
 CLICKBOT_PROFILE = "profile.dat"
-MACRO_PROFILE = "macro.dat"
 OCR_PROFILE = "ocr.dat"
 
-REFRESH_BET_MACRO = "Refresh page if kicked for late bets"
-RESIGNIN_MACRO = "Resign into the website and pull up betting interface"
+REFRESH_MACRO_DIR = "../../../Documents/crm_saved_profiles/refresh_macros"
+SIGNIN_MACRO_DIR = "../../../Documents/crm_saved_profiles/signin_macros"
 
 MENU_TIMEOUT = 10
 
@@ -26,13 +25,14 @@ MAX_MACRO_COUNT = 3
 
 class CRMServer:
 
-    def __init__(self, server_ip, server_port, use_refresh_macro, use_signin_macro, use_green_swap, no_bet):
+    def __init__(self, server_ip, server_port, use_refresh_macro, use_signin_macro, use_green_swap, no_bet, site_name):
         self.server_ip = server_ip
         self.server_port = server_port
         self.use_refresh_macro = use_refresh_macro
         self.use_signin_macro = use_signin_macro
         self.use_green_swap = use_green_swap
         self.no_bet = no_bet
+        self.site = site_name
         self.use_macro = self.use_refresh_macro or self.use_signin_macro
 
         self.clickbot = Clickbot(PROFILE_DIR)
@@ -52,15 +52,22 @@ class CRMServer:
             self.ocr.set_raw_detection_zone()
             self.ocr.save_profile(OCR_PROFILE) 
 
-        if self.use_macro:
-            self.macro = Macro(PROFILE_DIR)
-            if not self.macro.load_profile(MACRO_PROFILE):
-                self.macro.set_screen_condition()
-                if self.use_refresh_macro:
-                    self.macro.record_macro(REFRESH_BET_MACRO)
-                if self.use_signin_macro:
-                    self.macro.record_macro(RESIGNIN_MACRO)
-                self.macro.save_profile(MACRO_PROFILE)
+
+        if self.use_refresh_macro:
+            self.refresh_macro_name = f"refresh_{self.site}.dat"
+            self.refresh_macro = Macro(REFRESH_MACRO_DIR)
+            if not self.refresh_macro.load_profile(self.refresh_macro_name):
+                self.refresh_macro.set_screen_condition()
+                self.refresh_macro.record_macro()
+                self.refresh_macro.save_profile(self.refresh_macro_name)
+
+        if self.use_signin_macro:
+            self.signin_macro_name = f"signin_{self.site}.dat"
+            self.signin_macro = Macro(SIGNIN_MACRO_DIR)
+            if not self.signin_macro.load_profile(self.signin_macro_name):
+                self.signin_macro.set_screen_condition()
+                self.signin_macro.record_macro()
+                self.signin_macro.save_profile(self.signin_macro_name)
 
 
         self.server = Server(self.server_ip, self.server_port)
@@ -198,18 +205,18 @@ Enter your choice: """).lower()
             if self.use_macro:
                 macro_count = 0
                 time.sleep(4)
-                if self.macro.is_screen_condition_true():
+                if self.refresh_macro.is_screen_condition_true():
                     while True:
                         if macro_count > MAX_MACRO_COUNT:
                             print("Used macro too many times. State unknown. Quitting...")
                             exit()
                         if self.use_refresh_macro:
-                            self.macro.execute_macro(REFRESH_BET_MACRO)
+                            self.refresh_macro.execute_macro()
                             time.sleep(10)
-                        if self.macro.is_screen_condition_true():
+                        if self.refresh_macro.is_screen_condition_true():
                             if self.use_signin_macro:
-                                self.macro.execute_macro(RESIGNIN_MACRO)
-                                if not self.macro.is_screen_condition_true():
+                                self.signin_macro.execute_macro()
+                                if not self.signin_macro.is_screen_condition_true():
                                     break
                                 macro_count += 1
                         else:
@@ -224,9 +231,10 @@ def main():
     parser.add_argument("--use-green-swap", action="store_true")
     parser.add_argument("--use-refresh-macro", action="store_true")
     parser.add_argument("--use-signin-macro", action="store_true")
+    parser.add_argument("--site_name", type=str, help="The casino site NAME (do NOT include www or .com/.ag/.eu) to use with the refresh macro")
 
     args = parser.parse_args()
-    app = CRMServer(args.server_ip, args.server_port, args.use_refresh_macro, args.use_signin_macro, args.use_green_swap, args.no_bet)
+    app = CRMServer(args.server_ip, args.server_port, args.use_refresh_macro, args.use_signin_macro, args.use_green_swap, args.no_bet, args.site_name)
     try:
         app.run()
     except KeyboardInterrupt:
