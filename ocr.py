@@ -27,6 +27,7 @@ class OCR:
 
     def __init__(self, profile_dir):
         self.raw_detection_zone = []
+        self.tuned_detection_zone = []
         self.wheel_detection_zone = []
         self.screenshot_zone = []
         self.diff_thresh = 0
@@ -64,6 +65,22 @@ class OCR:
         self.raw_detection_zone = []
         zone = self.raw_detection_zone
         input(f"Hover the mouse over the upper left corner of the detection zone for the raw prediction, then hit ENTER.")
+        x_top,y_top = self.m.position
+        zone.append(x_top)
+        zone.append(y_top)
+
+        input("Hover the mouse over the bottom right corner of the detection zone, then hit ENTER.")
+        x_bot,y_bot = self.m.position
+        zone.append(x_bot)
+        zone.append(y_bot)
+
+        print(f"Bounding box: {zone}")
+
+
+    def set_tuned_detection_zone(self):
+        self.tuned_detection_zone = []
+        zone = self.tuned_detection_zone
+        input(f"Hover the mouse over the upper left corner of the detection zone for the tuned prediction, then hit ENTER.")
         x_top,y_top = self.m.position
         zone.append(x_top)
         zone.append(y_top)
@@ -251,19 +268,23 @@ class OCR:
                         counter += 1
 
                     if direction_change_stable:
-                        print(f"Direction change confirmed: {current_direction}. Identifying if raw is present.")
-                        previous_raw = self.read(capture=sct)
-                        if self.is_valid_raw(previous_raw):
-                            print(f"Raw is valid and is currently: {previous_raw}. Waiting up to {OCR.GIVE_UP_LOOKING_FOR_RAW} seconds for it to change.")
+                        print(f"Direction change confirmed: {current_direction}. Identifying if tuned is present.")
+                        previous_tuned = self.read(capture=sct, zone=self.tuned_detection_zone)
+                        if self.is_valid_prediction(previous_tuned):
+                            print(f"Tuned is valid and is currently: {previous_tuned}. Waiting up to {OCR.GIVE_UP_LOOKING_FOR_RAW} seconds for it to change.")
                             # now wait for a change
                             start_time = time.time()
                             while True:
-                                time.sleep(OCR.DELAY_FOR_RAW_UPDATE)
-                                current_raw = self.read(capture=sct)
-                                if self.is_valid_raw(current_raw):
-                                    if current_raw != previous_raw:
-                                        print(f"Detected change in raw!") 
+                                #time.sleep(OCR.DELAY_FOR_RAW_UPDATE)
+                                current_tuned = self.read(capture=sct, zone=self.tuned_detection_zone)
+                                if self.is_valid_prediction(current_tuned):
+                                    if current_tuned != previous_tuned:
+                                        print(f"Detected change in tuned!") 
                                         cv2.destroyAllWindows()
+                                        current_raw = self.read(capture=sct)
+                                        if not self.is_valid_prediction(current_raw):
+                                            print(f"Could not detect the RAW prediction properly.")
+                                            print(f"OCR saw current RAW as: {current_raw}")
                                         return current_direction, int(current_raw)
 
                                 duration = time.time() - start_time
@@ -272,7 +293,6 @@ class OCR:
                                     print(f"OCR saw current raw as: {current_raw}")
                                     cv2.destroyAllWindows()
                                     return None, None
-
 
                         else:
                             print(f"Could not detect a valid starting raw prediction.")
@@ -365,7 +385,7 @@ class OCR:
         return prediction
 
 
-    def is_valid_raw(self, raw_prediction):
+    def is_valid_prediction(self, raw_prediction):
         try:
             raw_prediction = int(raw_prediction)
         except (ValueError, TypeError) as e:

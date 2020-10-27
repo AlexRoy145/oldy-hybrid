@@ -50,6 +50,7 @@ class CRMServer:
             print("Could not find ocr data. Setting up from scratch.")
             self.ocr.set_wheel_detection_zone()
             self.ocr.set_raw_detection_zone()
+            self.ocr.set_tuned_detection_zone()
             self.ocr.save_profile(OCR_PROFILE) 
 
 
@@ -86,6 +87,7 @@ Q: Quit the direction detection loop.
 R: Run the direction detection loop.
 D: Change raw detection zone.
 DW: Change wheel detection zone.
+DT: Change tuned detection zone.
 SJ: Show jump values.
 J: Change jump values.
 SC: Show connected clients.
@@ -121,6 +123,10 @@ Enter your choice: """).lower()
                 self.ocr.set_wheel_detection_zone()
                 self.ocr.save_profile(OCR_PROFILE)
                 continue
+            elif choice == "dt":
+                self.ocr.set_tuned_detection_zone()
+                self.ocr.save_profile(OCR_PROFILE)
+                continue
             elif choice == "sj":
                 print(f"Anticlockwise jump values: {self.clickbot.jump_anti}")
                 print(f"Clockwise jump values: {self.clickbot.jump_clock}")
@@ -137,6 +143,7 @@ Enter your choice: """).lower()
                 msg = Message()
                 msg.test_mode = True
                 raw_prediction = self.ocr.read()
+                tuned_prediction = self.ocr.read(zone=self.ocr.tuned_detection_zone)
                 if self.ocr.is_valid_raw(raw_prediction):
                     raw_prediction = int(raw_prediction.strip())
                     tuned = self.clickbot.get_tuned_from_raw("a", raw_prediction)
@@ -147,6 +154,7 @@ Enter your choice: """).lower()
 
                 self.server.send_message(msg)
                 print(f"OCR thinks raw is: {raw_prediction}")
+                print(f"OCR thinks tuned is: {tuned_prediction}")
                 continue
             elif choice == "1":
                 # native 3 to 9
