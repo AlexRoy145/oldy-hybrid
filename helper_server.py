@@ -144,7 +144,7 @@ Enter your choice: """).lower()
                 msg.test_mode = True
                 raw_prediction = self.ocr.read()
                 tuned_prediction = self.ocr.read(zone=self.ocr.tuned_detection_zone)
-                if self.ocr.is_valid_raw(raw_prediction):
+                if self.ocr.is_valid_prediction(raw_prediction):
                     raw_prediction = int(raw_prediction.strip())
                     tuned = self.clickbot.get_tuned_from_raw("a", raw_prediction)
                     msg.raw_prediction = raw_prediction
