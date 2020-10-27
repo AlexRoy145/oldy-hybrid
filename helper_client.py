@@ -7,6 +7,7 @@ import threading
 import pickle
 import msvcrt
 import mss
+import win32gui
 from socket import gethostname
 from dotenv import load_dotenv
 from clickbot import Clickbot
@@ -49,6 +50,9 @@ class CRMClient:
         self.webhook = discord.Webhook.partial(WEBHOOK_ID, WEBHOOK_TOKEN, adapter=discord.RequestsWebhookAdapter())
         self.hostname = gethostname()
 
+        self.resize_cmd_window()
+        self.resize_betting_window()
+
         # error metrics
         self.refreshes_used = 0
         self.error_count = 0
@@ -81,7 +85,10 @@ class CRMClient:
                 self.macro.save_profile(MACRO_PROFILE)
 
 
-        input("Press ENTER when ready to connect to server:")
+        self.resize_betting_window()
+
+        input("Press ENTER when ready to connect to server and to resize the betting window:")
+        self.resize_betting_window()
         self.client = Client(self.server_ip, self.server_port)
         self.client.connect_to_server()
 
@@ -144,6 +151,7 @@ class CRMClient:
                             exit()
                         if self.use_refresh_macro:
                             self.macro.execute_macro(REFRESH_BET_MACRO)
+                            self.resize_betting_window()
                             self.refreshes_used += 1
                             time.sleep(10)
                         if self.macro.is_screen_condition_true():
@@ -158,6 +166,35 @@ class CRMClient:
             # take screenshot
             self.ocr.take_screenshot(SCREENSHOT_FILE)
             self.send_screenshot(msg.seq_num)
+
+
+    def resize_betting_window(self):
+        def callback(handle, data):
+            title = win32gui.GetWindowText(handle)
+            if "dealer" in title.lower():
+                handles.append(handle)
+
+        handles = []
+        win32gui.EnumWindows(callback, None)
+        if handles:
+            win32gui.MoveWindow(handles[0], 0, 0, 1200, 1040, True)
+        else:
+            print("Could not find appropriate window to resize.")
+
+
+    def resize_cmd_window(self):
+        def callback(handle, data):
+            title = win32gui.GetWindowText(handle)
+            if "client" in title.lower():
+                handles.append(handle)
+
+        handles = []
+        win32gui.EnumWindows(callback, None)
+        if handles:
+            win32gui.MoveWindow(handles[0], 1300, 500, 600, 500, True)
+        else:
+            print("Could not find appropriate window to resize.")
+
 
 
 def main():
