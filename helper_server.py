@@ -5,6 +5,7 @@ import time
 import threading
 import pickle
 import msvcrt
+from pynput.keyboard import Key, Controller
 from pytessy import PyTessy
 from clickbot import Clickbot
 from message import Message
@@ -16,24 +17,19 @@ PROFILE_DIR = "../../../Documents/crm_saved_profiles"
 CLICKBOT_PROFILE = "profile.dat"
 OCR_PROFILE = "ocr.dat"
 
-REFRESH_MACRO_DIR = "../../../Documents/crm_saved_profiles/refresh_macros"
-SIGNIN_MACRO_DIR = "../../../Documents/crm_saved_profiles/signin_macros"
-
-MENU_TIMEOUT = 10
+REFRESH_MACRO_DIR = "refresh_macros"
+SIGNIN_MACRO_DIR = "signin_macros"
 
 MAX_MACRO_COUNT = 3
 
 class CRMServer:
 
-    def __init__(self, server_ip, server_port, use_refresh_macro, use_signin_macro, use_green_swap, no_bet, site_name):
+    def __init__(self, server_ip, server_port, use_green_swap, no_bet, site_name):
         self.server_ip = server_ip
         self.server_port = server_port
-        self.use_refresh_macro = use_refresh_macro
-        self.use_signin_macro = use_signin_macro
         self.use_green_swap = use_green_swap
         self.no_bet = no_bet
         self.site = site_name
-        self.use_macro = self.use_refresh_macro or self.use_signin_macro
 
         self.clickbot = Clickbot(PROFILE_DIR)
         self.green_swap = 1
@@ -53,16 +49,14 @@ class CRMServer:
             self.ocr.set_tuned_detection_zone()
             self.ocr.save_profile(OCR_PROFILE) 
 
-
-        if self.use_refresh_macro:
+        if not self.no_bet:
             self.refresh_macro_name = f"refresh_{self.site}.dat"
             self.refresh_macro = Macro(REFRESH_MACRO_DIR)
             if not self.refresh_macro.load_profile(self.refresh_macro_name):
                 self.refresh_macro.set_screen_condition()
-                self.refresh_macro.record_macro()
                 self.refresh_macro.save_profile(self.refresh_macro_name)
 
-        if self.use_signin_macro:
+        if self.site:
             self.signin_macro_name = f"signin_{self.site}.dat"
             self.signin_macro = Macro(SIGNIN_MACRO_DIR)
             if not self.signin_macro.load_profile(self.signin_macro_name):
@@ -177,6 +171,7 @@ Enter your choice: """).lower()
     
 
     def start_app(self):
+        k = Controller()
         while self.is_running:
             msg = Message()
 
@@ -210,7 +205,7 @@ Enter your choice: """).lower()
                 msg.tuned_predictions = tuned_predictions
                 self.server.send_message(msg)
 
-            if self.use_macro:
+            if not self.no_bet:
                 macro_count = 0
                 time.sleep(4)
                 if self.refresh_macro.is_screen_condition_true():
@@ -218,11 +213,12 @@ Enter your choice: """).lower()
                         if macro_count > MAX_MACRO_COUNT:
                             print("Used macro too many times. State unknown. Quitting...")
                             exit()
-                        if self.use_refresh_macro:
-                            self.refresh_macro.execute_macro()
-                            time.sleep(10)
+                        k.press(Key.f5)
+                        k.release(Key.f5)
+                        time.sleep(5)
+                        macro_count += 1
                         if self.refresh_macro.is_screen_condition_true():
-                            if self.use_signin_macro:
+                            if self.site:
                                 self.signin_macro.execute_macro()
                                 if not self.signin_macro.is_screen_condition_true():
                                     break
@@ -237,12 +233,10 @@ def main():
     parser.add_argument("server_port", type=int, help="The server's port.")
     parser.add_argument("--no-bet", action="store_true")
     parser.add_argument("--use-green-swap", action="store_true")
-    parser.add_argument("--use-refresh-macro", action="store_true")
-    parser.add_argument("--use-signin-macro", action="store_true")
-    parser.add_argument("--site_name", type=str, help="The casino site NAME (do NOT include www or .com/.ag/.eu) to use with the refresh macro")
+    parser.add_argument("--site_name", type=str, help="The casino site NAME (do NOT include www or .com/.ag/.eu) to use with the site macro")
 
     args = parser.parse_args()
-    app = CRMServer(args.server_ip, args.server_port, args.use_refresh_macro, args.use_signin_macro, args.use_green_swap, args.no_bet, args.site_name)
+    app = CRMServer(args.server_ip, args.server_port, args.use_green_swap, args.no_bet, args.site_name)
     try:
         app.run()
     except KeyboardInterrupt:
