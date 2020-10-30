@@ -2,6 +2,10 @@
 __init__.py
 __pycache__/
 dependencies/
+crm_saved_profiles/
+refresh_macros/
+signin_macros/
+*.swp
 desktop.ini
 pip install.txt
 whitelist.txt
