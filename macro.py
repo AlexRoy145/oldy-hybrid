@@ -1,11 +1,14 @@
+import ctypes
 import os.path
 import os
 import mss
 import time
 import pickle
+import autoit
 from pathlib import Path
 from pynput import mouse
 from pynput import keyboard
+
 
 class Macro:
 
@@ -82,11 +85,18 @@ class Macro:
         mouse_listener.stop()
 
 
-    def execute_macro(self):
+    def execute_macro(self, delay=None):
         try:
             for event in self.macro:
-                time.sleep(event.duration)
+                if delay:
+                    time.sleep(delay)
+                else:
+                    time.sleep(event.duration)
                 self.m.position = event.x, event.y
-                self.m.click(event.button)
+                # use autoit.mouse_down("left") and autoit.mouse_up("left") along with sleep to do longer presses
+                if event.button == mouse.Button.left:
+                    autoit.mouse_click("left", event.x, event.y, 1) 
+                elif event.button == mouse.Button.right:
+                    autoit.mouse_click("right", event.x, event.y, 1) 
         except KeyError:
             print("That macro doesn't exist.")

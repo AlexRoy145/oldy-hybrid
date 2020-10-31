@@ -289,14 +289,14 @@ class OCR:
 
                                 duration = time.time() - start_time
                                 if duration > OCR.GIVE_UP_LOOKING_FOR_RAW:
-                                    print(f"Could not detect change in raw prediction properly")
-                                    print(f"OCR saw current raw as: {current_raw}")
+                                    print(f"Could not detect change in TUNED prediction properly")
+                                    print(f"OCR saw current tuned as: {current_tuned}")
                                     cv2.destroyAllWindows()
                                     return None, None
 
                         else:
-                            print(f"Could not detect a valid starting raw prediction.")
-                            print(f"OCR saw starting raw as: {previous_raw}")
+                            print(f"Could not detect a valid starting tuned prediction.")
+                            print(f"OCR saw starting raw as: {previous_tuned}")
                             return None, None
         except mss.exception.ScreenShotError:
             print(f"THREADING ERROR!! You need to quit the detection loop!")

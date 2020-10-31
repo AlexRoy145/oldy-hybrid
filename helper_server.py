@@ -22,6 +22,8 @@ SIGNIN_MACRO_DIR = "signin_macros"
 
 MAX_MACRO_COUNT = 3
 
+GREEN_MACRO_DELAY = 0.025 # IN SECONDS
+
 class CRMServer:
 
     def __init__(self, server_ip, server_port, use_green_swap, no_bet, site_name):
@@ -63,6 +65,20 @@ class CRMServer:
                 self.signin_macro.set_screen_condition()
                 self.signin_macro.record_macro()
                 self.signin_macro.save_profile(self.signin_macro_name)
+
+        self.green_macros = []
+
+        for i in range(1, 5):
+            self.green_macros.append((f"green_macro_{i}.dat", Macro(PROFILE_DIR)))
+
+        i = 1
+        for macro_name, macro in self.green_macros:
+            if not macro.load_profile(macro_name):
+                print(f"Record macro for green {i}")
+                macro.record_macro()
+                macro.save_profile(macro_name)
+
+            i += 1
 
 
         self.server = Server(self.server_ip, self.server_port)
@@ -153,18 +169,22 @@ Enter your choice: """).lower()
             elif choice == "1":
                 # native 3 to 9
                 self.green_swap = 1
+                self.green_macros[self.green_swap - 1][1].execute_macro(delay=GREEN_MACRO_DELAY)
                 continue
             elif choice == "2":
                 # 12 to 6
                 self.green_swap = 2
+                self.green_macros[self.green_swap - 1][1].execute_macro(delay=GREEN_MACRO_DELAY)
                 continue
             elif choice == "3":
                 # 1.5 to 7.5
                 self.green_swap = 3
+                self.green_macros[self.green_swap - 1][1].execute_macro(delay=GREEN_MACRO_DELAY)
                 continue
             elif choice == "4":
                 # 4.5 to 10.5
                 self.green_swap = 4
+                self.green_macros[self.green_swap - 1][1].execute_macro(delay=GREEN_MACRO_DELAY)
                 continue
             else:
                 continue
