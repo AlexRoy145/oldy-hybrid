@@ -54,6 +54,7 @@ class OCR:
         path = os.path.join(self.profile_dir, data_file)
         with open(path, "wb") as f:
             d = {"raw_detection_zone" : self.raw_detection_zone,
+                 "tuned_detection_zone" : self.tuned_detection_zone,
                  "wheel_detection_zone" : self.wheel_detection_zone,
                  "screenshot_zone" : self.screenshot_zone,
                  "diff_thresh" : self.diff_thresh,

@@ -108,9 +108,13 @@ class Clickbot:
         else:
             return None
 
+        return self.get_adjusted_raw(raw_prediction, shift)
+
+
+    def get_adjusted_raw(self, current_raw, shift_amount):
         length = len(self.european_wheel)
-        raw_idx = self.european_wheel.index(raw_prediction)
-        new_raw_idx = raw_idx + shift
+        raw_idx = self.european_wheel.index(current_raw)
+        new_raw_idx = raw_idx + shift_amount
         if new_raw_idx > (length - 1):
             return self.european_wheel[new_raw_idx % length]
         else:

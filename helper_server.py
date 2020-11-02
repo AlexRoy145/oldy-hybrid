@@ -35,6 +35,7 @@ class CRMServer:
 
         self.clickbot = Clickbot(PROFILE_DIR)
         self.green_swap = 1
+        self.raw_adjustment = 0
         self.is_running = True 
 
         if not self.clickbot.load_profile(CLICKBOT_PROFILE):
@@ -92,9 +93,11 @@ class CRMServer:
 
         while True: 
             choice = input(f"""
-IMPORTANT: The following commands can only be run if the direction detection loop is stopped: D, DW, T
+IMPORTANT: The following commands can only be run if the direction detection loop is stopped: D, DW, DT, T
 Q: Quit the direction detection loop.
 R: Run the direction detection loop.
+A: Change the raw adjustment value.
+SA: Show the current raw adjustment value.
 D: Change raw detection zone.
 DW: Change wheel detection zone.
 DT: Change tuned detection zone.
@@ -125,7 +128,18 @@ Enter your choice: """).lower()
                 self.app_thread.start()
                 print("Direction detection started.")
                 continue
-            if choice == "d":
+            elif choice == "a":
+                while True:
+                    try:
+                        self.raw_adjustment = int(input("Input the new raw adjustment value (example: -5 is to the RIGHT, 5 is to the LEFT): "))
+                        break
+                    except ValueError:
+                        print("Invalid value.")
+                continue
+            elif choice =="sa":
+                print(f"Raw adjustment: {self.raw_adjustment}")
+                continue
+            elif choice == "d":
                 self.ocr.set_raw_detection_zone()
                 self.ocr.save_profile(OCR_PROFILE)
                 continue
@@ -215,6 +229,11 @@ Enter your choice: """).lower()
                 tuned_predictions = self.clickbot.get_tuned_from_raw(direction, raw_prediction)
                 print(f"GREEN ADJUSTED RAW PREDICTION: {raw_prediction}")
                 print(f"GREEN ADJUSTED TUNED PREDICTIONS: {tuned_predictions}")
+
+            raw_prediction = self.clickbot.get_adjusted_raw(raw_prediction, self.raw_adjustment)
+            tuned_predictions = self.clickbot.get_tuned_from_raw(direction, raw_prediction)
+            print(f"RAW ADJUSTED RAW PREDICTION: {raw_prediction}")
+            print(f"RAW ADJUSTED TUNED PREDICTIONS: {tuned_predictions}")
 
             if direction != "t" and not self.no_bet:
                 self.clickbot.make_clicks_given_tuned(direction, tuned_predictions)
