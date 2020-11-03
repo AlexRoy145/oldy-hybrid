@@ -38,11 +38,13 @@ class CRMClient:
     def send_screenshot(self, seq_num):
         self.webhook.send(f"{self.hostname}, Spin #: {seq_num}", file=discord.File(SCREENSHOT_FILE))
 
-    def __init__(self, server_ip, server_port, site):
+    def __init__(self, server_ip, server_port, site, username, password):
 
         self.server_ip = server_ip
         self.server_port = server_port
         self.site = site
+        self.username = username
+        self.password = password
         load_dotenv()
         WEBHOOK_ID = os.getenv("WEBHOOK_ID")
         WEBHOOK_TOKEN = os.getenv("WEBHOOK_TOKEN")
@@ -80,8 +82,7 @@ class CRMClient:
             self.signin_macro_name = f"signin_{self.site}.dat"
             self.signin_macro = Macro(SIGNIN_MACRO_DIR)
             if not self.signin_macro.load_profile(self.signin_macro_name):
-                self.signin_macro.set_screen_condition()
-                self.signin_macro.record_macro()
+                self.signin_macro.record_signin_macro()
                 self.signin_macro.save_profile(self.signin_macro_name)
 
 
@@ -91,6 +92,11 @@ class CRMClient:
         self.resize_betting_window()
         self.client = Client(self.server_ip, self.server_port)
         self.client.connect_to_server()
+
+        if self.site and self.username and self.password:
+            self.signin_macro.execute_macro(site=self.site, username=self.username, password=self.password)
+            self.resize_betting_window()
+
 
 
     def run(self):
@@ -124,11 +130,22 @@ class CRMClient:
         while True:
 
             print("Listening for commands...")
+            self.resize_betting_window()
             msg = self.client.recv_msg()
             self.time_received_last_msg = time.time()
 
             if not msg:
                 continue
+
+            if msg.do_signin:
+                if self.site and self.username and self.password:
+                    self.signin_macro.execute_macro(site=self.site, username=self.username, password=self.password)
+                    self.resize_betting_window()
+                    time.sleep(1)
+                    self.ocr.take_screenshot(SCREENSHOT_FILE)
+                    self.send_screenshot("RESULTS OF SIGNIN MACRO")
+                continue
+                
 
             if msg.test_mode:
                 print("TEST MODE, NOT CLICKING.")
@@ -158,14 +175,8 @@ class CRMClient:
                         self.refreshes_used += 1
                         macro_count += 1
                         time.sleep(5)
-
                         if self.refresh_macro.is_screen_condition_true():
-                            if self.site:
-                                self.signin_macro.execute_macro()
-                                self.resize_betting_window()
-                                if not self.signin_macro.is_screen_condition_true():
-                                    break
-                                macro_count += 1
+                            continue
                         else:
                             break
 
@@ -209,10 +220,12 @@ def main():
     parser = argparse.ArgumentParser(description="Run the client betting program.")
     parser.add_argument("server_ip", type=str, help="The server's IP address.")
     parser.add_argument("server_port", type=int, help="The server's port.")
-    parser.add_argument("--site-name", type=str, help="The name of the site (do NOT include the .ag or .com or .eu or www.) for use with signin macros")
+    parser.add_argument("--site-url", type=str, help="The url of the site (do NOT include www, but include the .com or .ag or .eu) for use with signin macros")
+    parser.add_argument("--username", type=str, help="The username to use for the website for the signin macro.")
+    parser.add_argument("--password", type=str, help="The password to use for the website for the signin macro.")
     args = parser.parse_args()
 
-    app = CRMClient(args.server_ip, args.server_port, args.site_name)
+    app = CRMClient(args.server_ip, args.server_port, args.site_url, args.username, args.password)
     try:
         app.run()
     except KeyboardInterrupt:

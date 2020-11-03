@@ -105,6 +105,7 @@ SJ: Show jump values.
 J: Change jump values.
 SC: Show connected clients.
 T: Test raw prediction reading and send test message to clients.
+K: Execute signin macro on all machines.
 1, 2, 3 or 4: Choices for green swap.
 Enter your choice: """).lower()
             if choice == "q":   
@@ -179,6 +180,13 @@ Enter your choice: """).lower()
                 self.server.send_message(msg)
                 print(f"OCR thinks raw is: {raw_prediction}")
                 print(f"OCR thinks tuned is: {tuned_prediction}")
+                continue
+            elif choice == "k":
+                yesorno = input(f"Are you sure you want to execute signin macro on all machines? (Y/N): ").lower()
+                if yesorno == "y":
+                    msg = Message()
+                    msg.do_signin = True
+                    self.server.send_message(msg)
                 continue
             elif choice == "1":
                 # native 3 to 9

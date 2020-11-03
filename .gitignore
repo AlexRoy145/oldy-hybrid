@@ -9,4 +9,5 @@ signin_macros/
 desktop.ini
 pip install.txt
 whitelist.txt
+lobby_urls.txt
 .git/
