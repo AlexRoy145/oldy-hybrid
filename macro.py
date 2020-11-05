@@ -145,18 +145,25 @@ class Macro:
                 time.sleep(delay)
             else:
                 time.sleep(event.duration)
-            if event.keyboard_macro_type == "username":
-                self.k.type(username)
-            elif event.keyboard_macro_type == "password":
-                self.k.type(password)
-            elif event.keyboard_macro_type == "site":
-                self.k.type(site)
-            else:
+            try:
+                if event.keyboard_macro_type == "username":
+                    self.k.type(username)
+                elif event.keyboard_macro_type == "password":
+                    self.k.type(password)
+                elif event.keyboard_macro_type == "site":
+                    self.k.type(site)
+                else:
+                    self.m.position = event.x, event.y
+                    # use autoit.mouse_down("left") and autoit.mouse_up("left") along with sleep to do longer presses
+                    if event.button == mouse.Button.left:
+                        autoit.mouse_click("left", event.x, event.y, 1) 
+                    elif event.button == mouse.Button.right:
+                        autoit.mouse_click("right", event.x, event.y, 1) 
+            except AttributeError:
                 self.m.position = event.x, event.y
                 # use autoit.mouse_down("left") and autoit.mouse_up("left") along with sleep to do longer presses
                 if event.button == mouse.Button.left:
                     autoit.mouse_click("left", event.x, event.y, 1) 
                 elif event.button == mouse.Button.right:
                     autoit.mouse_click("right", event.x, event.y, 1) 
-
 
