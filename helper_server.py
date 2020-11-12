@@ -26,16 +26,11 @@ GREEN_MACRO_DELAY = 0.025 # IN SECONDS
 
 class CRMServer:
 
-    def __init__(self, server_ip, server_port, use_green_swap, no_bet, site_name):
+    def __init__(self, server_ip, server_port):
         self.server_ip = server_ip
         self.server_port = server_port
-        self.use_green_swap = use_green_swap
-        self.no_bet = no_bet
-        self.site = site_name
 
         self.clickbot = Clickbot(PROFILE_DIR)
-        self.green_swap = 1
-        self.raw_adjustment = 0
         self.is_running = True 
 
         if not self.clickbot.load_profile(CLICKBOT_PROFILE):
@@ -48,38 +43,8 @@ class CRMServer:
         if not self.ocr.load_profile(OCR_PROFILE):
             print("Could not find ocr data. Setting up from scratch.")
             self.ocr.set_wheel_detection_zone()
-            self.ocr.set_raw_detection_zone()
-            self.ocr.set_tuned_detection_zone()
+            self.ocr.set_ball_detection_zone()
             self.ocr.save_profile(OCR_PROFILE) 
-
-        if not self.no_bet:
-            self.refresh_macro_name = f"refresh_{self.site}.dat"
-            self.refresh_macro = Macro(REFRESH_MACRO_DIR)
-            if not self.refresh_macro.load_profile(self.refresh_macro_name):
-                self.refresh_macro.set_screen_condition()
-                self.refresh_macro.save_profile(self.refresh_macro_name)
-
-        if self.site:
-            self.signin_macro_name = f"signin_{self.site}.dat"
-            self.signin_macro = Macro(SIGNIN_MACRO_DIR)
-            if not self.signin_macro.load_profile(self.signin_macro_name):
-                self.signin_macro.set_screen_condition()
-                self.signin_macro.record_macro()
-                self.signin_macro.save_profile(self.signin_macro_name)
-
-        self.green_macros = []
-
-        for i in range(1, 5):
-            self.green_macros.append((f"green_macro_{i}.dat", Macro(PROFILE_DIR)))
-
-        i = 1
-        for macro_name, macro in self.green_macros:
-            if not macro.load_profile(macro_name):
-                print(f"Record macro for green {i}")
-                macro.record_macro()
-                macro.save_profile(macro_name)
-
-            i += 1
 
 
         self.server = Server(self.server_ip, self.server_port)
@@ -96,17 +61,12 @@ class CRMServer:
 IMPORTANT: The following commands can only be run if the direction detection loop is stopped: D, DW, DT, T
 Q: Quit the direction detection loop.
 R: Run the direction detection loop.
-A: Change the raw adjustment value.
-SA: Show the current raw adjustment value.
-D: Change raw detection zone.
-DW: Change wheel detection zone.
-DT: Change tuned detection zone.
+DW: Change wheel detection zone (DO THIS BEFORE BALL DETECTION).
+DB: Change ball detection zone.
 SJ: Show jump values.
 J: Change jump values.
 SC: Show connected clients.
-T: Test raw prediction reading and send test message to clients.
 K: Execute signin macro on all machines.
-1, 2, 3 or 4: Choices for green swap.
 Enter your choice: """).lower()
             if choice == "q":   
                 if not self.is_running and not self.ocr.is_running:
@@ -129,27 +89,12 @@ Enter your choice: """).lower()
                 self.app_thread.start()
                 print("Direction detection started.")
                 continue
-            elif choice == "a":
-                while True:
-                    try:
-                        self.raw_adjustment = int(input("Input the new raw adjustment value (example: -5 is to the RIGHT, 5 is to the LEFT): "))
-                        break
-                    except ValueError:
-                        print("Invalid value.")
-                continue
-            elif choice =="sa":
-                print(f"Raw adjustment: {self.raw_adjustment}")
-                continue
-            elif choice == "d":
-                self.ocr.set_raw_detection_zone()
-                self.ocr.save_profile(OCR_PROFILE)
-                continue
             elif choice == "dw":
                 self.ocr.set_wheel_detection_zone()
                 self.ocr.save_profile(OCR_PROFILE)
                 continue
-            elif choice == "dt":
-                self.ocr.set_tuned_detection_zone()
+            elif choice == "db":
+                self.ocr.set_ball_detection_zone()
                 self.ocr.save_profile(OCR_PROFILE)
                 continue
             elif choice == "sj":
@@ -164,49 +109,12 @@ Enter your choice: """).lower()
                 for addr in self.server.clients.keys():
                     print(addr)
                 continue
-            elif choice == "t":
-                msg = Message()
-                msg.test_mode = True
-                raw_prediction = self.ocr.read()
-                tuned_prediction = self.ocr.read(zone=self.ocr.tuned_detection_zone)
-                if self.ocr.is_valid_prediction(raw_prediction):
-                    raw_prediction = int(raw_prediction.strip())
-                    tuned = self.clickbot.get_tuned_from_raw("a", raw_prediction)
-                    msg.raw_prediction = raw_prediction
-                    msg.tuned_predictions = tuned
-                else:
-                    msg.error = True
-
-                self.server.send_message(msg)
-                print(f"OCR thinks raw is: {raw_prediction}")
-                print(f"OCR thinks tuned is: {tuned_prediction}")
-                continue
             elif choice == "k":
                 yesorno = input(f"Are you sure you want to execute signin macro on all machines? (Y/N): ").lower()
                 if yesorno == "y":
                     msg = Message()
                     msg.do_signin = True
                     self.server.send_message(msg)
-                continue
-            elif choice == "1":
-                # native 3 to 9
-                self.green_swap = 1
-                self.green_macros[self.green_swap - 1][1].execute_macro(delay=GREEN_MACRO_DELAY)
-                continue
-            elif choice == "2":
-                # 12 to 6
-                self.green_swap = 2
-                self.green_macros[self.green_swap - 1][1].execute_macro(delay=GREEN_MACRO_DELAY)
-                continue
-            elif choice == "3":
-                # 1.5 to 7.5
-                self.green_swap = 3
-                self.green_macros[self.green_swap - 1][1].execute_macro(delay=GREEN_MACRO_DELAY)
-                continue
-            elif choice == "4":
-                # 4.5 to 10.5
-                self.green_swap = 4
-                self.green_macros[self.green_swap - 1][1].execute_macro(delay=GREEN_MACRO_DELAY)
                 continue
             else:
                 continue
@@ -232,58 +140,20 @@ Enter your choice: """).lower()
             tuned_predictions = self.clickbot.get_tuned_from_raw(direction, raw_prediction)
             print(f"TUNED PREDICTIONS: {tuned_predictions}")
 
-            if self.use_green_swap:
-                raw_prediction = self.clickbot.adjust_raw_for_green_swap(raw_prediction, self.green_swap)
-                tuned_predictions = self.clickbot.get_tuned_from_raw(direction, raw_prediction)
-                print(f"GREEN ADJUSTED RAW PREDICTION: {raw_prediction}")
-                print(f"GREEN ADJUSTED TUNED PREDICTIONS: {tuned_predictions}")
-
-            raw_prediction = self.clickbot.get_adjusted_raw(raw_prediction, self.raw_adjustment)
-            tuned_predictions = self.clickbot.get_tuned_from_raw(direction, raw_prediction)
-            print(f"RAW ADJUSTED RAW PREDICTION: {raw_prediction}")
-            print(f"RAW ADJUSTED TUNED PREDICTIONS: {tuned_predictions}")
-
-            if direction != "t" and not self.no_bet:
-                self.clickbot.make_clicks_given_tuned(direction, tuned_predictions)
-            
             if not "m" in direction:
                 msg.direction = direction
                 msg.raw_prediction = raw_prediction
                 msg.tuned_predictions = tuned_predictions
                 self.server.send_message(msg)
 
-            if not self.no_bet:
-                macro_count = 0
-                time.sleep(4)
-                if self.refresh_macro.is_screen_condition_true():
-                    while True:
-                        if macro_count > MAX_MACRO_COUNT:
-                            print("Used macro too many times. State unknown. Quitting...")
-                            exit()
-                        k.press(Key.f5)
-                        k.release(Key.f5)
-                        time.sleep(5)
-                        macro_count += 1
-                        if self.refresh_macro.is_screen_condition_true():
-                            if self.site:
-                                self.signin_macro.execute_macro()
-                                if not self.signin_macro.is_screen_condition_true():
-                                    break
-                                macro_count += 1
-                        else:
-                            break
-
-
+            
 def main():
     parser = argparse.ArgumentParser(description="Run the server betting program.")
     parser.add_argument("server_ip", type=str, help="The server's IP address.")
     parser.add_argument("server_port", type=int, help="The server's port.")
-    parser.add_argument("--no-bet", action="store_true")
-    parser.add_argument("--use-green-swap", action="store_true")
-    parser.add_argument("--site_name", type=str, help="The casino site NAME (do NOT include www or .com/.ag/.eu) to use with the site macro")
 
     args = parser.parse_args()
-    app = CRMServer(args.server_ip, args.server_port, args.use_green_swap, args.no_bet, args.site_name)
+    app = CRMServer(args.server_ip, args.server_port)
     try:
         app.run()
     except KeyboardInterrupt:

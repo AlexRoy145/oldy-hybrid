@@ -40,6 +40,7 @@ class CRMClient:
 
     def __init__(self, server_ip, server_port, site, username, password):
 
+        print(password)
         self.server_ip = server_ip
         self.server_port = server_port
         self.site = site

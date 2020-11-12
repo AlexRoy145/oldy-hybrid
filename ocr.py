@@ -8,10 +8,12 @@ import pickle
 import numpy as np
 import time
 import threading
+import winsound
 from pynput import mouse
 from collections import deque
 from PIL import Image
 from pytessy import PyTessy
+from ball_sample import BallSample
 
 class OCR:
 
@@ -25,10 +27,17 @@ class OCR:
     LOOKBACK = 20
     DELAY_FOR_RAW_UPDATE = .1
 
+    # BALL VARS
+    MIN_BALL_AREA = 100
+    MAX_BALL_AREA = 2000
+    BALL_START_TIMINGS = 500
+    THRESH = 65
+    MAX_SPIN_DURATION = 30
+
     def __init__(self, profile_dir):
-        self.raw_detection_zone = []
-        self.tuned_detection_zone = []
         self.wheel_detection_zone = []
+        self.ball_detection_zone = []
+        self.relative_ball_detection_zone = []
         self.screenshot_zone = []
         self.diff_thresh = 0
         self.wheel_detection_area = 0
@@ -36,6 +45,8 @@ class OCR:
         self.p = PyTessy()
         self.m = mouse.Controller()
         self.profile_dir = profile_dir
+
+        self.ball = BallSample()
 
         self.is_running = True
 
@@ -53,19 +64,19 @@ class OCR:
     def save_profile(self, data_file):
         path = os.path.join(self.profile_dir, data_file)
         with open(path, "wb") as f:
-            d = {"raw_detection_zone" : self.raw_detection_zone,
-                 "tuned_detection_zone" : self.tuned_detection_zone,
-                 "wheel_detection_zone" : self.wheel_detection_zone,
+            d = {"wheel_detection_zone" : self.wheel_detection_zone,
+                 "ball_detection_zone" : self.ball_detection_zone,
+                 "relative_ball_detection_zone" : self.relative_ball_detection_zone,
                  "screenshot_zone" : self.screenshot_zone,
                  "diff_thresh" : self.diff_thresh,
                  "wheel_detection_area" :self.wheel_detection_area}
             pickle.dump(d, f)
 
-
-    def set_raw_detection_zone(self):
-        self.raw_detection_zone = []
-        zone = self.raw_detection_zone
-        input(f"Hover the mouse over the upper left corner of the detection zone for the raw prediction, then hit ENTER.")
+    
+    def set_ball_detection_zone(self):
+        self.ball_detection_zone = []
+        zone = self.ball_detection_zone
+        input(f"Hover the mouse over the upper left corner of the detection zone for the BALL, then hit ENTER.")
         x_top,y_top = self.m.position
         zone.append(x_top)
         zone.append(y_top)
@@ -77,21 +88,13 @@ class OCR:
 
         print(f"Bounding box: {zone}")
 
+        # get the coords for within the context of wheel detection zone
+        new_ball_leftupper_x = self.ball_detection_zone[0] - self.wheel_detection_zone[0]
+        new_ball_leftupper_y = self.ball_detection_zone[1] - self.wheel_detection_zone[1]
+        new_ball_rightbottom_x = self.ball_detection_zone[2] - self.wheel_detection_zone[0]
+        new_ball_rightbottom_y = self.ball_detection_zone[3] - self.wheel_detection_zone[1]
 
-    def set_tuned_detection_zone(self):
-        self.tuned_detection_zone = []
-        zone = self.tuned_detection_zone
-        input(f"Hover the mouse over the upper left corner of the detection zone for the tuned prediction, then hit ENTER.")
-        x_top,y_top = self.m.position
-        zone.append(x_top)
-        zone.append(y_top)
-
-        input("Hover the mouse over the bottom right corner of the detection zone, then hit ENTER.")
-        x_bot,y_bot = self.m.position
-        zone.append(x_bot)
-        zone.append(y_bot)
-
-        print(f"Bounding box: {zone}")
+        self.relative_ball_detection_zone = [new_ball_leftupper_x, new_ball_leftupper_y, new_ball_rightbottom_x, new_ball_rightbottom_y]
 
 
     def set_wheel_detection_zone(self):
@@ -135,6 +138,7 @@ class OCR:
 
 
     def start_capture(self):
+        # ROTOR VARS
         pts = deque(maxlen=OCR.LOOKBACK)
         current_direction = ""
         seen_direction_change_start_time = None
@@ -154,24 +158,122 @@ class OCR:
         height = bbox[3]-bbox[1]
         wheel_center = int(width/2), int(height/2)
 
+        
+        # BALL VARS
+        current_ball_sample = []
+        first_ball_frame = []
+        first_capture = True
+        first_pass = True
+        start_time = 0
+        rev_time = 0
+        timing_buffer = []
+        buffer_check_passed = False
+        no_buf = True
+        spin_start_time = 0
+        fall_time = -1
+
         try:
             with mss.mss() as sct:
                 while self.is_running:
                     frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
 
                     frame = Image.frombytes('RGB', frame.size, frame.rgb)
+                    ball_frame = frame.crop(self.relative_ball_detection_zone)
+
                     frame = np.array(frame)
-                    blurred = cv2.GaussianBlur(frame, (11, 11), 0)
-                    hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
+                    ball_frame = np.array(ball_frame)
 
-                    mask = cv2.inRange(hsv, OCR.GREEN_LOWER, OCR.GREEN_UPPER)
-                    mask = cv2.erode(mask, None, iterations=2)
-                    mask = cv2.dilate(mask, None, iterations=2)
 
-                    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size,kernel_size)));
+                    if not direction_change_stable:
+                        # ROTOR PROCESSING
+                        blurred = cv2.GaussianBlur(frame, (11, 11), 0)
+                        hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
 
-                    cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                    cnts = imutils.grab_contours(cnts)
+                        mask = cv2.inRange(hsv, OCR.GREEN_LOWER, OCR.GREEN_UPPER)
+                        mask = cv2.erode(mask, None, iterations=2)
+                        mask = cv2.dilate(mask, None, iterations=2)
+
+                        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size,kernel_size)));
+
+                        cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                        cnts = imutils.grab_contours(cnts)
+
+                    # BALL PROCESSING
+                    gray = cv2.cvtColor(ball_frame, cv2.COLOR_BGR2GRAY)
+                    gray = cv2.GaussianBlur(gray, (11, 11), 0)
+                    if first_capture:
+                        first_ball_frame = gray
+                        first_capture = False
+
+
+                    if direction_change_stable:
+
+                        if fall_time > 0:
+                            EPSILON = 250
+                            elapsed_time = time.time() * 1000 - fall_time_start
+                            if abs(elapsed_time - fall_time) < EPSILON:
+                                winsound.Beep(1000, 50)
+                                fall_time_start = 0
+                            
+
+                        if time.time() - spin_start_time > OCR.MAX_SPIN_DURATION:
+                            self.ball.update_sample(current_ball_sample)
+                            return
+
+                        ball_frame_delta = cv2.absdiff(first_ball_frame, gray)
+                        ball_thresh = cv2.threshold(ball_frame_delta, OCR.THRESH, 255, cv2.THRESH_BINARY)[1]
+
+                        ball_thresh = cv2.dilate(ball_thresh, None, iterations=2)
+                        ball_cnts = cv2.findContours(ball_thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                        ball_cnts = imutils.grab_contours(ball_cnts)
+
+                        for c in ball_cnts:
+                            area = cv2.contourArea(c)
+                            if area < OCR.MIN_BALL_AREA or area > OCR.MAX_BALL_AREA:
+                                continue
+
+                            now = int(round(time.time() * 1000))
+                            if first_pass:
+                                start_time = now
+                                first_pass = False
+                            else:
+                                lap_time = now - start_time
+
+                                if lap_time > OCR.BALL_START_TIMINGS:
+                                    start_time = now
+                                    print("Ball detected, lap: %dms" % lap_time)
+                                    if not no_buf:
+                                        if buffer_check_passed:
+                                            #print("Ball check passed")
+                                            current_ball_sample.append(lap_time)
+                                            if fall_time < 0:
+                                                fall_time = self.ball.get_fall_time(lap_time) 
+                                                if fall_time > 0:
+                                                    fall_time_start = time.time() * 1000
+                                                    print(f"FALL TIME THOUGHT TO BE {fall_time} MS FROM NOW")
+                                        else:
+                                            timing_buffer.append(lap_time)
+                                            if len(timing_buffer) > 1:
+                                                percent_diff = (timing_buffer[1] - timing_buffer[0]) / float(timing_buffer[0])
+                                                if timing_buffer[1] > timing_buffer[0] and percent_diff < .7 and lap_time > OCR.BALL_START_TIMINGS:
+                                                    buffer_check_passed = True
+                                                    #print("Ball check passed")
+                                                    current_ball_sample.append(lap_time)
+                                                    if fall_time < 0:
+                                                        fall_time = self.ball.get_fall_time(lap_time) 
+                                                        if fall_time > 0:
+                                                            fall_time_start = time.time() * 1000
+                                                            print(f"FALL TIME THOUGHT TO BE {fall_time} MS FROM NOW")
+                                                else:
+                                                    del timing_buffer[0]
+
+                                    else:
+                                        current_ball_sample.append(lap_time)
+                                        if fall_time < 0:
+                                            fall_time = self.ball.get_fall_time(lap_time) 
+                                            if fall_time > 0:
+                                                fall_time_start = time.time() * 1000
+                                                print(f"FALL TIME THOUGHT TO BE {fall_time} MS FROM NOW")
 
                     center = None
                     if len(cnts) > 0:
@@ -255,11 +357,15 @@ class OCR:
                         duration = time.time() - seen_direction_change_start_time
                         if duration > OCR.TIME_FOR_STABLE_DIRECTION:
                             direction_change_stable = True
+                            spin_start_time = time.time()
+                            # reset some state so this block doesn't happen again
+                            direction_changed = False
 
                     cv2.putText(frame, current_direction, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 255), 3)
                     # show the frame to our screen
                     cv2.circle(frame, wheel_center, 15, (0, 0, 255), -1)
                     cv2.imshow("Wheel Detection", frame)
+                    cv2.imshow("Ball Detection", ball_frame)
                     key = cv2.waitKey(1) & 0xFF
                     frames_seen = (frames_seen + 1) % (OCR.MAX_MISDETECTIONS_BEFORE_RESETTING_STATE + 2)
 
@@ -268,37 +374,6 @@ class OCR:
                     if counter <= OCR.LOOKBACK:
                         counter += 1
 
-                    if direction_change_stable:
-                        print(f"Direction change confirmed: {current_direction}. Identifying if tuned is present.")
-                        previous_tuned = self.read(capture=sct, zone=self.tuned_detection_zone)
-                        if self.is_valid_prediction(previous_tuned):
-                            print(f"Tuned is valid and is currently: {previous_tuned}. Waiting up to {OCR.GIVE_UP_LOOKING_FOR_RAW} seconds for it to change.")
-                            # now wait for a change
-                            start_time = time.time()
-                            while True:
-                                #time.sleep(OCR.DELAY_FOR_RAW_UPDATE)
-                                current_tuned = self.read(capture=sct, zone=self.tuned_detection_zone)
-                                if self.is_valid_prediction(current_tuned):
-                                    if current_tuned != previous_tuned:
-                                        print(f"Detected change in tuned!") 
-                                        cv2.destroyAllWindows()
-                                        current_raw = self.read(capture=sct)
-                                        if not self.is_valid_prediction(current_raw):
-                                            print(f"Could not detect the RAW prediction properly.")
-                                            print(f"OCR saw current RAW as: {current_raw}")
-                                        return current_direction, int(current_raw)
-
-                                duration = time.time() - start_time
-                                if duration > OCR.GIVE_UP_LOOKING_FOR_RAW:
-                                    print(f"Could not detect change in TUNED prediction properly")
-                                    print(f"OCR saw current tuned as: {current_tuned}")
-                                    cv2.destroyAllWindows()
-                                    return None, None
-
-                        else:
-                            print(f"Could not detect a valid starting tuned prediction.")
-                            print(f"OCR saw starting raw as: {previous_tuned}")
-                            return None, None
         except mss.exception.ScreenShotError:
             print(f"THREADING ERROR!! You need to quit the detection loop!")
 
