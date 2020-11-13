@@ -37,6 +37,8 @@ class OCR:
 
     def __init__(self, profile_dir):
         self.wheel_detection_zone = []
+        self.wheel_center_point = None
+        self.reference_diamond_point = None
         self.ball_detection_zone = []
         self.relative_ball_detection_zone = []
         self.screenshot_zone = []
@@ -115,6 +117,21 @@ class OCR:
 
         print(f"Bounding box: {zone}")
 
+        input(f"Hover the mouse over the EXACT CENTER of the wheel, then hit ENTER.")
+        x_center,y_center = self.m.position
+        x_center -= self.wheel_detection_zone[0]
+        y_center -= self.wheel_detection_zone[1]
+        self.wheel_center_point = x_center,y_center
+
+
+        input(f"Hover the mouse over the the center of the pocket RIGHT UNDER the REFERENCE DIAMOND, then hit ENTER.")
+        x_ref,y_ref = self.m.position
+        x_ref -= self.wheel_detection_zone[0]
+        y_ref -= self.wheel_detection_zone[1]
+        self.reference_diamond_point = x_ref, y_ref
+
+
+
         self.diff_thresh = int((self.wheel_detection_zone[2] - self.wheel_detection_zone[0]) / OCR.DIFF_RATIO)
         print(f"diff_thresh: {self.diff_thresh}")
         bbox = self.wheel_detection_zone
@@ -159,7 +176,8 @@ class OCR:
         bbox = self.wheel_detection_zone
         width = bbox[2]-bbox[0]
         height = bbox[3]-bbox[1]
-        wheel_center = int(width/2), int(height/2)
+        wheel_center = self.wheel_center_point
+        ref_diamond = self.reference_diamond_point
 
         
         # BALL VARS
@@ -343,6 +361,7 @@ class OCR:
                     cv2.putText(frame, current_direction, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 255), 3)
                     # show the frame to our screen
                     cv2.circle(frame, wheel_center, 15, (0, 0, 255), -1)
+                    cv2.circle(frame, ref_diamond, 5, (0, 0, 255), -1)
                     cv2.imshow("Wheel Detection", frame)
                     cv2.imshow("Ball Detection", ball_frame)
                     key = cv2.waitKey(1) & 0xFF
