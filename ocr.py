@@ -30,9 +30,10 @@ class OCR:
     # BALL VARS
     MIN_BALL_AREA = 100
     MAX_BALL_AREA = 2000
-    BALL_START_TIMINGS = 500
+    BALL_START_TIMINGS = 550
     THRESH = 65
     MAX_SPIN_DURATION = 30
+    FALSE_DETECTION_THRESH = 100
 
     def __init__(self, profile_dir):
         self.wheel_detection_zone = []
@@ -49,6 +50,7 @@ class OCR:
         self.ball = BallSample()
 
         self.is_running = True
+        self.start_ball_timings = False
 
 
     def load_profile(self, data_file):
@@ -69,7 +71,8 @@ class OCR:
                  "relative_ball_detection_zone" : self.relative_ball_detection_zone,
                  "screenshot_zone" : self.screenshot_zone,
                  "diff_thresh" : self.diff_thresh,
-                 "wheel_detection_area" :self.wheel_detection_area}
+                 "wheel_detection_area" : self.wheel_detection_area,
+                 "ball" : self.ball}
             pickle.dump(d, f)
 
     
@@ -166,11 +169,9 @@ class OCR:
         first_pass = True
         start_time = 0
         rev_time = 0
-        timing_buffer = []
-        buffer_check_passed = False
-        no_buf = True
         spin_start_time = 0
         fall_time = -1
+        self.start_ball_timings = False
 
         try:
             with mss.mss() as sct:
@@ -206,7 +207,7 @@ class OCR:
                         first_capture = False
 
 
-                    if direction_change_stable:
+                    if direction_change_stable and self.start_ball_timings:
 
                         if fall_time > 0:
                             EPSILON = 250
@@ -242,38 +243,16 @@ class OCR:
                                 if lap_time > OCR.BALL_START_TIMINGS:
                                     start_time = now
                                     print("Ball detected, lap: %dms" % lap_time)
-                                    if not no_buf:
-                                        if buffer_check_passed:
-                                            #print("Ball check passed")
-                                            current_ball_sample.append(lap_time)
-                                            if fall_time < 0:
-                                                fall_time = self.ball.get_fall_time(lap_time) 
-                                                if fall_time > 0:
-                                                    fall_time_start = time.time() * 1000
-                                                    print(f"FALL TIME THOUGHT TO BE {fall_time} MS FROM NOW")
-                                        else:
-                                            timing_buffer.append(lap_time)
-                                            if len(timing_buffer) > 1:
-                                                percent_diff = (timing_buffer[1] - timing_buffer[0]) / float(timing_buffer[0])
-                                                if timing_buffer[1] > timing_buffer[0] and percent_diff < .7 and lap_time > OCR.BALL_START_TIMINGS:
-                                                    buffer_check_passed = True
-                                                    #print("Ball check passed")
-                                                    current_ball_sample.append(lap_time)
-                                                    if fall_time < 0:
-                                                        fall_time = self.ball.get_fall_time(lap_time) 
-                                                        if fall_time > 0:
-                                                            fall_time_start = time.time() * 1000
-                                                            print(f"FALL TIME THOUGHT TO BE {fall_time} MS FROM NOW")
-                                                else:
-                                                    del timing_buffer[0]
-
-                                    else:
-                                        current_ball_sample.append(lap_time)
-                                        if fall_time < 0:
-                                            fall_time = self.ball.get_fall_time(lap_time) 
-                                            if fall_time > 0:
-                                                fall_time_start = time.time() * 1000
-                                                print(f"FALL TIME THOUGHT TO BE {fall_time} MS FROM NOW")
+                                    if len(current_ball_sample) > 0:
+                                        if current_ball_sample[-1] - lap_time > OCR.FALSE_DETECTION_THRESH:
+                                            print("FALSE DETECTIONS")
+                                            return
+                                    current_ball_sample.append(lap_time)
+                                    if fall_time < 0:
+                                        fall_time = self.ball.get_fall_time(lap_time) 
+                                        if fall_time > 0:
+                                            fall_time_start = time.time() * 1000
+                                            print(f"FALL TIME THOUGHT TO BE {fall_time} MS FROM NOW")
 
                     center = None
                     if len(cnts) > 0:

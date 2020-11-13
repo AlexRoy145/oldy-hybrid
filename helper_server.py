@@ -61,6 +61,12 @@ class CRMServer:
 IMPORTANT: The following commands can only be run if the direction detection loop is stopped: D, DW, DT, T
 Q: Quit the direction detection loop.
 R: Run the direction detection loop.
+E: Set end difference.
+B: Start ball timings.
+V: Change VPS.
+SS: Show samples.
+CS: Clear sample by sample number.
+AS: Add sample manually.
 DW: Change wheel detection zone (DO THIS BEFORE BALL DETECTION).
 DB: Change ball detection zone.
 SJ: Show jump values.
@@ -88,6 +94,55 @@ Enter your choice: """).lower()
                 self.app_thread.daemon = True
                 self.app_thread.start()
                 print("Direction detection started.")
+                continue
+            elif choice == "e":
+                while True:
+                    try:
+                        self.ocr.ball.end_difference = int(input("Enter the new end difference: "))
+                        break
+                    except ValueError:
+                        print("Invalid value.")
+                continue    
+            elif choice == "b":
+                self.ocr.start_ball_timings = True
+                continue
+            elif choice == "v":
+                while True:
+                    try:
+                        self.ocr.ball.vps = int(input("Enter the new VPS: "))
+                        break
+                    except ValueError:
+                        print("Invalid value.")
+                continue    
+            elif choice == "ss":
+                for i, sample in enumerate(self.ocr.ball.samples):
+                    print(f"Sample #{i}: {sample}")
+                continue
+            elif choice == "cs":
+                for i, sample in enumerate(self.ocr.ball.samples):
+                    print(f"Sample #{i}: {sample}")
+                while True:
+                    try:
+                        sample_idx = int(input("Enter sample number to delete: "))
+                        break
+                    except ValueError:
+                        print("Invalid value.")
+                try:
+                    del self.ocr.ball.samples[sample_idx]
+                except IndexError:
+                    print("That sample doesn't exist.")
+                continue
+            elif choice == "as":
+                sample_to_add = []
+                print("Begin entering the sample, pressing ENTER after each rev. Press CTRL+C when you're done.")
+                while True:
+                    try:
+                        rev = int(input("Enter rev: "))
+                        sample_to_add.append(rev)
+                    except KeyboardInterrupt:
+                        break
+
+                self.ocr.ball.update_sample(sample_to_add)
                 continue
             elif choice == "dw":
                 self.ocr.set_wheel_detection_zone()
