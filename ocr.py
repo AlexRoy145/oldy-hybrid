@@ -2,6 +2,7 @@ import ctypes
 import ctypes.util
 import cv2
 import imutils
+import math
 import mss
 import os.path
 import pickle
@@ -26,6 +27,7 @@ class OCR:
     MORPH_KERNEL_RATIO = .0005
     LOOKBACK = 20
     DELAY_FOR_RAW_UPDATE = .1
+    ROTOR_ANGLE_ELLIPSE = 70
 
     # BALL VARS
     MIN_BALL_AREA = 100
@@ -44,6 +46,7 @@ class OCR:
         self.screenshot_zone = []
         self.diff_thresh = 0
         self.wheel_detection_area = 0
+        self.rotor_acceleration = -3.5 # degrees per second per second
         
         self.p = PyTessy()
         self.m = mouse.Controller()
@@ -54,6 +57,11 @@ class OCR:
         self.is_running = True
         self.start_ball_timings = False
 
+        self.european_wheel = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26]
+
+        self.raw = -1
+        self.direction = ""
+        self.quit = False
 
     def load_profile(self, data_file):
         path = os.path.join(self.profile_dir, data_file)
@@ -69,8 +77,11 @@ class OCR:
         path = os.path.join(self.profile_dir, data_file)
         with open(path, "wb") as f:
             d = {"wheel_detection_zone" : self.wheel_detection_zone,
+                 "wheel_center_point" : self.wheel_center_point,
+                 "reference_diamond_point" : self.reference_diamond_point,
                  "ball_detection_zone" : self.ball_detection_zone,
                  "relative_ball_detection_zone" : self.relative_ball_detection_zone,
+                 "rotor_acceleration" : self.rotor_acceleration,
                  "screenshot_zone" : self.screenshot_zone,
                  "diff_thresh" : self.diff_thresh,
                  "wheel_detection_area" : self.wheel_detection_area,
@@ -157,7 +168,7 @@ class OCR:
         print(f"Bounding box: {zone}")
 
 
-    def start_capture(self):
+    def start_capture(self, msg_queue):
         # ROTOR VARS
         pts = deque(maxlen=OCR.LOOKBACK)
         current_direction = ""
@@ -179,6 +190,14 @@ class OCR:
         wheel_center = self.wheel_center_point
         ref_diamond = self.reference_diamond_point
 
+        # rotor calculation vars
+        rotor_start_point = None
+        rotor_end_point = None
+        rotor_measure_start_time = 0
+        rotor_measure_complete_timestamp = 0
+        rotor_measure_duration = 0
+        degrees = 0
+
         
         # BALL VARS
         current_ball_sample = []
@@ -189,6 +208,8 @@ class OCR:
         rev_time = 0
         spin_start_time = 0
         fall_time = -1
+        fall_time_timestamp = 0
+        did_beep = False
         self.start_ball_timings = False
 
         try:
@@ -203,40 +224,25 @@ class OCR:
                     ball_frame = np.array(ball_frame)
 
 
-                    if not direction_change_stable:
-                        # ROTOR PROCESSING
-                        blurred = cv2.GaussianBlur(frame, (11, 11), 0)
-                        hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
-
-                        mask = cv2.inRange(hsv, OCR.GREEN_LOWER, OCR.GREEN_UPPER)
-                        mask = cv2.erode(mask, None, iterations=2)
-                        mask = cv2.dilate(mask, None, iterations=2)
-
-                        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size,kernel_size)));
-
-                        cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                        cnts = imutils.grab_contours(cnts)
-
                     # BALL PROCESSING
-                    gray = cv2.cvtColor(ball_frame, cv2.COLOR_BGR2GRAY)
-                    gray = cv2.GaussianBlur(gray, (11, 11), 0)
-                    if first_capture:
-                        first_ball_frame = gray
-                        first_capture = False
-
-
                     if direction_change_stable and self.start_ball_timings:
+                        gray = cv2.cvtColor(ball_frame, cv2.COLOR_BGR2GRAY)
+                        gray = cv2.GaussianBlur(gray, (11, 11), 0)
+                        if first_capture:
+                            first_ball_frame = gray
+                            first_capture = False
 
                         if fall_time > 0:
                             EPSILON = 250
-                            elapsed_time = time.time() * 1000 - fall_time_start
-                            if abs(elapsed_time - fall_time) < EPSILON:
+                            elapsed_time = time.time() * 1000 - fall_time_timestamp * 1000
+                            if not did_beep and abs(elapsed_time - fall_time) < EPSILON:
                                 winsound.Beep(1000, 50)
-                                fall_time_start = 0
+                                did_beep = True
                             
 
                         if time.time() - spin_start_time > OCR.MAX_SPIN_DURATION:
                             self.ball.update_sample(current_ball_sample)
+                            msg_queue.put({"raw" : -1, "direction" : current_direction})
                             return
 
                         ball_frame_delta = cv2.absdiff(first_ball_frame, gray)
@@ -264,13 +270,30 @@ class OCR:
                                     if len(current_ball_sample) > 0:
                                         if current_ball_sample[-1] - lap_time > OCR.FALSE_DETECTION_THRESH:
                                             print("FALSE DETECTIONS")
+                                            msg_queue.put({"raw" : -1, "direction" : current_direction})
                                             return
                                     current_ball_sample.append(lap_time)
                                     if fall_time < 0:
                                         fall_time = self.ball.get_fall_time(lap_time) 
                                         if fall_time > 0:
-                                            fall_time_start = time.time() * 1000
+                                            fall_time_timestamp = time.time()
                                             print(f"FALL TIME THOUGHT TO BE {fall_time} MS FROM NOW")
+
+
+                    # ROTOR PROCESSING
+                    if not rotor_measure_complete_timestamp:
+                        blurred = cv2.GaussianBlur(frame, (11, 11), 0)
+                        hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
+
+                        mask = cv2.inRange(hsv, OCR.GREEN_LOWER, OCR.GREEN_UPPER)
+                        mask = cv2.erode(mask, None, iterations=2)
+                        mask = cv2.dilate(mask, None, iterations=2)
+
+                        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size,kernel_size)));
+
+                        cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                        cnts = imutils.grab_contours(cnts)
+
 
                     center = None
                     if len(cnts) > 0:
@@ -287,6 +310,33 @@ class OCR:
                             cv2.circle(frame, center, 5, (0, 0, 255), -1)
                             # update the points queue
                             pts.appendleft(center)
+                            
+                            if direction_change_stable:
+                                if not rotor_start_point:
+                                    rotor_start_point = center
+                                    rotor_measure_start_time = time.time()
+                                elif not rotor_end_point:
+                                    # calculate how many degrees have been measured since rotor_start_point
+                                    degrees = self.get_angle(rotor_start_point, wheel_center, center)
+                                    if degrees >= OCR.ROTOR_ANGLE_ELLIPSE:
+                                        rotor_end_point = center
+                                        rotor_measure_complete_timestamp = time.time()
+                                        rotor_measure_duration = rotor_measure_complete_timestamp - rotor_measure_start_time
+
+
+                                # if the fall time is valid, get how long it's been since the fall time got recorded then use that time
+                                # plus fall time to calculate rotor position
+                                elif rotor_start_point and rotor_end_point:
+                                    if fall_time > 0:
+                                        diff_between_fall_timestamp_and_rotor_timestamp = fall_time_timestamp - rotor_measure_complete_timestamp
+                                        # converting fall time mS to seconds
+                                        fall_time_from_now = fall_time / 1000 + diff_between_fall_timestamp_and_rotor_timestamp
+
+                                        raw = self.calculate_rotor(current_direction, rotor_end_point, degrees, rotor_measure_duration, ref_diamond, fall_time_from_now)
+                                        msg_queue.put({"raw": raw, "direction" : current_direction})
+                                        return 
+
+
                         else:
                             misdetections += 1
                     else:
@@ -458,6 +508,10 @@ class OCR:
 
         return prediction
 
+    def get_angle(self, a, b, c):
+        ang = math.degrees(math.atan2(c[1]-b[1], c[0]-b[0]) - math.atan2(a[1]-b[1], a[0]-b[0]))
+        return (ang + 360) if ang < 0 else ang
+
 
     def is_valid_prediction(self, raw_prediction):
         try:
@@ -470,3 +524,36 @@ class OCR:
 
         return True
 
+
+    def calculate_rotor(self, direction, green_point, degrees, rotor_measure_duration, ref_diamond_point, fall_time_from_now):
+        # first get the measured speed of the rotor in degrees/second
+        speed = degrees / rotor_measure_duration
+
+        # get the degree offset green is from the reference diamond
+        # if degree_offset is more than 180, green is ABOVE reference diamond, assuming ref diamond is to the right
+        # if degree_offset is less than 180, green is BELOW reference diamond, assuming ref diamond is to the right
+        degree_offset = self.get_angle(green_point, self.wheel_center_point, ref_diamond_point)
+
+        # now calculate where the green 0 will be in fall_time_from_now seconds
+        degrees_green_travels = (speed * fall_time_from_now + .5 * self.rotor_acceleration * (fall_time_from_now ** 2)) % 360
+
+        if direction == "clockwise":
+            degree_offset_after_travel = degree_offset + degrees_green_travels
+        else:
+            new_offset = degree_offset - degrees_green_travels
+            degree_offset_after_travel = (new_offset + 360) if new_offset < 0 else new_offset
+
+        # degree_offset_after_travel now represents where green is at the moment of ball fall
+        # now calculate what number is under the reference diamond
+        if degree_offset_after_travel >= 180:
+            # if green is ABOVE ref diamond, go to the right of the green to find raw
+            ratio_to_look = (degree_offset_after_travel - 180) / 360
+            idx = int(round(len(self.european_wheel) * ratio_to_look))
+            raw = self.european_wheel[idx]
+        else:
+            # if green is BELOW ref diamond, go to the left of the green to find raw
+            ratio_to_look = degree_offset_after_travel / 360
+            idx = int(round(len(self.european_wheel) * ratio_to_look))
+            raw = self.european_wheel[-idx]
+
+        return raw

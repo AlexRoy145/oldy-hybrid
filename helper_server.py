@@ -12,6 +12,7 @@ from message import Message
 from server import Server
 from ocr import OCR
 from macro import Macro
+import pathos.helpers.mp
 
 PROFILE_DIR = "../../../Documents/crm_saved_profiles"
 CLICKBOT_PROFILE = "profile.dat"
@@ -181,10 +182,19 @@ Enter your choice: """).lower()
             msg = Message()
 
             print("Waiting for change in direction...")
-            stuff = self.ocr.start_capture()
-            if stuff:
-                direction, raw_prediction = stuff
-            else:
+            msg_queue = mp.Queue()
+            ocr_proc = mp.Process(target=self.call_ocr_loop, args=(msg_queue,))
+            ocr_proc.start()
+
+            while True:
+                if not msg_queue.empty():
+                   d = msg_queue.get() 
+                   raw = d.raw
+                   direction = d.direction
+                   ocr_proc.join()
+                   break
+
+            if raw == -1 or direction == "":
                 continue
 
             print(f"Direction: {direction}, Raw Prediction: {raw_prediction}")
@@ -201,6 +211,10 @@ Enter your choice: """).lower()
                 msg.tuned_predictions = tuned_predictions
                 self.server.send_message(msg)
 
+    def call_ocr_loop(self, msg_queue):
+        self.ocr.start_capture(msg_queue)
+        
+
             
 def main():
     parser = argparse.ArgumentParser(description="Run the server betting program.")
@@ -213,5 +227,10 @@ def main():
         app.run()
     except KeyboardInterrupt:
         exit()
+
+def job(ocr_instance, msg_queue):
+    ocr_instance.start_capture(msg_queue)
+    return
+    
 
 main()
