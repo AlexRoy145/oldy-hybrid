@@ -12,7 +12,6 @@ from message import Message
 from server import Server
 from ocr import OCR
 from macro import Macro
-import pathos.helpers.mp
 
 PROFILE_DIR = "../../../Documents/crm_saved_profiles"
 CLICKBOT_PROFILE = "profile.dat"
@@ -181,20 +180,27 @@ Enter your choice: """).lower()
         while self.is_running:
             msg = Message()
 
+            raw_prediction = -1
+            direction = ""
+            self.ocr.quit = False
+            self.ocr.raw = -1
+            self.ocr.direction = ""
+
             print("Waiting for change in direction...")
-            msg_queue = mp.Queue()
-            ocr_proc = mp.Process(target=self.call_ocr_loop, args=(msg_queue,))
-            ocr_proc.start()
+            ocr_thread = threading.Thread(target=self.ocr.start_capture, args=())
+            ocr_thread.daemon = True
+            ocr_thread.start()
 
-            while True:
-                if not msg_queue.empty():
-                   d = msg_queue.get() 
-                   raw = d.raw
-                   direction = d.direction
-                   ocr_proc.join()
-                   break
+            while self.is_running:
+                time.sleep(.05)
+                if self.ocr.quit:
+                    break
+                elif self.ocr.raw != -1:
+                    raw_prediction = self.ocr.raw
+                    direction = self.ocr.direction
+                    break
 
-            if raw == -1 or direction == "":
+            if raw_prediction == -1 or direction == "":
                 continue
 
             print(f"Direction: {direction}, Raw Prediction: {raw_prediction}")
@@ -205,15 +211,12 @@ Enter your choice: """).lower()
             tuned_predictions = self.clickbot.get_tuned_from_raw(direction, raw_prediction)
             print(f"TUNED PREDICTIONS: {tuned_predictions}")
 
-            if not "m" in direction:
-                msg.direction = direction
-                msg.raw_prediction = raw_prediction
-                msg.tuned_predictions = tuned_predictions
-                self.server.send_message(msg)
-
-    def call_ocr_loop(self, msg_queue):
-        self.ocr.start_capture(msg_queue)
-        
+            msg.direction = direction
+            msg.raw_prediction = raw_prediction
+            msg.tuned_predictions = tuned_predictions
+            self.server.send_message(msg)
+            
+            ocr_thread.join()
 
             
 def main():

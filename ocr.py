@@ -21,7 +21,7 @@ class OCR:
     GREEN_LOWER = (29, 86, 6)
     GREEN_UPPER = (64, 255, 255)
     GIVE_UP_LOOKING_FOR_RAW = 10 #seconds
-    TIME_FOR_STABLE_DIRECTION = 1 #seconds
+    TIME_FOR_STABLE_DIRECTION = 1.5 #seconds
     MAX_MISDETECTIONS_BEFORE_RESETTING_STATE = 60
     DIFF_RATIO = 9
     MORPH_KERNEL_RATIO = .0005
@@ -168,7 +168,7 @@ class OCR:
         print(f"Bounding box: {zone}")
 
 
-    def start_capture(self, msg_queue):
+    def start_capture(self):
         # ROTOR VARS
         pts = deque(maxlen=OCR.LOOKBACK)
         current_direction = ""
@@ -242,7 +242,8 @@ class OCR:
 
                         if time.time() - spin_start_time > OCR.MAX_SPIN_DURATION:
                             self.ball.update_sample(current_ball_sample)
-                            msg_queue.put({"raw" : -1, "direction" : current_direction})
+                            self.quit = True
+                            cv2.destroyAllWindows()
                             return
 
                         ball_frame_delta = cv2.absdiff(first_ball_frame, gray)
@@ -270,8 +271,7 @@ class OCR:
                                     if len(current_ball_sample) > 0:
                                         if current_ball_sample[-1] - lap_time > OCR.FALSE_DETECTION_THRESH:
                                             print("FALSE DETECTIONS")
-                                            msg_queue.put({"raw" : -1, "direction" : current_direction})
-                                            return
+                                            self.quit = True
                                     current_ball_sample.append(lap_time)
                                     if fall_time < 0:
                                         fall_time = self.ball.get_fall_time(lap_time) 
@@ -318,6 +318,8 @@ class OCR:
                                 elif not rotor_end_point:
                                     # calculate how many degrees have been measured since rotor_start_point
                                     degrees = self.get_angle(rotor_start_point, wheel_center, center)
+                                    if degrees > 180:
+                                        degrees = 360 - degrees
                                     if degrees >= OCR.ROTOR_ANGLE_ELLIPSE:
                                         rotor_end_point = center
                                         rotor_measure_complete_timestamp = time.time()
@@ -327,14 +329,14 @@ class OCR:
                                 # if the fall time is valid, get how long it's been since the fall time got recorded then use that time
                                 # plus fall time to calculate rotor position
                                 elif rotor_start_point and rotor_end_point:
-                                    if fall_time > 0:
+                                    if self.raw == -1 and fall_time > 0:
                                         diff_between_fall_timestamp_and_rotor_timestamp = fall_time_timestamp - rotor_measure_complete_timestamp
                                         # converting fall time mS to seconds
                                         fall_time_from_now = fall_time / 1000 + diff_between_fall_timestamp_and_rotor_timestamp
 
                                         raw = self.calculate_rotor(current_direction, rotor_end_point, degrees, rotor_measure_duration, ref_diamond, fall_time_from_now)
-                                        msg_queue.put({"raw": raw, "direction" : current_direction})
-                                        return 
+                                        self.raw = raw
+                                        self.direction = current_direction
 
 
                         else:
@@ -530,30 +532,45 @@ class OCR:
         speed = degrees / rotor_measure_duration
 
         # get the degree offset green is from the reference diamond
-        # if degree_offset is more than 180, green is ABOVE reference diamond, assuming ref diamond is to the right
-        # if degree_offset is less than 180, green is BELOW reference diamond, assuming ref diamond is to the right
+        # if degree_offset is less than 180, green is ABOVE reference diamond, assuming ref diamond is to the right
+        # if degree_offset is more than 180, green is BELOW reference diamond, assuming ref diamond is to the right
         degree_offset = self.get_angle(green_point, self.wheel_center_point, ref_diamond_point)
 
         # now calculate where the green 0 will be in fall_time_from_now seconds
         degrees_green_travels = (speed * fall_time_from_now + .5 * self.rotor_acceleration * (fall_time_from_now ** 2)) % 360
 
-        if direction == "clockwise":
-            degree_offset_after_travel = degree_offset + degrees_green_travels
+        if direction == "anticlockwise":
+            degree_offset_after_travel = (degree_offset + degrees_green_travels) % 360
         else:
             new_offset = degree_offset - degrees_green_travels
             degree_offset_after_travel = (new_offset + 360) if new_offset < 0 else new_offset
 
         # degree_offset_after_travel now represents where green is at the moment of ball fall
         # now calculate what number is under the reference diamond
-        if degree_offset_after_travel >= 180:
-            # if green is ABOVE ref diamond, go to the right of the green to find raw
-            ratio_to_look = (degree_offset_after_travel - 180) / 360
-            idx = int(round(len(self.european_wheel) * ratio_to_look))
-            raw = self.european_wheel[idx]
-        else:
-            # if green is BELOW ref diamond, go to the left of the green to find raw
-            ratio_to_look = degree_offset_after_travel / 360
-            idx = int(round(len(self.european_wheel) * ratio_to_look))
-            raw = self.european_wheel[-idx]
+        try:
+            if degree_offset_after_travel <= 180:
+                # if green is ABOVE ref diamond, go to the right of the green to find raw
+                ratio_to_look = (degree_offset_after_travel - 180) / 360
+                idx = int(round(len(self.european_wheel) * ratio_to_look))
+                raw = self.european_wheel[idx]
+            else:
+                # if green is BELOW ref diamond, go to the left of the green to find raw
+                ratio_to_look = degree_offset_after_travel / 360
+                idx = int(round(len(self.european_wheel) * ratio_to_look))
+                raw = self.european_wheel[-idx]
+        except Exception as e:
+            print(f"EXCEPTION: {e}")
+            print(f"degree_offset: {degree_offset}")
+            print(f"degrees_green_travels: {degrees_green_travels}")
+            print(f"degree_offset_after_travel: {degree_offset_after_travel}")
+            return 0
 
+        print(f"SPEED: {speed} degrees/second")
+        print(f"Duration: {rotor_measure_duration}")
+        print(f"degrees measured: {degrees}")
+        print(f"degree_offset: {degree_offset}")
+        print(f"degrees_green_travels: {degrees_green_travels}")
+        print(f"degree_offset_after_travel: {degree_offset_after_travel}")
+
+        
         return raw
