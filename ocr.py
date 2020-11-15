@@ -81,7 +81,6 @@ class OCR:
                  "reference_diamond_point" : self.reference_diamond_point,
                  "ball_detection_zone" : self.ball_detection_zone,
                  "relative_ball_detection_zone" : self.relative_ball_detection_zone,
-                 "rotor_acceleration" : self.rotor_acceleration,
                  "screenshot_zone" : self.screenshot_zone,
                  "diff_thresh" : self.diff_thresh,
                  "wheel_detection_area" : self.wheel_detection_area,
@@ -234,13 +233,13 @@ class OCR:
 
                         if fall_time > 0:
                             EPSILON = 250
-                            elapsed_time = time.time() * 1000 - fall_time_timestamp * 1000
+                            elapsed_time = time.perf_counter() * 1000 - fall_time_timestamp * 1000
                             if not did_beep and abs(elapsed_time - fall_time) < EPSILON:
                                 winsound.Beep(1000, 50)
                                 did_beep = True
                             
 
-                        if time.time() - spin_start_time > OCR.MAX_SPIN_DURATION:
+                        if time.perf_counter() - spin_start_time > OCR.MAX_SPIN_DURATION:
                             self.ball.update_sample(current_ball_sample)
                             self.quit = True
                             cv2.destroyAllWindows()
@@ -258,7 +257,7 @@ class OCR:
                             if area < OCR.MIN_BALL_AREA or area > OCR.MAX_BALL_AREA:
                                 continue
 
-                            now = int(round(time.time() * 1000))
+                            now = int(round(time.perf_counter() * 1000))
                             if first_pass:
                                 start_time = now
                                 first_pass = False
@@ -276,7 +275,7 @@ class OCR:
                                     if fall_time < 0:
                                         fall_time = self.ball.get_fall_time(lap_time) 
                                         if fall_time > 0:
-                                            fall_time_timestamp = time.time()
+                                            fall_time_timestamp = time.perf_counter()
                                             print(f"FALL TIME THOUGHT TO BE {fall_time} MS FROM NOW")
 
 
@@ -314,7 +313,7 @@ class OCR:
                             if direction_change_stable:
                                 if not rotor_start_point:
                                     rotor_start_point = center
-                                    rotor_measure_start_time = time.time()
+                                    rotor_measure_start_time = time.perf_counter()
                                 elif not rotor_end_point:
                                     # calculate how many degrees have been measured since rotor_start_point
                                     degrees = self.get_angle(rotor_start_point, wheel_center, center)
@@ -322,7 +321,7 @@ class OCR:
                                         degrees = 360 - degrees
                                     if degrees >= OCR.ROTOR_ANGLE_ELLIPSE:
                                         rotor_end_point = center
-                                        rotor_measure_complete_timestamp = time.time()
+                                        rotor_measure_complete_timestamp = time.perf_counter()
                                         rotor_measure_duration = rotor_measure_complete_timestamp - rotor_measure_start_time
 
 
@@ -377,14 +376,14 @@ class OCR:
                                     if direction_changed:
                                         direction_changed = False
                                     else:
-                                        if time.time() - seen_direction_start_time > OCR.TIME_FOR_STABLE_DIRECTION:
+                                        if time.perf_counter() - seen_direction_start_time > OCR.TIME_FOR_STABLE_DIRECTION:
                                             direction_changed = True
-                                            seen_direction_change_start_time = time.time()
+                                            seen_direction_change_start_time = time.perf_counter()
                                         else:
                                             # initial direction changed too rapidly
                                             current_direction = ""
                                 if current_direction == "":
-                                    seen_direction_start_time = time.time()
+                                    seen_direction_start_time = time.perf_counter()
                                     
                                 current_direction = "anticlockwise"
                             else:
@@ -392,21 +391,21 @@ class OCR:
                                     if direction_changed:
                                         direction_changed = False
                                     else:
-                                        if time.time() - seen_direction_start_time > OCR.TIME_FOR_STABLE_DIRECTION:
+                                        if time.perf_counter() - seen_direction_start_time > OCR.TIME_FOR_STABLE_DIRECTION:
                                             direction_changed = True
-                                            seen_direction_change_start_time = time.time()
+                                            seen_direction_change_start_time = time.perf_counter()
                                         else:
                                             current_direction = ""
                                 if current_direction == "":
-                                    seen_direction_start_time = time.time()
+                                    seen_direction_start_time = time.perf_counter()
 
                                 current_direction = "clockwise"
 
                     if direction_changed:
-                        duration = time.time() - seen_direction_change_start_time
+                        duration = time.perf_counter() - seen_direction_change_start_time
                         if duration > OCR.TIME_FOR_STABLE_DIRECTION:
                             direction_change_stable = True
-                            spin_start_time = time.time()
+                            spin_start_time = time.perf_counter()
                             # reset some state so this block doesn't happen again
                             direction_changed = False
 
@@ -548,16 +547,16 @@ class OCR:
         # degree_offset_after_travel now represents where green is at the moment of ball fall
         # now calculate what number is under the reference diamond
         try:
-            if degree_offset_after_travel <= 180:
-                # if green is ABOVE ref diamond, go to the right of the green to find raw
+            if degree_offset_after_travel >= 180:
+                # if green is BELOW ref diamond, go to the left of the green to find raw
                 ratio_to_look = (degree_offset_after_travel - 180) / 360
                 idx = int(round(len(self.european_wheel) * ratio_to_look))
-                raw = self.european_wheel[idx]
+                raw = self.european_wheel[-idx]
             else:
-                # if green is BELOW ref diamond, go to the left of the green to find raw
+                # if green is ABOVE ref diamond, go to the right of the green to find raw
                 ratio_to_look = degree_offset_after_travel / 360
                 idx = int(round(len(self.european_wheel) * ratio_to_look))
-                raw = self.european_wheel[-idx]
+                raw = self.european_wheel[idx]
         except Exception as e:
             print(f"EXCEPTION: {e}")
             print(f"degree_offset: {degree_offset}")
@@ -571,6 +570,8 @@ class OCR:
         print(f"degree_offset: {degree_offset}")
         print(f"degrees_green_travels: {degrees_green_travels}")
         print(f"degree_offset_after_travel: {degree_offset_after_travel}")
+        print(f"ratio_to_look: {ratio_to_look}")
+        print(f"idx: {idx}")
 
         
         return raw
