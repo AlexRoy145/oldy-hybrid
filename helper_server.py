@@ -67,7 +67,7 @@ V: Change VPS.
 SS: Show samples.
 CS: Clear sample by sample number.
 AS: Add sample manually.
-RA: Change rotor acceleration.
+RA: Run rotor acceleration setting loop. QUIT NORMAL DETECTION FIRST USING Q.
 DW: Change wheel detection zone (DO THIS BEFORE BALL DETECTION).
 DB: Change ball detection zone.
 SJ: Show jump values.
@@ -146,14 +146,10 @@ Enter your choice: """).lower()
                 self.ocr.ball_sample.update_sample(sample_to_add)
                 continue
             elif choice == "ra":
-                while True:
-                    try:
-                        accel = float(input("Enter rotor acceleration in terms of degrees/second: "))
-                        self.ocr.rotor_acceleration = accel
-                        self.ocr.save_profile(OCR_PROFILE)
-                        break
-                    except ValueError:
-                        print("Invalid value.")
+                self.accel_thread = threading.Thread(target=self.get_rotor_accel, args=())
+                self.accel_thread.daemon = True
+                self.accel_thread.start()
+                print("Rotor acceleration thread started.")
                 continue
             elif choice == "dw":
                 self.ocr.set_wheel_detection_zone()
@@ -184,6 +180,12 @@ Enter your choice: """).lower()
                 continue
             else:
                 continue
+
+    def get_rotor_accel(self):
+        ocr_thread = threading.Thread(target=self.ocr.capture_rotor_acceleration, args=())
+        ocr_thread.daemon = True
+        ocr_thread.start()
+        ocr_thread.join()
     
 
     def start_app(self):

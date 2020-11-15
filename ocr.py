@@ -27,7 +27,7 @@ class OCR:
         self.screenshot_zone = []
         self.diff_thresh = 0
         self.wheel_detection_area = 0
-        self.rotor_acceleration = -3.5 # degrees per second per second
+        self.rotor_acceleration = -.127 # degrees per second per second
         
         self.m = mouse.Controller()
         self.profile_dir = profile_dir
@@ -35,6 +35,7 @@ class OCR:
         self.ball_sample = BallSample()
 
         self.is_running = True
+        self.set_rotor_acceleration = False
         self.start_ball_timings = False
         self.p = PyTessy()
 
@@ -43,6 +44,7 @@ class OCR:
 
     def load_profile(self, data_file):
         path = os.path.join(self.profile_dir, data_file)
+        self.rotor_acceleration = -.127
         if os.path.isfile(path):
             with open(path, "rb") as f:
                 self.__dict__.update(pickle.load(f))
@@ -154,6 +156,7 @@ class OCR:
             ball_in_queue = mp.Queue()
             rotor_proc = mp.Process(target=Rotor.start_capture, args=(rotor_in_queue, rotor_out_queue, self.wheel_detection_zone, self.wheel_detection_area, self.wheel_center_point, self.reference_diamond_point, self.diff_thresh))
             rotor_proc.start()
+            ball_proc = None
 
             direction = ""
             spin_start_time = 0
@@ -185,6 +188,10 @@ class OCR:
                 if not self.is_running:
                     rotor_in_queue.put({"state" : "quit"})
                     ball_in_queue.put({"state" : "quit"})
+                    rotor_proc.join()
+                    if ball_proc:
+                        ball_proc.join()
+                    rotor_proc.close()
                     self.quit = True
                     return
 
@@ -220,6 +227,9 @@ class OCR:
                 if not self.is_running:
                     rotor_in_queue.put({"state" : "quit"})
                     ball_in_queue.put({"state" : "quit"})
+                    rotor_proc.join()
+                    if ball_proc:
+                        ball_proc.join()
                     self.quit = True
                     return
 
@@ -266,12 +276,16 @@ class OCR:
                             ball_in_queue.put({"state" : "quit"})
                             self.quit = True
                             rotor_proc.join()
-                            ball_proc.join()
+                            if ball_proc:
+                                ball_proc.join()
                             return
 
                 if not self.is_running:
                     rotor_in_queue.put({"state" : "quit"})
                     ball_in_queue.put({"state" : "quit"})
+                    rotor_proc.join()
+                    if ball_proc:
+                        ball_proc.join()
                     self.quit = True
                     return
 
@@ -281,6 +295,38 @@ class OCR:
             print(f"THREADING ERROR!! You need to quit the detection loop!")
 
         cv2.destroyAllWindows()
+
+
+    def capture_rotor_acceleration(self):
+        try:
+            rotor_out_queue = mp.Queue()
+            rotor_in_queue = mp.Queue()
+            rotor_proc = mp.Process(target=Rotor.measure_rotor_acceleration, args=(rotor_in_queue, rotor_out_queue, self.wheel_detection_zone, self.wheel_detection_area, self.wheel_center_point, self.reference_diamond_point, self.diff_thresh))
+            rotor_proc.start()
+
+            bbox = self.wheel_detection_zone
+            width = bbox[2]-bbox[0]
+            height = bbox[3]-bbox[1]
+
+            with mss.mss() as sct:
+
+                while True:
+                    frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
+                    
+                    rotor_in_queue.put({"state" : "", "frame" : frame})
+
+                    if not rotor_out_queue.empty():
+                        out_msg = rotor_out_queue.get()
+                        if out_msg["state"] == "done":
+                            self.rotor_acceleration = out_msg["acceleration"]
+                            print(f"Set rotor acceleration to {self.rotor_acceleration}.")
+                            return
+
+        except mss.exception.ScreenShotError:
+            print(f"THREADING ERROR!! You need to quit the detection loop!")
+
+        cv2.destroyAllWindows()
+
 
 
     def read(self, test=False, capture=None, zone=None):
@@ -403,7 +449,7 @@ class OCR:
         try:
             if degree_offset_after_travel >= 180:
                 # if green is BELOW ref diamond, go to the left of the green to find raw
-                ratio_to_look = (degree_offset_after_travel - 180) / 360
+                ratio_to_look = (360 - degree_offset_after_travel) / 360
                 idx = int(round(len(self.european_wheel) * ratio_to_look))
                 raw = self.european_wheel[-idx]
             else:
@@ -413,9 +459,15 @@ class OCR:
                 raw = self.european_wheel[idx]
         except Exception as e:
             print(f"EXCEPTION: {e}")
+            print(f"SPEED: {speed} degrees/second")
+            print(f"Duration: {rotor_measure_duration}")
+            print(f"degrees measured: {degrees}")
             print(f"degree_offset: {degree_offset}")
             print(f"degrees_green_travels: {degrees_green_travels}")
             print(f"degree_offset_after_travel: {degree_offset_after_travel}")
+            print(f"ratio_to_look: {ratio_to_look}")
+            print(f"idx: {idx}")
+
             return 0
 
         print(f"SPEED: {speed} degrees/second")

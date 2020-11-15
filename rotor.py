@@ -16,7 +16,7 @@ DIFF_RATIO = 9
 MORPH_KERNEL_RATIO = .0005
 LOOKBACK = 20
 DELAY_FOR_RAW_UPDATE = .1
-ROTOR_ANGLE_ELLIPSE = 70
+ROTOR_ANGLE_ELLIPSE = 100
 
 class Rotor:
 
@@ -204,6 +204,99 @@ class Rotor:
                 misdetections = 0
             if counter <= LOOKBACK:
                 counter += 1
+
+
+
+    @staticmethod
+    def measure_rotor_acceleration(in_queue, out_queue, wheel_detection_zone, wheel_detection_area, wheel_center_point, reference_diamond_point, diff_thresh):
+
+        rotor_start_point = None
+        rotor_end_point = None
+        rotor_measure_start_time = 0
+        rotor_measure_duration = 0
+        rotor_measure_complete_timestamp = 0
+        initial_speed = 0
+        ending_speed = 0
+        total_degrees = 0
+        kernel_size = int((MORPH_KERNEL_RATIO * wheel_detection_area)**.5)
+
+        while True:
+            if in_queue.empty():
+                continue
+            in_msg = in_queue.get()
+            if in_msg["state"] == "quit":
+                cv2.destroyAllWindows()
+                return
+            else:
+                frame = in_msg["frame"]
+            frame = Image.frombytes('RGB', frame.size, frame.rgb)
+            frame = np.array(frame)
+
+            blurred = cv2.GaussianBlur(frame, (11, 11), 0)
+            hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
+
+            mask = cv2.inRange(hsv, GREEN_LOWER, GREEN_UPPER)
+            mask = cv2.erode(mask, None, iterations=2)
+            mask = cv2.dilate(mask, None, iterations=2)
+
+            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size,kernel_size)));
+
+            cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            cnts = imutils.grab_contours(cnts)
+
+
+            center = None
+            if len(cnts) > 0:
+                c = max(cnts, key=cv2.contourArea)
+                ((x, y), radius) = cv2.minEnclosingCircle(c)
+                M = cv2.moments(c)
+                center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+                # only proceed if the radius meets a minimum size
+                if radius > 10:
+                    # draw the circle and centroid on the frame,
+                    # then update the list of tracked points
+                    cv2.circle(frame, (int(x), int(y)), int(radius),
+                            (0, 255, 255), 2)
+                    cv2.circle(frame, center, 5, (0, 0, 255), -1)
+                    
+                    if not rotor_start_point:
+                        rotor_start_point = center
+                        rotor_measure_start_time = Rotor.time()
+                    elif not rotor_end_point:
+                        # calculate how many degrees have been measured since rotor_start_point
+                        degrees = Rotor.get_angle(rotor_start_point, wheel_center_point, center)
+                        if degrees > 180:
+                            degrees = 360 - degrees
+                        if degrees >= 175:
+                            rotor_end_point = center
+                            rotor_measure_complete_timestamp = Rotor.time()
+                            rotor_measure_duration = rotor_measure_complete_timestamp - rotor_measure_start_time
+                            print(f"Degrees: {degrees}")
+                            print(f"Duration: {rotor_measure_duration}")
+
+                            if not initial_speed:
+                                initial_speed = degrees / rotor_measure_duration
+                                total_degrees += degrees
+                                rotor_start_point = rotor_end_point
+                                rotor_end_point = None
+                                rotor_measure_start_time = Rotor.time()
+                                print(f"Initial speed: {initial_speed} degrees/second")
+                            else:
+                                ending_speed = degrees / rotor_measure_duration
+                                total_degrees += degrees
+                                acceleration = ( ending_speed ** 2 - initial_speed ** 2 ) / ( 2 * total_degrees )
+                                print(f"Ending speed: {ending_speed} degrees/second")
+                                out_queue.put({"state" : "done", "acceleration" : acceleration})
+                                cv2.destroyAllWindows()
+                                return
+
+
+            # show the frame to our screen
+            cv2.circle(frame, wheel_center_point, 15, (0, 0, 255), -1)
+            cv2.circle(frame, reference_diamond_point, 5, (0, 0, 255), -1)
+            cv2.imshow("Wheel Detection", frame)
+            key = cv2.waitKey(1) & 0xFF
+
 
 
 
