@@ -67,6 +67,7 @@ V: Change VPS.
 SS: Show samples.
 CS: Clear sample by sample number.
 AS: Add sample manually.
+RA: Change rotor acceleration.
 DW: Change wheel detection zone (DO THIS BEFORE BALL DETECTION).
 DB: Change ball detection zone.
 SJ: Show jump values.
@@ -98,7 +99,7 @@ Enter your choice: """).lower()
             elif choice == "e":
                 while True:
                     try:
-                        self.ocr.ball.end_difference = int(input("Enter the new end difference: "))
+                        self.ocr.ball_sample.end_difference = int(input("Enter the new end difference: "))
                         break
                     except ValueError:
                         print("Invalid value.")
@@ -109,17 +110,17 @@ Enter your choice: """).lower()
             elif choice == "v":
                 while True:
                     try:
-                        self.ocr.ball.vps = int(input("Enter the new VPS: "))
+                        self.ocr.ball_sample.vps = int(input("Enter the new VPS: "))
                         break
                     except ValueError:
                         print("Invalid value.")
                 continue    
             elif choice == "ss":
-                for i, sample in enumerate(self.ocr.ball.samples):
+                for i, sample in enumerate(self.ocr.ball_sample.samples):
                     print(f"Sample #{i}: {sample}")
                 continue
             elif choice == "cs":
-                for i, sample in enumerate(self.ocr.ball.samples):
+                for i, sample in enumerate(self.ocr.ball_sample.samples):
                     print(f"Sample #{i}: {sample}")
                 while True:
                     try:
@@ -128,7 +129,7 @@ Enter your choice: """).lower()
                     except ValueError:
                         print("Invalid value.")
                 try:
-                    del self.ocr.ball.samples[sample_idx]
+                    del self.ocr.ball_sample.samples[sample_idx]
                 except IndexError:
                     print("That sample doesn't exist.")
                 continue
@@ -142,7 +143,17 @@ Enter your choice: """).lower()
                     except KeyboardInterrupt:
                         break
 
-                self.ocr.ball.update_sample(sample_to_add)
+                self.ocr.ball_sample.update_sample(sample_to_add)
+                continue
+            elif choice == "ra":
+                while True:
+                    try:
+                        accel = float(input("Enter rotor acceleration in terms of degrees/second: "))
+                        self.ocr.rotor_acceleration = accel
+                        self.ocr.save_profile(OCR_PROFILE)
+                        break
+                    except ValueError:
+                        print("Invalid value.")
                 continue
             elif choice == "dw":
                 self.ocr.set_wheel_detection_zone()
@@ -231,9 +242,6 @@ def main():
     except KeyboardInterrupt:
         exit()
 
-def job(ocr_instance, msg_queue):
-    ocr_instance.start_capture(msg_queue)
-    return
     
-
-main()
+if __name__ == "__main__":
+    main()

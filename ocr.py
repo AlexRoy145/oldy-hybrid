@@ -1,41 +1,22 @@
 import ctypes
 import ctypes.util
 import cv2
-import imutils
 import math
 import mss
+import multiprocessing as mp
 import os.path
 import pickle
 import numpy as np
 import time
-import threading
-import winsound
 from pynput import mouse
 from collections import deque
 from PIL import Image
 from pytessy import PyTessy
 from ball_sample import BallSample
+from ball import Ball 
+from rotor import Rotor
 
 class OCR:
-
-    GREEN_LOWER = (29, 86, 6)
-    GREEN_UPPER = (64, 255, 255)
-    GIVE_UP_LOOKING_FOR_RAW = 10 #seconds
-    TIME_FOR_STABLE_DIRECTION = 1.5 #seconds
-    MAX_MISDETECTIONS_BEFORE_RESETTING_STATE = 60
-    DIFF_RATIO = 9
-    MORPH_KERNEL_RATIO = .0005
-    LOOKBACK = 20
-    DELAY_FOR_RAW_UPDATE = .1
-    ROTOR_ANGLE_ELLIPSE = 70
-
-    # BALL VARS
-    MIN_BALL_AREA = 100
-    MAX_BALL_AREA = 2000
-    BALL_START_TIMINGS = 550
-    THRESH = 65
-    MAX_SPIN_DURATION = 30
-    FALSE_DETECTION_THRESH = 100
 
     def __init__(self, profile_dir):
         self.wheel_detection_zone = []
@@ -48,20 +29,17 @@ class OCR:
         self.wheel_detection_area = 0
         self.rotor_acceleration = -3.5 # degrees per second per second
         
-        self.p = PyTessy()
         self.m = mouse.Controller()
         self.profile_dir = profile_dir
 
-        self.ball = BallSample()
+        self.ball_sample = BallSample()
 
         self.is_running = True
         self.start_ball_timings = False
+        self.p = PyTessy()
 
         self.european_wheel = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26]
 
-        self.raw = -1
-        self.direction = ""
-        self.quit = False
 
     def load_profile(self, data_file):
         path = os.path.join(self.profile_dir, data_file)
@@ -84,7 +62,8 @@ class OCR:
                  "screenshot_zone" : self.screenshot_zone,
                  "diff_thresh" : self.diff_thresh,
                  "wheel_detection_area" : self.wheel_detection_area,
-                 "ball" : self.ball}
+                 "rotor_acceleration" : self.rotor_acceleration,
+                 "ball_sample" : self.ball_sample}
             pickle.dump(d, f)
 
     
@@ -168,261 +147,136 @@ class OCR:
 
 
     def start_capture(self):
-        # ROTOR VARS
-        pts = deque(maxlen=OCR.LOOKBACK)
-        current_direction = ""
-        seen_direction_change_start_time = None
-        seen_direction_start_time = None
-
-        watch_for_direction_change = False
-        direction_change_stable = False
-        direction_changed = False
-        direction_confirmed = False
-        misdetections = 0
-        kernel_size = int((OCR.MORPH_KERNEL_RATIO * self.wheel_detection_area)**.5)
-
-        counter = 0
-        frames_seen = 0
-        bbox = self.wheel_detection_zone
-        width = bbox[2]-bbox[0]
-        height = bbox[3]-bbox[1]
-        wheel_center = self.wheel_center_point
-        ref_diamond = self.reference_diamond_point
-
-        # rotor calculation vars
-        rotor_start_point = None
-        rotor_end_point = None
-        rotor_measure_start_time = 0
-        rotor_measure_complete_timestamp = 0
-        rotor_measure_duration = 0
-        degrees = 0
-
-        
-        # BALL VARS
-        current_ball_sample = []
-        first_ball_frame = []
-        first_capture = True
-        first_pass = True
-        start_time = 0
-        rev_time = 0
-        spin_start_time = 0
-        fall_time = -1
-        fall_time_timestamp = 0
-        did_beep = False
-        self.start_ball_timings = False
-
         try:
+            rotor_out_queue = mp.Queue()
+            rotor_in_queue = mp.Queue()
+            ball_out_queue = mp.Queue()
+            ball_in_queue = mp.Queue()
+            rotor_proc = mp.Process(target=Rotor.start_capture, args=(rotor_in_queue, rotor_out_queue, self.wheel_detection_zone, self.wheel_detection_area, self.wheel_center_point, self.reference_diamond_point, self.diff_thresh))
+            rotor_proc.start()
+
+            direction = ""
+            spin_start_time = 0
+            rotor_done = False
+            ball_done = False
+            raw_calculated = False
+            self.start_ball_timings = False
+            self.raw = -1
+            self.direction = ""
+
+            bbox = self.wheel_detection_zone
+            width = bbox[2]-bbox[0]
+            height = bbox[3]-bbox[1]
+
             with mss.mss() as sct:
+
+                # wait until we get the direction change stable state
+                while self.is_running:
+                    frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
+                    
+                    rotor_in_queue.put({"state" : "", "frame" : frame})
+
+                    if not rotor_out_queue.empty():
+                        out_msg = rotor_out_queue.get()
+                        if out_msg["state"] == "direction_change_stable":
+                            direction = out_msg["direction"]
+                            break
+
+                if not self.is_running:
+                    rotor_in_queue.put({"state" : "quit"})
+                    ball_in_queue.put({"state" : "quit"})
+                    self.quit = True
+                    return
+
+
+                # start the ball process and wait until calculations are done
                 while self.is_running:
                     frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
 
-                    frame = Image.frombytes('RGB', frame.size, frame.rgb)
-                    ball_frame = frame.crop(self.relative_ball_detection_zone)
+                    rotor_in_queue.put({"state" : "", "frame" : frame})
+                    
+                    # start the ball process now
+                    if self.start_ball_timings and spin_start_time == 0:
+                        spin_start_time = time.time()
+                        ball_proc = mp.Process(target=Ball.start_capture, args=(ball_in_queue, ball_out_queue, self.relative_ball_detection_zone, self.ball_sample, spin_start_time))
+                        ball_proc.start()
+                        ball_in_queue.put({"state" : "", "frame" : frame})
+                    elif self.start_ball_timings:
+                        ball_in_queue.put({"state" : "", "frame" : frame})
 
-                    frame = np.array(frame)
-                    ball_frame = np.array(ball_frame)
+                    # now wait until rotor calculation and ball fall calculations are complete
+                    
+                    if not rotor_out_queue.empty():
+                        rotor_out_msg = rotor_out_queue.get()
+                        rotor_done = True
+                    
+                    if not ball_out_queue.empty():
+                        ball_out_msg = ball_out_queue.get()
+                        ball_done = True
+
+                    if rotor_done and ball_done:
+                        break
+
+                if not self.is_running:
+                    rotor_in_queue.put({"state" : "quit"})
+                    ball_in_queue.put({"state" : "quit"})
+                    self.quit = True
+                    return
 
 
-                    # BALL PROCESSING
-                    if direction_change_stable and self.start_ball_timings:
-                        gray = cv2.cvtColor(ball_frame, cv2.COLOR_BGR2GRAY)
-                        gray = cv2.GaussianBlur(gray, (11, 11), 0)
-                        if first_capture:
-                            first_ball_frame = gray
-                            first_capture = False
+                while self.is_running:
+                    frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
+                    ball_in_queue.put({"state" : "", "frame" : frame})
 
-                        if fall_time > 0:
-                            EPSILON = 250
-                            elapsed_time = time.perf_counter() * 1000 - fall_time_timestamp * 1000
-                            if not did_beep and abs(elapsed_time - fall_time) < EPSILON:
-                                winsound.Beep(1000, 50)
-                                did_beep = True
-                            
+                    if not raw_calculated:
+                        # all information is present so we can now calculate raw
+                        rotor_start_point = rotor_out_msg["rotor_start_point"]
+                        rotor_end_point = rotor_out_msg["rotor_end_point"]
+                        rotor_measure_complete_timestamp = rotor_out_msg["rotor_measure_complete_timestamp"]
+                        rotor_measure_duration = rotor_out_msg["rotor_measure_duration"]
+                        degrees = rotor_out_msg["degrees"]
 
-                        if time.perf_counter() - spin_start_time > OCR.MAX_SPIN_DURATION:
-                            self.ball.update_sample(current_ball_sample)
+                        if ball_out_msg["state"] == "false_detections":
+                            # destroy everything
+                            rotor_in_queue.put({"state" : "quit"})
+                            ball_in_queue.put({"state" : "quit"})
                             self.quit = True
-                            cv2.destroyAllWindows()
                             return
 
-                        ball_frame_delta = cv2.absdiff(first_ball_frame, gray)
-                        ball_thresh = cv2.threshold(ball_frame_delta, OCR.THRESH, 255, cv2.THRESH_BINARY)[1]
+                        fall_time = ball_out_msg["fall_time"]
+                        fall_time_timestamp = ball_out_msg["fall_time_timestamp"]
 
-                        ball_thresh = cv2.dilate(ball_thresh, None, iterations=2)
-                        ball_cnts = cv2.findContours(ball_thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                        ball_cnts = imutils.grab_contours(ball_cnts)
+                        diff_between_fall_timestamp_and_rotor_timestamp = fall_time_timestamp - rotor_measure_complete_timestamp
+                        # converting fall time mS to seconds
+                        fall_time_from_now = fall_time / 1000 + diff_between_fall_timestamp_and_rotor_timestamp
 
-                        for c in ball_cnts:
-                            area = cv2.contourArea(c)
-                            if area < OCR.MIN_BALL_AREA or area > OCR.MAX_BALL_AREA:
-                                continue
+                        raw = self.calculate_rotor(direction, rotor_end_point, degrees, rotor_measure_duration, fall_time_from_now)
+                        self.raw = raw
+                        self.direction = direction
+                        raw_calculated = True
 
-                            now = int(round(time.perf_counter() * 1000))
-                            if first_pass:
-                                start_time = now
-                                first_pass = False
-                            else:
-                                lap_time = now - start_time
+                    if not ball_out_queue.empty():
+                        ball_out_msg = ball_out_queue.get()
+                        if ball_out_msg["state"] == "ball_update":
+                            current_ball_sample = ball_out_msg["current_ball_sample"]
+                            self.ball_sample.update_sample(current_ball_sample)
 
-                                if lap_time > OCR.BALL_START_TIMINGS:
-                                    start_time = now
-                                    print("Ball detected, lap: %dms" % lap_time)
-                                    if len(current_ball_sample) > 0:
-                                        if current_ball_sample[-1] - lap_time > OCR.FALSE_DETECTION_THRESH:
-                                            print("FALSE DETECTIONS")
-                                            self.quit = True
-                                    current_ball_sample.append(lap_time)
-                                    if fall_time < 0:
-                                        fall_time = self.ball.get_fall_time(lap_time) 
-                                        if fall_time > 0:
-                                            fall_time_timestamp = time.perf_counter()
-                                            print(f"FALL TIME THOUGHT TO BE {fall_time} MS FROM NOW")
+                            # at this point, everything is officially over
+                            rotor_in_queue.put({"state" : "quit"})
+                            ball_in_queue.put({"state" : "quit"})
+                            self.quit = True
+                            rotor_proc.join()
+                            ball_proc.join()
+                            return
 
-
-                    # ROTOR PROCESSING
-                    if not rotor_measure_complete_timestamp:
-                        blurred = cv2.GaussianBlur(frame, (11, 11), 0)
-                        hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
-
-                        mask = cv2.inRange(hsv, OCR.GREEN_LOWER, OCR.GREEN_UPPER)
-                        mask = cv2.erode(mask, None, iterations=2)
-                        mask = cv2.dilate(mask, None, iterations=2)
-
-                        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size,kernel_size)));
-
-                        cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                        cnts = imutils.grab_contours(cnts)
+                if not self.is_running:
+                    rotor_in_queue.put({"state" : "quit"})
+                    ball_in_queue.put({"state" : "quit"})
+                    self.quit = True
+                    return
 
 
-                    center = None
-                    if len(cnts) > 0:
-                        c = max(cnts, key=cv2.contourArea)
-                        ((x, y), radius) = cv2.minEnclosingCircle(c)
-                        M = cv2.moments(c)
-                        center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
-                        # only proceed if the radius meets a minimum size
-                        if radius > 10:
-                            # draw the circle and centroid on the frame,
-                            # then update the list of tracked points
-                            cv2.circle(frame, (int(x), int(y)), int(radius),
-                                    (0, 255, 255), 2)
-                            cv2.circle(frame, center, 5, (0, 0, 255), -1)
-                            # update the points queue
-                            pts.appendleft(center)
-                            
-                            if direction_change_stable:
-                                if not rotor_start_point:
-                                    rotor_start_point = center
-                                    rotor_measure_start_time = time.perf_counter()
-                                elif not rotor_end_point:
-                                    # calculate how many degrees have been measured since rotor_start_point
-                                    degrees = self.get_angle(rotor_start_point, wheel_center, center)
-                                    if degrees > 180:
-                                        degrees = 360 - degrees
-                                    if degrees >= OCR.ROTOR_ANGLE_ELLIPSE:
-                                        rotor_end_point = center
-                                        rotor_measure_complete_timestamp = time.perf_counter()
-                                        rotor_measure_duration = rotor_measure_complete_timestamp - rotor_measure_start_time
-
-
-                                # if the fall time is valid, get how long it's been since the fall time got recorded then use that time
-                                # plus fall time to calculate rotor position
-                                elif rotor_start_point and rotor_end_point:
-                                    if self.raw == -1 and fall_time > 0:
-                                        diff_between_fall_timestamp_and_rotor_timestamp = fall_time_timestamp - rotor_measure_complete_timestamp
-                                        # converting fall time mS to seconds
-                                        fall_time_from_now = fall_time / 1000 + diff_between_fall_timestamp_and_rotor_timestamp
-
-                                        raw = self.calculate_rotor(current_direction, rotor_end_point, degrees, rotor_measure_duration, ref_diamond, fall_time_from_now)
-                                        self.raw = raw
-                                        self.direction = current_direction
-
-
-                        else:
-                            misdetections += 1
-                    else:
-                        misdetections += 1
-
-                    if misdetections > OCR.MAX_MISDETECTIONS_BEFORE_RESETTING_STATE:
-                        # completely reset state
-                        watch_for_direction_change = False
-                        direction_change_stable = False
-                        direction_changed = False
-                        direction_confirmed = False
-                        current_direction = ""
-                        seen_direction_change_start_time = None
-                        seen_direction_start_time = None
-                        counter = 0
-                        pts.clear()
-                        misdetections = 0
-                        continue
-
-                    if len(pts) == OCR.LOOKBACK: 
-                        previous = pts[-1]
-                        current = pts[0]
-
-                        dx = previous[0] - current[0]
-                        dy = previous[1] - current[1]
-
-                        if np.abs(dx) > self.diff_thresh or np.abs(dy) > self.diff_thresh:
-                            # get direction of wheel movement
-                            is_anticlockwise = ((previous[0] - wheel_center[0]) * (current[1] - wheel_center[1]) - 
-                                                (previous[1] - wheel_center[1]) * (current[0] - wheel_center[0])) < 0;
-
-        
-                            if is_anticlockwise:
-                                if current_direction == "clockwise":
-                                    # if we've already seen the direction change once, reset state as its unstable
-                                    if direction_changed:
-                                        direction_changed = False
-                                    else:
-                                        if time.perf_counter() - seen_direction_start_time > OCR.TIME_FOR_STABLE_DIRECTION:
-                                            direction_changed = True
-                                            seen_direction_change_start_time = time.perf_counter()
-                                        else:
-                                            # initial direction changed too rapidly
-                                            current_direction = ""
-                                if current_direction == "":
-                                    seen_direction_start_time = time.perf_counter()
-                                    
-                                current_direction = "anticlockwise"
-                            else:
-                                if current_direction == "anticlockwise":
-                                    if direction_changed:
-                                        direction_changed = False
-                                    else:
-                                        if time.perf_counter() - seen_direction_start_time > OCR.TIME_FOR_STABLE_DIRECTION:
-                                            direction_changed = True
-                                            seen_direction_change_start_time = time.perf_counter()
-                                        else:
-                                            current_direction = ""
-                                if current_direction == "":
-                                    seen_direction_start_time = time.perf_counter()
-
-                                current_direction = "clockwise"
-
-                    if direction_changed:
-                        duration = time.perf_counter() - seen_direction_change_start_time
-                        if duration > OCR.TIME_FOR_STABLE_DIRECTION:
-                            direction_change_stable = True
-                            spin_start_time = time.perf_counter()
-                            # reset some state so this block doesn't happen again
-                            direction_changed = False
-
-                    cv2.putText(frame, current_direction, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 255), 3)
-                    # show the frame to our screen
-                    cv2.circle(frame, wheel_center, 15, (0, 0, 255), -1)
-                    cv2.circle(frame, ref_diamond, 5, (0, 0, 255), -1)
-                    cv2.imshow("Wheel Detection", frame)
-                    cv2.imshow("Ball Detection", ball_frame)
-                    key = cv2.waitKey(1) & 0xFF
-                    frames_seen = (frames_seen + 1) % (OCR.MAX_MISDETECTIONS_BEFORE_RESETTING_STATE + 2)
-
-                    if frames_seen == 0:
-                        misdetections = 0
-                    if counter <= OCR.LOOKBACK:
-                        counter += 1
-
+                    
         except mss.exception.ScreenShotError:
             print(f"THREADING ERROR!! You need to quit the detection loop!")
 
@@ -526,14 +380,14 @@ class OCR:
         return True
 
 
-    def calculate_rotor(self, direction, green_point, degrees, rotor_measure_duration, ref_diamond_point, fall_time_from_now):
+    def calculate_rotor(self, direction, green_point, degrees, rotor_measure_duration, fall_time_from_now):
         # first get the measured speed of the rotor in degrees/second
         speed = degrees / rotor_measure_duration
 
         # get the degree offset green is from the reference diamond
         # if degree_offset is less than 180, green is ABOVE reference diamond, assuming ref diamond is to the right
         # if degree_offset is more than 180, green is BELOW reference diamond, assuming ref diamond is to the right
-        degree_offset = self.get_angle(green_point, self.wheel_center_point, ref_diamond_point)
+        degree_offset = self.get_angle(green_point, self.wheel_center_point, self.reference_diamond_point)
 
         # now calculate where the green 0 will be in fall_time_from_now seconds
         degrees_green_travels = (speed * fall_time_from_now + .5 * self.rotor_acceleration * (fall_time_from_now ** 2)) % 360
