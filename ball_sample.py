@@ -16,17 +16,20 @@ class BallSample:
 
     
     def get_fall_time(self, observed_rev):
-        averaged_sample = self.averaged_sample
-        differences = []
-        for i, sample_rev in enumerate(averaged_sample):
-            diff = abs(observed_rev - sample_rev)
-            differences.append(diff)
+        if self.averaged_sample:
+            averaged_sample = self.averaged_sample
+            differences = []
+            for i, sample_rev in enumerate(averaged_sample):
+                diff = abs(observed_rev - sample_rev)
+                differences.append(diff)
 
-        smallest_diff = min(differences)
-        lowest_idx = differences.index(smallest_diff)
+            smallest_diff = min(differences)
+            lowest_idx = differences.index(smallest_diff)
 
-        if smallest_diff < self.rev_tolerance:
-            return sum(averaged_sample[lowest_idx + 1:]) + self.end_difference
+            if smallest_diff < self.rev_tolerance:
+                return sum(averaged_sample[lowest_idx + 1:]) + self.end_difference
+            else:
+                return -1
         else:
             return -1
 
@@ -50,16 +53,17 @@ class BallSample:
 
     def update_averaged_sample(self):
         new_averaged_sample = []
-        for j in range(len(self.samples[0])):
-            averaged_rev = 0
-            for i in range(len(self.samples)):
-                averaged_rev += self.samples[i][j]
+        if len(self.samples) > 0:
+            for j in range(len(self.samples[0])):
+                averaged_rev = 0
+                for i in range(len(self.samples)):
+                    averaged_rev += self.samples[i][j]
 
-            averaged_rev /= len(self.samples)
-            new_averaged_sample.append(averaged_rev)
+                averaged_rev /= len(self.samples)
+                new_averaged_sample.append(averaged_rev)
 
-        print(f"New averaged sample: {new_averaged_sample}")
-        self.averaged_sample = new_averaged_sample
+            print(f"New averaged sample: {new_averaged_sample}")
+            self.averaged_sample = new_averaged_sample
 
 
     def change_vps(self, new_vps):
@@ -68,7 +72,15 @@ class BallSample:
             self.samples = [x for x in self.samples if len(x) < new_vps]
 
         elif new_vps < self.vps:
-            print(f"Older samples with values greater than {new_vps} will be deleted.")
-            self.samples = [x for x in self.samples if len(x) > new_vps]
-            
+            print(f"Older samples with values greater than {new_vps} will be trimmed.")
+            new_samples = []
+            for sample in self.samples:
+                if len(sample) > new_vps:
+                    new_samples.append(sample[len(sample) - new_vps:])
+                else:
+                    new_samples.append(sample)
+
+            self.samples = new_samples
+
+        self.update_averaged_sample()
         self.vps = new_vps

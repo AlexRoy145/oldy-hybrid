@@ -16,6 +16,8 @@ from ball_sample import BallSample
 from ball import Ball 
 from rotor import Rotor
 
+DIFF_RATIO = 9
+
 class OCR:
 
     def __init__(self, profile_dir):
@@ -123,7 +125,7 @@ class OCR:
 
 
 
-        self.diff_thresh = int((self.wheel_detection_zone[2] - self.wheel_detection_zone[0]) / OCR.DIFF_RATIO)
+        self.diff_thresh = int((self.wheel_detection_zone[2] - self.wheel_detection_zone[0]) / DIFF_RATIO)
         print(f"diff_thresh: {self.diff_thresh}")
         bbox = self.wheel_detection_zone
         width = bbox[2]-bbox[0]
@@ -470,6 +472,7 @@ class OCR:
 
             return 0
 
+        '''
         print(f"SPEED: {speed} degrees/second")
         print(f"Duration: {rotor_measure_duration}")
         print(f"degrees measured: {degrees}")
@@ -478,6 +481,7 @@ class OCR:
         print(f"degree_offset_after_travel: {degree_offset_after_travel}")
         print(f"ratio_to_look: {ratio_to_look}")
         print(f"idx: {idx}")
+        '''
 
         
         return raw

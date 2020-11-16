@@ -100,6 +100,7 @@ Enter your choice: """).lower()
                 while True:
                     try:
                         self.ocr.ball_sample.end_difference = int(input("Enter the new end difference: "))
+                        self.ocr.save_profile(OCR_PROFILE)
                         break
                     except ValueError:
                         print("Invalid value.")
@@ -110,7 +111,9 @@ Enter your choice: """).lower()
             elif choice == "v":
                 while True:
                     try:
-                        self.ocr.ball_sample.vps = int(input("Enter the new VPS: "))
+                        vps = int(input("Enter the new VPS: "))
+                        self.ocr.ball_sample.change_vps(vps)
+                        self.ocr.save_profile(OCR_PROFILE)
                         break
                     except ValueError:
                         print("Invalid value.")
