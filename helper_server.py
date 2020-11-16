@@ -32,6 +32,7 @@ class CRMServer:
 
         self.clickbot = Clickbot(PROFILE_DIR)
         self.is_running = True 
+        self.test_mode = False
 
         if not self.clickbot.load_profile(CLICKBOT_PROFILE):
             print("Could not find clickbot data. Setting up from scratch.")
@@ -64,6 +65,7 @@ R: Run the direction detection loop.
 E: Set end difference.
 B: Start ball timings.
 V: Change VPS.
+T: Toggle test mode. Test mode will let detection run, but WON'T send commands to clients.
 SS: Show samples.
 CS: Clear sample by sample number.
 AS: Add sample manually.
@@ -118,6 +120,14 @@ Enter your choice: """).lower()
                     except ValueError:
                         print("Invalid value.")
                 continue    
+            elif choice == "t":
+                if self.test_mode:
+                    print("Turning test mode OFF.")
+                    self.test_mode = False
+                else:
+                    print("Turning test mode ON.")
+                    self.test_mode = True
+                continue
             elif choice == "ss":
                 for i, sample in enumerate(self.ocr.ball_sample.samples):
                     print(f"Sample #{i}: {sample}")
@@ -227,10 +237,11 @@ Enter your choice: """).lower()
             tuned_predictions = self.clickbot.get_tuned_from_raw(direction, raw_prediction)
             print(f"TUNED PREDICTIONS: {tuned_predictions}")
 
-            msg.direction = direction
-            msg.raw_prediction = raw_prediction
-            msg.tuned_predictions = tuned_predictions
-            self.server.send_message(msg)
+            if not self.test_mode:
+                msg.direction = direction
+                msg.raw_prediction = raw_prediction
+                msg.tuned_predictions = tuned_predictions
+                self.server.send_message(msg)
             
             ocr_thread.join()
 
