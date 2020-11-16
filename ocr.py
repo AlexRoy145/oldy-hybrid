@@ -158,6 +158,8 @@ class OCR:
             ball_in_queue = mp.Queue()
             rotor_proc = mp.Process(target=Rotor.start_capture, args=(rotor_in_queue, rotor_out_queue, self.wheel_detection_zone, self.wheel_detection_area, self.wheel_center_point, self.reference_diamond_point, self.diff_thresh))
             rotor_proc.start()
+            ball_proc = mp.Process(target=Ball.start_capture, args=(ball_in_queue, ball_out_queue, self.relative_ball_detection_zone, self.ball_sample))
+            ball_proc.start()
             ball_proc = None
 
             direction = ""
@@ -207,9 +209,7 @@ class OCR:
                     # start the ball process now
                     if self.start_ball_timings and spin_start_time == 0:
                         spin_start_time = time.time()
-                        ball_proc = mp.Process(target=Ball.start_capture, args=(ball_in_queue, ball_out_queue, self.relative_ball_detection_zone, self.ball_sample, spin_start_time))
-                        ball_proc.start()
-                        ball_in_queue.put({"state" : "", "frame" : frame})
+                        ball_in_queue.put({"state" : "", "frame" : frame, "spin_start_time" : spin_start_time, "start_ball_timings" : True})
                     elif self.start_ball_timings:
                         ball_in_queue.put({"state" : "", "frame" : frame})
 
