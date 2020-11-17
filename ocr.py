@@ -46,6 +46,7 @@ class OCR:
 
     def load_profile(self, data_file):
         path = os.path.join(self.profile_dir, data_file)
+        self.data_file = data_file
         self.rotor_acceleration = -.127
         if os.path.isfile(path):
             with open(path, "rb") as f:
@@ -56,6 +57,7 @@ class OCR:
 
 
     def save_profile(self, data_file):
+        self.data_file = data_file
         path = os.path.join(self.profile_dir, data_file)
         with open(path, "wb") as f:
             d = {"wheel_detection_zone" : self.wheel_detection_zone,
@@ -182,6 +184,7 @@ class OCR:
                     frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
                     
                     rotor_in_queue.put({"state" : "", "frame" : frame})
+                    ball_in_queue.put({"state" : "", "frame" : frame})
 
                     if not rotor_out_queue.empty():
                         out_msg = rotor_out_queue.get()
@@ -204,15 +207,19 @@ class OCR:
                 while self.is_running:
                     frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
 
-                    rotor_in_queue.put({"state" : "", "frame" : frame})
-                    
-                    # start the ball process now
                     if self.start_ball_timings and spin_start_time == 0:
                         spin_start_time = time.time()
                         ball_in_queue.put({"state" : "", "frame" : frame, "spin_start_time" : spin_start_time, "start_ball_timings" : True})
+
                     elif self.start_ball_timings:
+                        ball_in_queue.put({"state" : "", "frame" : frame, "start_ball_timings": True})
+
+                    else:
                         ball_in_queue.put({"state" : "", "frame" : frame})
 
+
+                    rotor_in_queue.put({"state" : "", "frame" : frame})
+                    
                     # now wait until rotor calculation and ball fall calculations are complete
                     
                     if not rotor_out_queue.empty():
@@ -272,6 +279,7 @@ class OCR:
                         if ball_out_msg["state"] == "ball_update":
                             current_ball_sample = ball_out_msg["current_ball_sample"]
                             self.ball_sample.update_sample(current_ball_sample)
+                            self.save_profile(self.data_file)
 
                             # at this point, everything is officially over
                             rotor_in_queue.put({"state" : "quit"})
@@ -485,3 +493,36 @@ class OCR:
 
         
         return raw
+
+
+    def show_ball_samples(self):
+        for i, sample in enumerate(self.ball_sample.samples):
+            print(f"Sample #{i}: {sample}")
+        print(f"Averaged sample: {self.ball_sample.averaged_sample}")
+
+
+    def delete_ball_sample(self, idx):
+        try:
+            del self.ball_sample.samples[idx]
+            self.ball_sample.update_averaged_sample()
+        except IndexError:
+            print("That sample doesn't exist.")
+
+        self.save_profile(self.data_file)
+
+
+    def add_ball_sample(self, sample):
+        self.ball_sample.update_sample(sample)
+        self.save_profile(self.data_file)
+
+
+    def change_vps(self, vps):
+        self.ball_sample.change_vps(vps)
+        self.save_profile(self.data_file)
+
+    
+    def change_max_samples(self, new_max_samples):
+        if new_max_samples != self.ball_sample.max_samples:
+            self.ball_sample.change_max_samples(new_max_samples)
+
+        self.save_profile(self.data_file)

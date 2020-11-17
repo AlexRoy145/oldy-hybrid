@@ -69,6 +69,7 @@ T: Toggle test mode. Test mode will let detection run, but WON'T send commands t
 SS: Show samples.
 CS: Clear sample by sample number.
 AS: Add sample manually.
+CM: Change max samples for ball sample.
 RA: Run rotor acceleration setting loop. QUIT NORMAL DETECTION FIRST USING Q.
 DW: Change wheel detection zone (DO THIS BEFORE BALL DETECTION).
 DB: Change ball detection zone.
@@ -114,8 +115,7 @@ Enter your choice: """).lower()
                 while True:
                     try:
                         vps = int(input("Enter the new VPS: "))
-                        self.ocr.ball_sample.change_vps(vps)
-                        self.ocr.save_profile(OCR_PROFILE)
+                        self.ocr.change_vps(vps)
                         break
                     except ValueError:
                         print("Invalid value.")
@@ -129,8 +129,7 @@ Enter your choice: """).lower()
                     self.test_mode = True
                 continue
             elif choice == "ss":
-                for i, sample in enumerate(self.ocr.ball_sample.samples):
-                    print(f"Sample #{i}: {sample}")
+                self.ocr.show_ball_samples()
                 continue
             elif choice == "cs":
                 for i, sample in enumerate(self.ocr.ball_sample.samples):
@@ -138,25 +137,35 @@ Enter your choice: """).lower()
                 while True:
                     try:
                         sample_idx = int(input("Enter sample number to delete: "))
+                        self.ocr.delete_ball_sample(sample_idx)
                         break
                     except ValueError:
                         print("Invalid value.")
-                try:
-                    del self.ocr.ball_sample.samples[sample_idx]
-                except IndexError:
-                    print("That sample doesn't exist.")
+
                 continue
             elif choice == "as":
                 sample_to_add = []
-                print("Begin entering the sample, pressing ENTER after each rev. Press CTRL+C when you're done.")
-                while True:
-                    try:
-                        rev = int(input("Enter rev: "))
-                        sample_to_add.append(rev)
-                    except KeyboardInterrupt:
-                        break
+                new_sample = input("Enter the sample as a comma delimited list of numbers: ")
+                new_sample = new_sample.replace(" ", "").split(",")
+                if len(new_sample) > 0:
+                    for rev in new_sample:
+                        try:
+                            sample_to_add.append(int(rev))
+                        except ValueError:
+                            print("Invalid value in sample.")
+                            break
 
-                self.ocr.ball_sample.update_sample(sample_to_add)
+                    self.ocr.add_ball_sample(sample_to_add)
+                else:
+                    print("Invalid sample.")
+
+                continue
+            elif choice == "cm":
+                try:
+                    new_max_samples = int(input("Enter the new max samples: "))
+                    self.ocr.change_max_samples(new_max_samples)
+                except ValueError:
+                    print("Invalid value.")
                 continue
             elif choice == "ra":
                 self.accel_thread = threading.Thread(target=self.get_rotor_accel, args=())
