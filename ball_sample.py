@@ -69,9 +69,11 @@ class BallSample:
                 self.update_averaged_sample()
             else:
                 print(f"Not updating ball sample because last spin had {len(l)} vps, but sample VPS is {self.vps}.")
+                print(f"Sample: {new_sample}")
 
         else:
             print(f"Not updating ball sample because sample was not monotonically increasing.")
+            print(f"Sample: {new_sample}")
 
 
     def update_averaged_sample(self):

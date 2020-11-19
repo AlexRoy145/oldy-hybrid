@@ -8,7 +8,7 @@ from PIL import Image
 
 MIN_BALL_AREA = 100
 MAX_BALL_AREA = 2000
-BALL_START_TIMINGS = 550
+BALL_START_TIMINGS = 450
 THRESH = 65
 MAX_SPIN_DURATION = 30
 FALSE_DETECTION_THRESH = 100
@@ -17,7 +17,7 @@ EPSILON = 250
 class Ball:
 
     @staticmethod
-    def start_capture(in_queue, out_queue, relative_ball_detection_zone, ball_sample):
+    def start_capture(in_queue, out_queue, relative_ball_detection_zone, ball_sample, ball_reference_frame):
         current_ball_sample = []
         first_ball_frame = []
         first_capture = True
@@ -31,6 +31,10 @@ class Ball:
         spin_start_time = 0
         start_ball_timings = False
 
+        first_frame = Image.frombytes('RGB', ball_reference_frame.size, ball_reference_frame.rgb)
+        first_frame = np.array(first_frame)
+        first_frame_gray = cv2.cvtColor(first_frame, cv2.COLOR_BGR2GRAY)
+        first_frame_gray = cv2.GaussianBlur(first_frame_gray, (11, 11), 0)
 
         while True:
             if in_queue.empty():
@@ -61,7 +65,7 @@ class Ball:
                     gray = cv2.cvtColor(ball_frame, cv2.COLOR_BGR2GRAY)
                     gray = cv2.GaussianBlur(gray, (11, 11), 0)
                     if first_capture:
-                        first_ball_frame = gray
+                        first_ball_frame = first_frame_gray
                         first_capture = False
 
                     if fall_time > 0:

@@ -26,6 +26,7 @@ class OCR:
         self.reference_diamond_point = None
         self.ball_detection_zone = []
         self.relative_ball_detection_zone = []
+        self.ball_reference_frame = None
         self.screenshot_zone = []
         self.diff_thresh = 0
         self.wheel_detection_area = 0
@@ -65,6 +66,7 @@ class OCR:
                  "reference_diamond_point" : self.reference_diamond_point,
                  "ball_detection_zone" : self.ball_detection_zone,
                  "relative_ball_detection_zone" : self.relative_ball_detection_zone,
+                 "ball_reference_frame" : self.ball_reference_frame,
                  "screenshot_zone" : self.screenshot_zone,
                  "diff_thresh" : self.diff_thresh,
                  "wheel_detection_area" : self.wheel_detection_area,
@@ -87,6 +89,16 @@ class OCR:
         zone.append(y_bot)
 
         print(f"Bounding box: {zone}")
+
+        # take screenshot to get first frame 
+        bbox = self.ball_detection_zone
+        width = bbox[2]-bbox[0]
+        height = bbox[3]-bbox[1]
+
+        with mss.mss() as sct:
+            frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
+            self.ball_reference_frame = frame
+            
 
         # get the coords for within the context of wheel detection zone
         new_ball_leftupper_x = self.ball_detection_zone[0] - self.wheel_detection_zone[0]
@@ -160,7 +172,7 @@ class OCR:
             ball_in_queue = mp.Queue()
             rotor_proc = mp.Process(target=Rotor.start_capture, args=(rotor_in_queue, rotor_out_queue, self.wheel_detection_zone, self.wheel_detection_area, self.wheel_center_point, self.reference_diamond_point, self.diff_thresh))
             rotor_proc.start()
-            ball_proc = mp.Process(target=Ball.start_capture, args=(ball_in_queue, ball_out_queue, self.relative_ball_detection_zone, self.ball_sample))
+            ball_proc = mp.Process(target=Ball.start_capture, args=(ball_in_queue, ball_out_queue, self.relative_ball_detection_zone, self.ball_sample, self.ball_reference_frame))
             ball_proc.start()
             ball_proc = None
 
@@ -262,17 +274,27 @@ class OCR:
                             self.quit = True
                             return
 
-                        fall_time = ball_out_msg["fall_time"]
-                        fall_time_timestamp = ball_out_msg["fall_time_timestamp"]
+                        if len(self.ball_sample.samples) > 0:
+                            fall_time = ball_out_msg["fall_time"]
+                            fall_time_timestamp = ball_out_msg["fall_time_timestamp"]
 
-                        diff_between_fall_timestamp_and_rotor_timestamp = fall_time_timestamp - rotor_measure_complete_timestamp
-                        # converting fall time mS to seconds
-                        fall_time_from_now = fall_time / 1000 + diff_between_fall_timestamp_and_rotor_timestamp
+                            diff_between_fall_timestamp_and_rotor_timestamp = fall_time_timestamp - rotor_measure_complete_timestamp
+                            # converting fall time mS to seconds
+                            fall_time_from_now = fall_time / 1000 + diff_between_fall_timestamp_and_rotor_timestamp
 
-                        raw = self.calculate_rotor(direction, rotor_end_point, degrees, rotor_measure_duration, fall_time_from_now)
-                        self.raw = raw
-                        self.direction = direction
-                        raw_calculated = True
+                            raw = self.calculate_rotor(direction, rotor_end_point, degrees, rotor_measure_duration, fall_time_from_now)
+                            self.raw = raw
+                            self.direction = direction
+                            raw_calculated = True
+                        else:
+                            rotor_in_queue.put({"state" : "quit"})
+                            ball_in_queue.put({"state" : "quit"})
+                            rotor_proc.join()
+                            if ball_proc:
+                                ball_proc.join()
+                            self.quit = True
+                            return
+                           
 
                     if not ball_out_queue.empty():
                         ball_out_msg = ball_out_queue.get()

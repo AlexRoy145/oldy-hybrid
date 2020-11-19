@@ -16,7 +16,7 @@ DIFF_RATIO = 9
 MORPH_KERNEL_RATIO = .0005
 LOOKBACK = 20
 DELAY_FOR_RAW_UPDATE = .1
-ROTOR_ANGLE_ELLIPSE = 70
+ROTOR_ANGLE_ELLIPSE = 100
 
 class Rotor:
 
@@ -71,7 +71,7 @@ class Rotor:
                 mask = cv2.erode(mask, None, iterations=2)
                 mask = cv2.dilate(mask, None, iterations=2)
 
-                mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size,kernel_size)));
+                mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_CROSS, (kernel_size,kernel_size)));
 
                 cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
                 cnts = imutils.grab_contours(cnts)
