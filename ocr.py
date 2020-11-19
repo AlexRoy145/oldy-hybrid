@@ -520,7 +520,9 @@ class OCR:
     def show_ball_samples(self):
         for i, sample in enumerate(self.ball_sample.samples):
             print(f"Sample #{i}: {sample}")
-        print(f"Averaged sample: {self.ball_sample.averaged_sample}")
+            print(f"Poly Sample #{i}: {sample.poly_sample}")
+            print()
+        #print(f"Averaged sample: {self.ball_sample.averaged_sample}")
 
 
     def delete_ball_sample(self, idx):
@@ -548,3 +550,6 @@ class OCR:
             self.ball_sample.change_max_samples(new_max_samples)
 
         self.save_profile(self.data_file)
+
+    def graph_samples(self):
+        self.ball_sample.graph_samples()

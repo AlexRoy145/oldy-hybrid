@@ -67,6 +67,7 @@ B: Start ball timings.
 V: Change VPS.
 T: Toggle test mode. Test mode will let detection run, but WON'T send commands to clients.
 SS: Show samples.
+G: Graph samples.
 CS: Clear sample by sample number.
 AS: Add sample manually.
 CM: Change max samples for ball sample.
@@ -130,6 +131,9 @@ Enter your choice: """).lower()
                 continue
             elif choice == "ss":
                 self.ocr.show_ball_samples()
+                continue
+            elif choice == "g":
+                self.ocr.graph_samples()
                 continue
             elif choice == "cs":
                 for i, sample in enumerate(self.ocr.ball_sample.samples):
