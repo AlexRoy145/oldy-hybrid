@@ -71,6 +71,7 @@ G: Graph samples.
 CS: Clear sample by sample number.
 AS: Add sample manually.
 CM: Change max samples for ball sample.
+CA: Change rotor acceleration.
 RA: Run rotor acceleration setting loop. QUIT NORMAL DETECTION FIRST USING Q.
 DW: Change wheel detection zone (DO THIS BEFORE BALL DETECTION).
 DB: Change ball detection zone.
@@ -170,6 +171,10 @@ Enter your choice: """).lower()
                     self.ocr.change_max_samples(new_max_samples)
                 except ValueError:
                     print("Invalid value.")
+                continue
+            elif choice == "ca":
+                self.ocr.rotor_acceleration = float(input("Enter the new rotor acceleration: "))
+                self.ocr.save_profile(OCR_PROFILE)
                 continue
             elif choice == "ra":
                 self.accel_thread = threading.Thread(target=self.get_rotor_accel, args=())

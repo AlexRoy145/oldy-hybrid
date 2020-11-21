@@ -208,9 +208,10 @@ class OCR:
                     rotor_in_queue.put({"state" : "quit"})
                     ball_in_queue.put({"state" : "quit"})
                     rotor_proc.join()
+                    rotor_proc.close()
                     if ball_proc:
                         ball_proc.join()
-                    rotor_proc.close()
+                        ball_proc.close()
                     self.quit = True
                     return
 
@@ -249,8 +250,10 @@ class OCR:
                     rotor_in_queue.put({"state" : "quit"})
                     ball_in_queue.put({"state" : "quit"})
                     rotor_proc.join()
+                    rotor_proc.close()
                     if ball_proc:
                         ball_proc.join()
+                        ball_proc.close()
                     self.quit = True
                     return
 
@@ -258,6 +261,7 @@ class OCR:
                 while self.is_running:
                     frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
                     ball_in_queue.put({"state" : "", "frame" : frame})
+                    rotor_in_queue.put({"state" : "", "frame" : frame})
 
                     if not raw_calculated:
                         # all information is present so we can now calculate raw
@@ -286,12 +290,17 @@ class OCR:
                             self.raw = raw
                             self.direction = direction
                             raw_calculated = True
+                            
+                            # tell the rotor when the fall time is so it can capture the true raw at expected fall time
+                            rotor_in_queue.put({"state" : "ball_info", "fall_time" : fall_time, "fall_time_timestamp" : fall_time_timestamp, "frame" : frame})
                         else:
                             rotor_in_queue.put({"state" : "quit"})
                             ball_in_queue.put({"state" : "quit"})
                             rotor_proc.join()
+                            rotor_proc.close()
                             if ball_proc:
                                 ball_proc.join()
+                                ball_proc.close()
                             self.quit = True
                             return
                            
@@ -308,16 +317,32 @@ class OCR:
                             ball_in_queue.put({"state" : "quit"})
                             self.quit = True
                             rotor_proc.join()
+                            rotor_proc.close()
                             if ball_proc:
                                 ball_proc.join()
+                                ball_proc.close()
                             return
+
+
+                    if not rotor_out_queue.empty():
+                        # ROTOR ACCURACY EVALUATION
+                        true_green_position = rotor_out_queue.get()["green_position"]
+                        true_green_offset = self.get_angle(true_green_position, self.wheel_center_point, self.reference_diamond_point)
+                        degrees_off = abs(true_green_offset - self.green_calculated_offset)
+                        if degrees_off >= 180:
+                            pockets_off = int(round((360 - degrees_off) / (360 / len(self.european_wheel))))
+                        else:
+                            pockets_off = abs(int(round(degrees_off / (360 / len(self.european_wheel)))))
+                        print(f"Raw prediction was {pockets_off} pockets off of the TRUE raw.")
 
                 if not self.is_running:
                     rotor_in_queue.put({"state" : "quit"})
                     ball_in_queue.put({"state" : "quit"})
                     rotor_proc.join()
+                    rotor_proc.close()
                     if ball_proc:
                         ball_proc.join()
+                        ball_proc.close()
                     self.quit = True
                     return
 
@@ -468,6 +493,7 @@ class OCR:
         degree_offset = self.get_angle(green_point, self.wheel_center_point, self.reference_diamond_point)
 
         # now calculate where the green 0 will be in fall_time_from_now seconds
+        full_degrees_green_travels = (speed * fall_time_from_now + .5 * self.rotor_acceleration * (fall_time_from_now ** 2))
         degrees_green_travels = (speed * fall_time_from_now + .5 * self.rotor_acceleration * (fall_time_from_now ** 2)) % 360
 
         if direction == "anticlockwise":
@@ -475,6 +501,9 @@ class OCR:
         else:
             new_offset = degree_offset - degrees_green_travels
             degree_offset_after_travel = (new_offset + 360) if new_offset < 0 else new_offset
+
+        # this is used to compare how off the raw is at ball fall beep
+        self.green_calculated_offset = degree_offset_after_travel
 
         # degree_offset_after_travel now represents where green is at the moment of ball fall
         # now calculate what number is under the reference diamond
@@ -508,9 +537,11 @@ class OCR:
         print(f"degrees measured: {degrees}")
         print(f"degree_offset: {degree_offset}")
         print(f"degrees_green_travels: {degrees_green_travels}")
+        print(f"FULL degrees green travels: {full_degrees_green_travels}")
         print(f"degree_offset_after_travel: {degree_offset_after_travel}")
         print(f"ratio_to_look: {ratio_to_look}")
         print(f"idx: {idx}")
+        print(f"Rotor accel: {self.rotor_acceleration}")
         '''
 
         
@@ -528,7 +559,7 @@ class OCR:
     def delete_ball_sample(self, idx):
         try:
             del self.ball_sample.samples[idx]
-            self.ball_sample.update_averaged_sample()
+            #self.ball_sample.update_averaged_sample()
         except IndexError:
             print("That sample doesn't exist.")
 

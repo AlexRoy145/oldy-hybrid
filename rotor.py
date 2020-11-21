@@ -10,11 +10,11 @@ from PIL import Image
 GREEN_LOWER = (29, 86, 6)
 GREEN_UPPER = (64, 255, 255)
 GIVE_UP_LOOKING_FOR_RAW = 10 #seconds
-TIME_FOR_STABLE_DIRECTION = 1.5 #seconds
+TIME_FOR_STABLE_DIRECTION = 2.5 #seconds
 MAX_MISDETECTIONS_BEFORE_RESETTING_STATE = 60
 DIFF_RATIO = 9
 MORPH_KERNEL_RATIO = .0005
-LOOKBACK = 20
+LOOKBACK = 30
 DELAY_FOR_RAW_UPDATE = .1
 ROTOR_ANGLE_ELLIPSE = 100
 
@@ -51,6 +51,12 @@ class Rotor:
         rotor_measure_duration = 0
         degrees = 0
 
+        # ball vars
+        fall_time = -1
+        fall_time_timestamp = -1
+        sent_fall = False
+        EPSILON = 50 #ms
+
         while True:
             if in_queue.empty():
                 continue
@@ -63,18 +69,23 @@ class Rotor:
             frame = Image.frombytes('RGB', frame.size, frame.rgb)
             frame = np.array(frame)
 
-            if not rotor_measure_complete_timestamp:
-                blurred = cv2.GaussianBlur(frame, (11, 11), 0)
-                hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
+            if fall_time < 0:
+                if "fall_time" in in_msg:
+                    fall_time = in_msg["fall_time"]
+                    fall_time_timestamp = in_msg["fall_time_timestamp"]
+            
 
-                mask = cv2.inRange(hsv, GREEN_LOWER, GREEN_UPPER)
-                mask = cv2.erode(mask, None, iterations=2)
-                mask = cv2.dilate(mask, None, iterations=2)
+            blurred = cv2.GaussianBlur(frame, (11, 11), 0)
+            hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
 
-                mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_CROSS, (kernel_size,kernel_size)));
+            mask = cv2.inRange(hsv, GREEN_LOWER, GREEN_UPPER)
+            mask = cv2.erode(mask, None, iterations=2)
+            mask = cv2.dilate(mask, None, iterations=2)
 
-                cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                cnts = imutils.grab_contours(cnts)
+            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size,kernel_size)));
+
+            cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            cnts = imutils.grab_contours(cnts)
 
 
             center = None
@@ -92,6 +103,14 @@ class Rotor:
                     cv2.circle(frame, center, 5, (0, 0, 255), -1)
                     # update the points queue
                     pts.appendleft(center)
+
+                    # Code to determine if we need to send rotor position out
+                    if fall_time > 0:
+                        elapsed_time = (Rotor.time() - fall_time_timestamp) * 1000
+                        if not sent_fall and abs(elapsed_time - fall_time) < EPSILON:
+                            out_queue.put({"state" : "green_position_update", "green_position" : center})
+                            sent_fall = True
+
                     
                     if direction_change_stable:
                         if not rotor_start_point:

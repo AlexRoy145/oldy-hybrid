@@ -6,13 +6,13 @@ import winsound
 from collections import deque
 from PIL import Image
 
-MIN_BALL_AREA = 100
+MIN_BALL_AREA = 50
 MAX_BALL_AREA = 2000
 BALL_START_TIMINGS = 450
 THRESH = 65
 MAX_SPIN_DURATION = 30
 FALSE_DETECTION_THRESH = 100
-EPSILON = 250
+EPSILON = 50
 
 class Ball:
 
@@ -71,7 +71,8 @@ class Ball:
                     if fall_time > 0:
                         elapsed_time = (Ball.time() - fall_time_timestamp) * 1000
                         if not did_beep and abs(elapsed_time - fall_time) < EPSILON:
-                            winsound.Beep(1000, 50)
+                            print("!"*20, "FALL HAPPENED", "!"*20)
+                            #winsound.Beep(1000, 50)
                             did_beep = True
                         
 
@@ -120,7 +121,10 @@ class Ball:
 
 
             
-            cv2.imshow("Ball Detection", ball_frame)
+            if start_ball_timings:
+                cv2.imshow("Ball Detection", ball_thresh)
+            else:
+                cv2.imshow("Ball Detection", ball_frame)
             key = cv2.waitKey(1) & 0xFF
 
 

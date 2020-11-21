@@ -76,7 +76,7 @@ class BallSample:
                 best_result = results[0]
                 sample = self.samples[best_result["sample_idx"]].get_trimmed_sample(self.vps)
                 sample_rev = best_result["rev_idx"]
-                print(f"Using sample #{best_result['sample_idx']} and rev {sample[sample_rev]} for prediction.")
+                print(f"Using sample #{best_result['sample_idx']}: {sample} and rev {sample[sample_rev]} for prediction.")
                 return sum(sample[sample_rev + 1:]) + self.end_difference
             else:
                 return -1
@@ -115,6 +115,7 @@ class BallSample:
             # determine if sample is VPS correct
             if len(l) >= self.vps:
                 self.samples.append(Sample(new_sample))
+                print(f"Sample updated: {new_sample}")
                 #self.update_averaged_sample()
             else:
                 print(f"Not updating ball sample because last spin had {len(l)} vps, but sample VPS is {self.vps}.")
