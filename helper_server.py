@@ -102,6 +102,7 @@ Enter your choice: """).lower()
                 print("Direction detection started.")
                 continue
             elif choice == "e":
+                print(f"Current end difference: {self.ocr.ball_sample.end_difference}")
                 while True:
                     try:
                         self.ocr.ball_sample.end_difference = int(input("Enter the new end difference: "))
@@ -114,6 +115,7 @@ Enter your choice: """).lower()
                 self.ocr.start_ball_timings = True
                 continue
             elif choice == "v":
+                print(f"Current VPS: {self.ocr.ball_sample.vps}")
                 while True:
                     try:
                         vps = int(input("Enter the new VPS: "))
@@ -166,6 +168,7 @@ Enter your choice: """).lower()
 
                 continue
             elif choice == "cm":
+                print(f"Current max samples: {self.ocr.ball_sample.max_samples}")
                 try:
                     new_max_samples = int(input("Enter the new max samples: "))
                     self.ocr.change_max_samples(new_max_samples)
@@ -173,6 +176,7 @@ Enter your choice: """).lower()
                     print("Invalid value.")
                 continue
             elif choice == "ca":
+                print(f"Current rotor acceleration: {self.ocr.rotor_acceleration}")
                 self.ocr.rotor_acceleration = float(input("Enter the new rotor acceleration: "))
                 self.ocr.save_profile(OCR_PROFILE)
                 continue
