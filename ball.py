@@ -71,7 +71,7 @@ class Ball:
                     if fall_time > 0:
                         elapsed_time = (Ball.time() - fall_time_timestamp) * 1000
                         if not did_beep and abs(elapsed_time - fall_time) < EPSILON:
-                            print("!"*20, "FALL HAPPENED", "!"*20)
+                            print("\n"*15, "!"*20, "FALL HAPPENED", "!"*20)
                             #winsound.Beep(1000, 50)
                             did_beep = True
                         
