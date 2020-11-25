@@ -35,7 +35,7 @@ class Sample:
 
 class BallSample:
 
-    REV_TOLERANCE = 70
+    REV_TOLERANCE = 100
 
     def __init__(self):
         # array of ints representing milliseconds of ball rev times
@@ -85,8 +85,7 @@ class BallSample:
 
 
     
-    '''
-    def get_fall_time(self, observed_rev):
+    def get_fall_time_averaged(self, observed_rev):
         if self.averaged_sample:
             averaged_sample = self.averaged_sample.get_trimmed_sample(self.vps)
             differences = []
@@ -103,8 +102,6 @@ class BallSample:
                 return -1
         else:
             return -1
-    '''
-
 
     
     def update_sample(self, new_sample):
@@ -116,7 +113,7 @@ class BallSample:
             if len(l) >= self.vps:
                 self.samples.append(Sample(new_sample))
                 print(f"Sample updated: {new_sample}")
-                #self.update_averaged_sample()
+                self.update_averaged_sample()
             else:
                 print(f"Not updating ball sample because last spin had {len(l)} vps, but sample VPS is {self.vps}.")
                 print(f"Sample: {new_sample}")
@@ -161,7 +158,7 @@ class BallSample:
 
 
         self.vps = new_vps
-        #self.update_averaged_sample()
+        self.update_averaged_sample()
 
 
     def change_max_samples(self, new_max_samples):
@@ -169,7 +166,7 @@ class BallSample:
         new_deque.extend(self.samples)
         self.max_samples = new_max_samples
         self.samples = new_deque
-        #self.update_averaged_sample()
+        self.update_averaged_sample()
 
 
     def graph_samples(self):
@@ -180,6 +177,11 @@ class BallSample:
                 y = sample.poly_sample
                 plt.plot(x, y, label = f"Sample #{i}")
                 plt.scatter(x, y)
+
+            x = list(range(longest_sample_len, longest_sample_len - len(self.averaged_sample.full_sample), -1))[::-1]
+            y = self.averaged_sample.poly_sample
+            plt.plot(x, y, label = f"Averaged Sample")
+            plt.scatter(x, y)
 
             plt.xticks(range(1, longest_sample_len + 1))
             plt.yticks(range(500, 2300, 100))

@@ -215,7 +215,7 @@ class Rotor:
             # show the frame to our screen
             cv2.circle(frame, wheel_center, 15, (0, 0, 255), -1)
             cv2.circle(frame, ref_diamond, 5, (0, 0, 255), -1)
-            cv2.imshow("Wheel Detection", frame)
+            #cv2.imshow("Wheel Detection", frame)
             key = cv2.waitKey(1) & 0xFF
             frames_seen = (frames_seen + 1) % (MAX_MISDETECTIONS_BEFORE_RESETTING_STATE + 2)
 

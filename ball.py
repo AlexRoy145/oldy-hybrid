@@ -110,7 +110,7 @@ class Ball:
 
                                 current_ball_sample.append(lap_time)
                                 if fall_time < 0:
-                                    fall_time = ball_sample.get_fall_time(lap_time) 
+                                    fall_time = ball_sample.get_fall_time_averaged(lap_time) 
                                     if fall_time > 0:
                                         fall_time_timestamp = Ball.time()
                                         print(f"FALL TIME CALCULATED TO BE {fall_time} MS FROM NOW")
