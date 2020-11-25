@@ -125,12 +125,15 @@ class Rotor:
                                 rotor_end_point = center
                                 rotor_measure_complete_timestamp = Rotor.time()
                                 rotor_measure_duration = rotor_measure_complete_timestamp - rotor_measure_start_time
+                                # converting from degrees/second to seconds/degrees to seconds/rotation to milliseconds/rotation
+                                rotor_speed = (1 / (degrees / rotor_measure_duration)) * 360 * 1000
 
                                 out_msg = {"state" : "rotor_measure_complete", 
                                             "rotor_start_point" : rotor_start_point,
                                             "rotor_end_point" : rotor_end_point,
                                             "rotor_measure_complete_timestamp" : rotor_measure_complete_timestamp,
                                             "rotor_measure_duration" : rotor_measure_duration,
+                                            "rotor_speed" : rotor_speed,
                                             "degrees" : degrees}
 
                                 out_queue.put(out_msg)

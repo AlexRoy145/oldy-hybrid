@@ -184,6 +184,7 @@ class OCR:
             self.start_ball_timings = False
             self.raw = -1
             self.direction = ""
+            self.rotor_speed = -1
 
             bbox = self.wheel_detection_zone
             width = bbox[2]-bbox[0]
@@ -269,6 +270,7 @@ class OCR:
                         rotor_end_point = rotor_out_msg["rotor_end_point"]
                         rotor_measure_complete_timestamp = rotor_out_msg["rotor_measure_complete_timestamp"]
                         rotor_measure_duration = rotor_out_msg["rotor_measure_duration"]
+                        rotor_speed = rotor_out_msg["rotor_speed"]
                         degrees = rotor_out_msg["degrees"]
 
                         if ball_out_msg["state"] == "false_detections":
@@ -289,6 +291,7 @@ class OCR:
                             raw = self.calculate_rotor(direction, rotor_end_point, degrees, rotor_measure_duration, fall_time_from_now)
                             self.raw = raw
                             self.direction = direction
+                            self.rotor_speed = rotor_speed
                             raw_calculated = True
                             
                             # tell the rotor when the fall time is so it can capture the true raw at expected fall time

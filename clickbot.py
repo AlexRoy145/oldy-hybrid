@@ -1,5 +1,6 @@
 import os
 import os.path
+import json
 import random
 import pickle
 from pynput import mouse
@@ -34,6 +35,17 @@ class Clickbot:
         path = os.path.join(self.profile_dir, data_file)
         with open(path, "wb") as f:
             pickle.dump(self.__dict__, f)
+
+
+    def load_rotor_isolation_profile(self, data_file):
+        path = os.path.join(self.profile_dir, data_file)
+        if os.path.isfile(path):
+            with open(path, "r") as f:
+                self.rotor_isolation_scatter = json.load(f)
+
+            return True
+        else:
+            return False
 
 
     def set_jump_helper(self, range_str, jump_list):
@@ -121,12 +133,7 @@ class Clickbot:
             return self.european_wheel[new_raw_idx]
 
 
-    def get_tuned_from_raw(self, direction, raw_prediction):
-        if direction == "a":
-            jumps = self.jump_anti
-        else:
-            jumps = self.jump_clock
-
+    def get_tuned_given_jumps(self, jumps, raw_prediction):
         tuned_predictions = []
         for jump in jumps:
             length = len(self.european_wheel)
@@ -139,6 +146,34 @@ class Clickbot:
                 tuned_predictions.append(self.european_wheel[tuned_idx])
 
         return tuned_predictions
+
+
+
+    def get_tuned_from_raw(self, direction, raw_prediction):
+        if direction == "a":
+            jumps = self.jump_anti
+        else:
+            jumps = self.jump_clock
+
+        
+        return self.get_tuned_given_jumps(jumps, raw_prediction)
+
+
+    def get_tuned_from_raw_using_rotor_isolation(self, direction, rotor_speed, raw_prediction):
+        if self.rotor_isolation_scatter:
+            for rotor_speed_range in self.rotor_isolation_scatter.keys():
+                split = rotor_speed_range.split("-")
+                start_speed = int(split[0])
+                end_speed = int(split[1])
+                if rotor_speed >= start_speed and rotor_speed < end_speed:
+                    scatter = self.rotor_isolation_scatter[rotor_speed_range]
+                    if direction == "a":
+                        return self.get_tuned_given_jumps(scatter["anticlockwise"], raw_prediction)
+                    else:
+                        return self.get_tuned_given_jumps(scatter["clockwise"], raw_prediction)
+
+        # no rotor isolation data found, using default scatter
+        return self.get_tuned_from_raw(direction, raw_prediction)
 
 
     def make_clicks_given_raw(self, direction, raw_prediction):

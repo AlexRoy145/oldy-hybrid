@@ -15,6 +15,7 @@ from macro import Macro
 
 PROFILE_DIR = "../../../Documents/crm_saved_profiles"
 CLICKBOT_PROFILE = "profile.dat"
+ROTOR_ISOLATION_PROFILE = "rotor_isolation.json"
 OCR_PROFILE = "ocr.dat"
 
 REFRESH_MACRO_DIR = "refresh_macros"
@@ -39,6 +40,8 @@ class CRMServer:
             self.clickbot.set_clicks()
             self.clickbot.set_jump_values()
             self.clickbot.save_profile(CLICKBOT_PROFILE)
+
+        self.clickbot.load_rotor_isolation_profile(ROTOR_ISOLATION_PROFILE)
 
         self.ocr = OCR(PROFILE_DIR)
         if not self.ocr.load_profile(OCR_PROFILE):
@@ -246,17 +249,18 @@ Enter your choice: """).lower()
                 elif self.ocr.raw != -1:
                     raw_prediction = self.ocr.raw
                     direction = self.ocr.direction
+                    rotor_speed = self.ocr.rotor_speed
                     break
 
             if raw_prediction == -1 or direction == "":
                 continue
 
-            print(f"Direction: {direction}, Raw Prediction: {raw_prediction}")
+            print(f"Direction: {direction}, Rotor Speed: {rotor_speed}, Raw Prediction: {raw_prediction}")
             if not direction:
                 continue
             direction = direction[0]
 
-            tuned_predictions = self.clickbot.get_tuned_from_raw(direction, raw_prediction)
+            tuned_predictions = self.clickbot.get_tuned_from_raw_using_rotor_isolation(direction, rotor_speed, raw_prediction)
             print(f"TUNED PREDICTIONS: {tuned_predictions}")
 
             if not self.test_mode:
