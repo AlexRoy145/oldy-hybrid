@@ -12,11 +12,16 @@ from message import Message
 from server import Server
 from ocr import OCR
 from macro import Macro
+from scatter import Scatter
 
 PROFILE_DIR = "../../../Documents/crm_saved_profiles"
 CLICKBOT_PROFILE = "profile.dat"
 ROTOR_ISOLATION_PROFILE = "rotor_isolation.json"
 OCR_PROFILE = "ocr.dat"
+
+SCATTER_DATA_FILE = "scatter.dat"
+CSV_SCATTER = "scatter.csv"
+
 
 REFRESH_MACRO_DIR = "refresh_macros"
 SIGNIN_MACRO_DIR = "signin_macros"
@@ -34,6 +39,10 @@ class CRMServer:
         self.clickbot = Clickbot(PROFILE_DIR)
         self.is_running = True 
         self.test_mode = False
+
+        self.scatter = Scatter(PROFILE_DIR, CSV_SCATTER)
+        self.scatter.load_profile(SCATTER_DATA_FILE)
+        self.scatter.save_profile(SCATTER_DATA_FILE)
 
         if not self.clickbot.load_profile(CLICKBOT_PROFILE):
             print("Could not find clickbot data. Setting up from scratch.")
@@ -65,6 +74,7 @@ class CRMServer:
 IMPORTANT: The following commands can only be run if the direction detection loop is stopped: D, DW, DT, T
 Q: Quit the direction detection loop.
 R: Run the direction detection loop.
+W: Enter winning number.
 E: Set end difference.
 B: Start ball timings.
 V: Change VPS.
@@ -103,6 +113,15 @@ Enter your choice: """).lower()
                 self.app_thread.daemon = True
                 self.app_thread.start()
                 print("Direction detection started.")
+                continue
+            elif choice == "w":
+                winning = input("Enter the winning number: ")
+                if self.direction == "a":
+                    new_direction = "acw"
+                else:
+                    new_direction = "cw"
+                self.scatter.add_data(new_direction, self.raw, winning, self.rotor_speed)
+                self.scatter.save_profile(SCATTER_DATA_FILE)
                 continue
             elif choice == "e":
                 print(f"Current end difference: {self.ocr.ball_sample.end_difference}")
@@ -249,7 +268,10 @@ Enter your choice: """).lower()
                 elif self.ocr.raw != -1:
                     raw_prediction = self.ocr.raw
                     direction = self.ocr.direction
-                    rotor_speed = self.ocr.rotor_speed
+                    rotor_speed = int(self.ocr.rotor_speed)
+                    self.raw = raw_prediction
+                    self.direction = direction
+                    self.rotor_speed = rotor_speed
                     break
 
             if raw_prediction == -1 or direction == "":
@@ -268,8 +290,11 @@ Enter your choice: """).lower()
                 msg.raw_prediction = raw_prediction
                 msg.tuned_predictions = tuned_predictions
                 self.server.send_message(msg)
-            
+
+            print("Spin done. Enter the winning number in the main menu by pressing W.")
             ocr_thread.join()
+
+            
 
             
 def main():

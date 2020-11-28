@@ -12,7 +12,7 @@ BALL_START_TIMINGS = 450
 THRESH = 65
 MAX_SPIN_DURATION = 30
 FALSE_DETECTION_THRESH = 100
-EPSILON = 50
+EPSILON = 25
 
 class Ball:
 
@@ -72,7 +72,7 @@ class Ball:
                         elapsed_time = (Ball.time() - fall_time_timestamp) * 1000
                         if not did_beep and abs(elapsed_time - fall_time) < EPSILON:
                             print("\n"*15, "!"*20, "FALL HAPPENED", "!"*20)
-                            #winsound.Beep(1000, 50)
+                            winsound.Beep(1000, 50)
                             did_beep = True
                         
 
