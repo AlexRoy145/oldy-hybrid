@@ -1,4 +1,3 @@
-import argparse
 import sys
 import select
 import time
@@ -29,6 +28,9 @@ SIGNIN_MACRO_DIR = "signin_macros"
 MAX_MACRO_COUNT = 3
 
 GREEN_MACRO_DELAY = 0.025 # IN SECONDS
+
+IP = "0.0.0.0"
+PORT = 34453
 
 class CRMServer:
 
@@ -85,6 +87,7 @@ CS: Clear sample by sample number.
 AS: Add sample manually.
 CM: Change max samples for ball sample.
 CA: Change rotor acceleration.
+CE: Change ellipse angle.
 RA: Run rotor acceleration setting loop. QUIT NORMAL DETECTION FIRST USING Q.
 DW: Change wheel detection zone (DO THIS BEFORE BALL DETECTION).
 DB: Change ball detection zone.
@@ -116,7 +119,7 @@ Enter your choice: """).lower()
                 continue
             elif choice == "w":
                 winning = input("Enter the winning number: ")
-                if self.direction == "a":
+                if self.direction == "anticlockwise":
                     new_direction = "acw"
                 else:
                     new_direction = "cw"
@@ -200,6 +203,11 @@ Enter your choice: """).lower()
             elif choice == "ca":
                 print(f"Current rotor acceleration: {self.ocr.rotor_acceleration}")
                 self.ocr.rotor_acceleration = float(input("Enter the new rotor acceleration: "))
+                self.ocr.save_profile(OCR_PROFILE)
+                continue
+            elif choice == "ce":
+                print(f"Current ellipse angle: {self.ocr.rotor_angle_ellipse}")
+                self.ocr.rotor_angle_ellipse = int(input("Enter the new rotor angle ellipse: "))
                 self.ocr.save_profile(OCR_PROFILE)
                 continue
             elif choice == "ra":
@@ -298,12 +306,7 @@ Enter your choice: """).lower()
 
             
 def main():
-    parser = argparse.ArgumentParser(description="Run the server betting program.")
-    parser.add_argument("server_ip", type=str, help="The server's IP address.")
-    parser.add_argument("server_port", type=int, help="The server's port.")
-
-    args = parser.parse_args()
-    app = CRMServer(args.server_ip, args.server_port)
+    app = CRMServer(IP, PORT)
     try:
         app.run()
     except KeyboardInterrupt:

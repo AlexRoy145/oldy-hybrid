@@ -16,12 +16,11 @@ DIFF_RATIO = 9
 MORPH_KERNEL_RATIO = .0005
 LOOKBACK = 30
 DELAY_FOR_RAW_UPDATE = .1
-ROTOR_ANGLE_ELLIPSE = 100
 
 class Rotor:
 
     @staticmethod
-    def start_capture(in_queue, out_queue, wheel_detection_zone, wheel_detection_area, wheel_center_point, reference_diamond_point, diff_thresh):
+    def start_capture(in_queue, out_queue, wheel_detection_zone, wheel_detection_area, wheel_center_point, reference_diamond_point, diff_thresh, rotor_angle_ellipse):
         # ROTOR VARS
         pts = deque(maxlen=LOOKBACK)
         current_direction = ""
@@ -121,7 +120,7 @@ class Rotor:
                             degrees = Rotor.get_angle(rotor_start_point, wheel_center, center)
                             if degrees > 180:
                                 degrees = 360 - degrees
-                            if degrees >= ROTOR_ANGLE_ELLIPSE:
+                            if degrees >= rotor_angle_ellipse:
                                 rotor_end_point = center
                                 rotor_measure_complete_timestamp = Rotor.time()
                                 rotor_measure_duration = rotor_measure_complete_timestamp - rotor_measure_start_time

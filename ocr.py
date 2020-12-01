@@ -31,6 +31,7 @@ class OCR:
         self.diff_thresh = 0
         self.wheel_detection_area = 0
         self.rotor_acceleration = -.127 # degrees per second per second
+        self.rotor_angle_ellipse = 150
         
         self.m = mouse.Controller()
         self.profile_dir = profile_dir
@@ -71,6 +72,7 @@ class OCR:
                  "diff_thresh" : self.diff_thresh,
                  "wheel_detection_area" : self.wheel_detection_area,
                  "rotor_acceleration" : self.rotor_acceleration,
+                 "rotor_angle_ellipse" : self.rotor_angle_ellipse,
                  "ball_sample" : self.ball_sample}
             pickle.dump(d, f)
 
@@ -170,7 +172,7 @@ class OCR:
             rotor_in_queue = mp.Queue()
             ball_out_queue = mp.Queue()
             ball_in_queue = mp.Queue()
-            rotor_proc = mp.Process(target=Rotor.start_capture, args=(rotor_in_queue, rotor_out_queue, self.wheel_detection_zone, self.wheel_detection_area, self.wheel_center_point, self.reference_diamond_point, self.diff_thresh))
+            rotor_proc = mp.Process(target=Rotor.start_capture, args=(rotor_in_queue, rotor_out_queue, self.wheel_detection_zone, self.wheel_detection_area, self.wheel_center_point, self.reference_diamond_point, self.diff_thresh, self.rotor_angle_ellipse))
             rotor_proc.start()
             ball_proc = mp.Process(target=Ball.start_capture, args=(ball_in_queue, ball_out_queue, self.relative_ball_detection_zone, self.ball_sample, self.ball_reference_frame))
             ball_proc.start()
