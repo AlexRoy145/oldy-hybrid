@@ -59,6 +59,7 @@ class CRMServer:
             print("Could not find ocr data. Setting up from scratch.")
             self.ocr.set_wheel_detection_zone()
             self.ocr.set_ball_detection_zone()
+            self.ocr.set_ball_fall_detection_zones()
             self.ocr.save_profile(OCR_PROFILE) 
 
 
@@ -222,6 +223,7 @@ Enter your choice: """).lower()
                 continue
             elif choice == "db":
                 self.ocr.set_ball_detection_zone()
+                self.ocr.set_ball_fall_detection_zones()
                 self.ocr.save_profile(OCR_PROFILE)
                 continue
             elif choice == "sj":

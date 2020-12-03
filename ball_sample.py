@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import numpy.polynomial.polynomial as poly
 from collections import deque
 
+MINIMUM_REV_SPEED_FOR_DIFF = 670 
+
 class Sample:
         
         def __init__(self, full_sample):
@@ -49,6 +51,7 @@ class BallSample:
         self.end_difference = 1000
 
 
+    # not used anymore as its worse
     def get_fall_time(self, observed_rev):
         if self.samples:
             differences = []
@@ -90,13 +93,20 @@ class BallSample:
             averaged_sample = self.averaged_sample.get_trimmed_sample(self.vps)
             differences = []
             for i, sample_rev in enumerate(averaged_sample):
-                diff = abs(observed_rev - sample_rev)
+                # the observed_rev must be GREATER than the sample rev if it's fast
+                # the reason for this is that the algorithm will confuse seeing a 600 rev with a higher rev sometimes because
+                # the differences between revs are smaller
+                # so if observed_rev is smaller than sample_rev, it will be negative and we will ignore that when looking at smallest differences
+                if observed_rev < MINIMUM_REV_SPEED_FOR_DIFF:
+                    diff = observed_rev - sample_rev
+                else:
+                    diff = abs(observed_rev - sample_rev)
                 differences.append(diff)
 
             smallest_diff = min(differences)
             lowest_idx = differences.index(smallest_diff)
 
-            if smallest_diff < BallSample.REV_TOLERANCE:
+            if smallest_diff < BallSample.REV_TOLERANCE and smallest_diff >= 0:
                 return sum(averaged_sample[lowest_idx + 1:]) + self.end_difference
             else:
                 return -1

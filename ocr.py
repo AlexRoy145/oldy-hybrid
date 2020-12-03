@@ -18,15 +18,23 @@ from rotor import Rotor
 
 DIFF_RATIO = 9
 
+class BallDetectionZone:
+    def __init__(self, bounding_box, reference_frame):
+        self.bounding_box = bounding_box
+        self.reference_frame = reference_frame
+
+
 class OCR:
 
     def __init__(self, profile_dir):
         self.wheel_detection_zone = []
         self.wheel_center_point = None
         self.reference_diamond_point = None
-        self.ball_detection_zone = []
-        self.relative_ball_detection_zone = []
-        self.ball_reference_frame = None
+        self.ball_detection_zone = None
+        
+        # a list of BallDetectionZone's
+        self.ball_fall_detection_zones = []
+
         self.screenshot_zone = []
         self.diff_thresh = 0
         self.wheel_detection_area = 0
@@ -49,7 +57,6 @@ class OCR:
     def load_profile(self, data_file):
         path = os.path.join(self.profile_dir, data_file)
         self.data_file = data_file
-        self.rotor_acceleration = -.127
         if os.path.isfile(path):
             with open(path, "rb") as f:
                 self.__dict__.update(pickle.load(f))
@@ -66,20 +73,18 @@ class OCR:
                  "wheel_center_point" : self.wheel_center_point,
                  "reference_diamond_point" : self.reference_diamond_point,
                  "ball_detection_zone" : self.ball_detection_zone,
-                 "relative_ball_detection_zone" : self.relative_ball_detection_zone,
-                 "ball_reference_frame" : self.ball_reference_frame,
                  "screenshot_zone" : self.screenshot_zone,
                  "diff_thresh" : self.diff_thresh,
                  "wheel_detection_area" : self.wheel_detection_area,
                  "rotor_acceleration" : self.rotor_acceleration,
                  "rotor_angle_ellipse" : self.rotor_angle_ellipse,
+                 "ball_fall_detection_zones" : self.ball_fall_detection_zones,
                  "ball_sample" : self.ball_sample}
             pickle.dump(d, f)
 
     
     def set_ball_detection_zone(self):
-        self.ball_detection_zone = []
-        zone = self.ball_detection_zone
+        zone = []
         input(f"Hover the mouse over the upper left corner of the detection zone for the BALL, then hit ENTER.")
         x_top,y_top = self.m.position
         zone.append(x_top)
@@ -93,22 +98,62 @@ class OCR:
         print(f"Bounding box: {zone}")
 
         # take screenshot to get first frame 
-        bbox = self.ball_detection_zone
+        bbox = zone
         width = bbox[2]-bbox[0]
         height = bbox[3]-bbox[1]
 
         with mss.mss() as sct:
             frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
-            self.ball_reference_frame = frame
+            ball_reference_frame = frame
             
 
         # get the coords for within the context of wheel detection zone
-        new_ball_leftupper_x = self.ball_detection_zone[0] - self.wheel_detection_zone[0]
-        new_ball_leftupper_y = self.ball_detection_zone[1] - self.wheel_detection_zone[1]
-        new_ball_rightbottom_x = self.ball_detection_zone[2] - self.wheel_detection_zone[0]
-        new_ball_rightbottom_y = self.ball_detection_zone[3] - self.wheel_detection_zone[1]
+        new_ball_leftupper_x = zone[0] - self.wheel_detection_zone[0]
+        new_ball_leftupper_y = zone[1] - self.wheel_detection_zone[1]
+        new_ball_rightbottom_x = zone[2] - self.wheel_detection_zone[0]
+        new_ball_rightbottom_y = zone[3] - self.wheel_detection_zone[1]
 
-        self.relative_ball_detection_zone = [new_ball_leftupper_x, new_ball_leftupper_y, new_ball_rightbottom_x, new_ball_rightbottom_y]
+        ball_detection_zone_bbox = [new_ball_leftupper_x, new_ball_leftupper_y, new_ball_rightbottom_x, new_ball_rightbottom_y]
+        self.ball_detection_zone = BallDetectionZone(ball_detection_zone_bbox, ball_reference_frame)
+
+    def set_ball_fall_detection_zones(self):
+        print("Capture the ball fall zones. Set however many you'd like. ENSURE THAT NO BALL IS PRESENT IN THE ZONE WHEN THE LAST ENTER IS PRESSED. Press CTRL+C to stop.")
+        try:
+            while True:
+                zone = []
+                input(f"Hover the mouse over the upper left corner of the detection zone for the BALL FALL, then hit ENTER.")
+                x_top,y_top = self.m.position
+                zone.append(x_top)
+                zone.append(y_top)
+
+                input("Hover the mouse over the bottom right corner of the detection zone, then hit ENTER.")
+                x_bot,y_bot = self.m.position
+                zone.append(x_bot)
+                zone.append(y_bot)
+
+                print(f"Bounding box: {zone}")
+
+                # take screenshot to get first frame 
+                bbox = zone
+                width = bbox[2]-bbox[0]
+                height = bbox[3]-bbox[1]
+
+                with mss.mss() as sct:
+                    frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
+                    ball_reference_frame = frame
+                    
+
+                # get the coords for within the context of wheel detection zone
+                new_ball_leftupper_x = zone[0] - self.wheel_detection_zone[0]
+                new_ball_leftupper_y = zone[1] - self.wheel_detection_zone[1]
+                new_ball_rightbottom_x = zone[2] - self.wheel_detection_zone[0]
+                new_ball_rightbottom_y = zone[3] - self.wheel_detection_zone[1]
+
+                ball_detection_zone_bbox = [new_ball_leftupper_x, new_ball_leftupper_y, new_ball_rightbottom_x, new_ball_rightbottom_y]
+                ball_detection_zone = BallDetectionZone(ball_detection_zone_bbox, ball_reference_frame)
+                self.ball_fall_detection_zones.append(ball_detection_zone)
+        except KeyboardInterrupt:
+            return
 
 
     def set_wheel_detection_zone(self):
@@ -174,9 +219,8 @@ class OCR:
             ball_in_queue = mp.Queue()
             rotor_proc = mp.Process(target=Rotor.start_capture, args=(rotor_in_queue, rotor_out_queue, self.wheel_detection_zone, self.wheel_detection_area, self.wheel_center_point, self.reference_diamond_point, self.diff_thresh, self.rotor_angle_ellipse))
             rotor_proc.start()
-            ball_proc = mp.Process(target=Ball.start_capture, args=(ball_in_queue, ball_out_queue, self.relative_ball_detection_zone, self.ball_sample, self.ball_reference_frame))
+            ball_proc = mp.Process(target=Ball.start_capture, args=(ball_in_queue, ball_out_queue, self.ball_sample, self.ball_detection_zone, self.ball_fall_detection_zones))
             ball_proc.start()
-            ball_proc = None
 
             direction = ""
             spin_start_time = 0
