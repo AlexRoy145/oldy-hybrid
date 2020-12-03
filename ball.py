@@ -92,7 +92,6 @@ class Ball:
                     if fall_time > 0:
                         elapsed_time = (Ball.time() - fall_time_timestamp) * 1000
                         if not did_beep and abs(elapsed_time - fall_time) < EPSILON:
-                            print("\n"*15, "!"*20, "FALL HAPPENED", "!"*20)
                             winsound.Beep(1000, 50)
                             did_beep = True
 
@@ -149,7 +148,7 @@ class Ball:
                                     fall_time = ball_sample.get_fall_time_averaged(lap_time) 
                                     if fall_time > 0:
                                         fall_time_timestamp = Ball.time()
-                                        print(f"FALL TIME CALCULATED TO BE {fall_time} MS FROM NOW")
+                                        #print(f"FALL TIME CALCULATED TO BE {fall_time} MS FROM NOW")
                                         out_msg = {"state": "fall_time_calculated",
                                                    "fall_time" : fall_time,
                                                    "fall_time_timestamp" : fall_time_timestamp}
@@ -203,7 +202,7 @@ class Ball:
                         '''
 
                         timestamp = Ball.time()
-                        print(f"BALL FALL DETECTED VIA DETECTION {i} at {timestamp}")
+                        print(f"BALL FALL DETECTED VIA DETECTION {i}")
                         out_queue.put({"state" : "ball_fall_detected", "timestamp" : timestamp})
                         return
 

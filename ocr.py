@@ -117,8 +117,12 @@ class OCR:
         self.ball_detection_zone = BallDetectionZone(ball_detection_zone_bbox, ball_reference_frame)
 
     def set_ball_fall_detection_zones(self):
-        self.ball_fall_detection_zones = []
-        print("Capture the ball fall zones. Set however many you'd like. ENSURE THAT NO BALL IS PRESENT IN THE ZONE WHEN THE LAST ENTER IS PRESSED. Press CTRL+C to stop.")
+        choice = int(input("Enter the index of the ball fall zone you want to edit (0,1,2,3) or -1 to reset everything: "))
+        if choice == -1:
+            self.ball_fall_detection_zones = []
+        else:
+            print("Capture the ball fall zones. Set however many you'd like. ENSURE THAT NO BALL IS PRESENT IN THE ZONE WHEN THE LAST ENTER IS PRESSED. Press CTRL+C to stop.")
+
         try:
             while True:
                 zone = []
@@ -152,7 +156,11 @@ class OCR:
 
                 ball_detection_zone_bbox = [new_ball_leftupper_x, new_ball_leftupper_y, new_ball_rightbottom_x, new_ball_rightbottom_y]
                 ball_detection_zone = BallDetectionZone(ball_detection_zone_bbox, ball_reference_frame)
-                self.ball_fall_detection_zones.append(ball_detection_zone)
+                if choice != -1:
+                    self.ball_fall_detection_zones[choice] = ball_detection_zone
+                    break
+                else:
+                    self.ball_fall_detection_zones.append(ball_detection_zone)
         except KeyboardInterrupt:
             return
 
