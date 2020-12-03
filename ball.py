@@ -11,7 +11,7 @@ MIN_BALL_AREA = 50
 MAX_BALL_AREA = 2000
 BALL_START_TIMINGS = 450
 THRESH = 65
-BALL_FALL_THRESH = 30
+BALL_FALL_THRESH = 65
 MAX_SPIN_DURATION = 30
 FALSE_DETECTION_THRESH = 100
 EPSILON = 25
@@ -53,9 +53,12 @@ class Ball:
             in_msg = in_queue.get()
             if in_msg["state"] == "quit":
                 cv2.destroyAllWindows()
-                ball_fall_in_queue.put({"state" : "quit"})
-                ball_fall_proc.join()
-                ball_fall_proc.close()
+                try:
+                    ball_fall_in_queue.put({"state" : "quit"})
+                    ball_fall_proc.join()
+                    ball_fall_proc.close()
+                except BrokenPipeError:
+                    pass
                 return
             else:
                 frame = in_msg["frame"]
@@ -75,7 +78,10 @@ class Ball:
                 ball_frame = np.array(ball_frame)
 
             if start_ball_timings:
-                ball_fall_in_queue.put({"frame" : frame, "state" : "good"})
+                try:
+                    ball_fall_in_queue.put({"frame" : frame, "state" : "good"})
+                except BrokenPipeError:
+                    pass
                 if not false_detections:
                     gray = cv2.cvtColor(ball_frame, cv2.COLOR_BGR2GRAY)
                     gray = cv2.GaussianBlur(gray, (11, 11), 0)
@@ -86,6 +92,8 @@ class Ball:
                     if fall_time > 0:
                         elapsed_time = (Ball.time() - fall_time_timestamp) * 1000
                         if not did_beep and abs(elapsed_time - fall_time) < EPSILON:
+                            print("\n"*15, "!"*20, "FALL HAPPENED", "!"*20)
+                            winsound.Beep(1000, 50)
                             did_beep = True
 
                     # fall accuracy evaluation
@@ -94,14 +102,15 @@ class Ball:
                             ball_fall_out_msg = ball_fall_out_queue.get()
                             true_ball_fall_timestamp = ball_fall_out_msg["timestamp"]
                             expected_ball_fall_timestamp = fall_time_timestamp + fall_time / 1000
-                            diff = int((true_ball_fall_timestamp - expected_ball_fall_timestamp) * 1000)
+                            diff = int((expected_ball_fall_timestamp - true_ball_fall_timestamp) * 1000)
                             if diff <= 0:
-                                print(f"The ball fell {diff} ms earlier than expected.")
+                                print(f"The ball fall beep was {-diff}ms early.")
                             else:
-                                print(f"The ball fell {diff} ms later than expected.")
+                                print(f"The ball fall beep was {diff}ms late.")
+                            '''
                             ball_fall_proc.join()
                             ball_fall_proc.close()
-                        
+                            '''
 
                     if Ball.time() - spin_start_time > MAX_SPIN_DURATION:
                         out_msg = {"state" : "ball_update", "current_ball_sample" : current_ball_sample}
@@ -199,8 +208,10 @@ class Ball:
                         return
 
 
+                    '''
                     cv2.imshow(f"Ball Fall Detection {i}", ball_thresh)
                     key = cv2.waitKey(1) & 0xFF
+                    '''
 
     @staticmethod
     def time():

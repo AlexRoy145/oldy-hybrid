@@ -117,6 +117,7 @@ class OCR:
         self.ball_detection_zone = BallDetectionZone(ball_detection_zone_bbox, ball_reference_frame)
 
     def set_ball_fall_detection_zones(self):
+        self.ball_fall_detection_zones = []
         print("Capture the ball fall zones. Set however many you'd like. ENSURE THAT NO BALL IS PRESENT IN THE ZONE WHEN THE LAST ENTER IS PRESSED. Press CTRL+C to stop.")
         try:
             while True:
