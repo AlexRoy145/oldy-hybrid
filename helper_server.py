@@ -84,6 +84,7 @@ V: Change VPS.
 T: Toggle test mode. Test mode will let detection run, but WON'T send commands to clients.
 SS: Show samples.
 G: Graph samples.
+GD: Graph data.
 CS: Clear sample by sample number.
 AS: Add sample manually.
 CM: Change max samples for ball sample.
@@ -163,6 +164,11 @@ Enter your choice: """).lower()
                 continue
             elif choice == "g":
                 self.ocr.graph_samples()
+                continue
+            elif choice == "gd":
+                direction_data = input("Enter the direction (ex: acw or cw): ")
+                rotor_speed_range = input("Enter the rotor speed range (ex: 4000-5000): ")
+                self.scatter.graph(direction=direction_data, rotor_speed_range=rotor_speed_range)
                 continue
             elif choice == "cs":
                 for i, sample in enumerate(self.ocr.ball_sample.samples):
