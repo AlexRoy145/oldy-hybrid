@@ -15,6 +15,7 @@ BALL_FALL_THRESH = 65
 MAX_SPIN_DURATION = 30
 FALSE_DETECTION_THRESH = 100
 EPSILON = 25
+NUMBER_OF_CLICKS = 2
 
 class Ball:
 
@@ -145,7 +146,8 @@ class Ball:
 
                                 current_ball_sample.append(lap_time)
                                 if fall_time < 0:
-                                    fall_time = ball_sample.get_fall_time_averaged(lap_time) 
+                                    if len(current_ball_sample) >= NUMBER_OF_CLICKS:
+                                        fall_time = ball_sample.get_fall_time(current_ball_sample[-NUMBER_OF_CLICKS:]) 
                                     if fall_time > 0:
                                         fall_time_timestamp = Ball.time()
                                         #print(f"FALL TIME CALCULATED TO BE {fall_time} MS FROM NOW")

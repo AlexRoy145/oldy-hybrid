@@ -609,9 +609,15 @@ class OCR:
     def show_ball_samples(self):
         for i, sample in enumerate(self.ball_sample.samples):
             print(f"Sample #{i}: {sample}")
-            print(f"Poly Sample #{i}: {sample.poly_sample}")
+            print(f"Adjusted Sample #{i}: {sample.adjusted_sample}")
             print()
-        print(f"Averaged sample: {self.ball_sample.averaged_sample}")
+        print(f"Averaged sample: {self.ball_sample.averaged_sample.adjusted_sample}")
+
+        for i, sample in enumerate(self.ball_sample.samples):
+            slope = []
+            for j in range(len(sample.adjusted_sample) - 1):
+                slope.append(sample.adjusted_sample[j+1] - sample.adjusted_sample[j])
+            print(f"Sample #{i} Slopes: {slope}")
 
 
     def delete_ball_sample(self, idx):
@@ -620,6 +626,8 @@ class OCR:
             #self.ball_sample.update_averaged_sample()
         except IndexError:
             print("That sample doesn't exist.")
+
+        self.ball_sample.update_averaged_sample()
 
         self.save_profile(self.data_file)
 
