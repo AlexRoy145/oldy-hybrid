@@ -15,12 +15,11 @@ BALL_FALL_THRESH = 65
 MAX_SPIN_DURATION = 30
 FALSE_DETECTION_THRESH = 100
 EPSILON = 25
-NUMBER_OF_CLICKS = 2
 
 class Ball:
 
     @staticmethod
-    def start_capture(in_queue, out_queue, ball_sample, ball_detection_zone, ball_fall_detection_zones):
+    def start_capture(in_queue, out_queue, ball_sample, ball_detection_zone, ball_fall_detection_zone):
         current_ball_sample = []
         first_ball_frame = []
         first_capture = True
@@ -37,10 +36,10 @@ class Ball:
         ball_reference_frame = ball_detection_zone.reference_frame
         ball_detection_bbox = ball_detection_zone.bounding_box
 
-        if ball_fall_detection_zones:
+        if ball_fall_detection_zone:
             ball_fall_in_queue = mp.Queue()
             ball_fall_out_queue = mp.Queue()
-            ball_fall_proc = mp.Process(target=Ball.start_ball_fall_capture, args=(ball_fall_in_queue, ball_fall_out_queue, ball_fall_detection_zones))
+            ball_fall_proc = mp.Process(target=Ball.start_ball_fall_capture, args=(ball_fall_in_queue, ball_fall_out_queue, ball_fall_detection_zone))
             ball_fall_proc.start()
 
         first_frame = Image.frombytes('RGB', ball_reference_frame.size, ball_reference_frame.rgb)
@@ -97,7 +96,7 @@ class Ball:
                             did_beep = True
 
                     # fall accuracy evaluation
-                    if ball_fall_detection_zones:
+                    if ball_fall_detection_zone:
                         if not ball_fall_out_queue.empty():
                             ball_fall_out_msg = ball_fall_out_queue.get()
                             true_ball_fall_timestamp = ball_fall_out_msg["timestamp"]
@@ -146,8 +145,7 @@ class Ball:
 
                                 current_ball_sample.append(lap_time)
                                 if fall_time < 0:
-                                    if len(current_ball_sample) >= NUMBER_OF_CLICKS:
-                                        fall_time = ball_sample.get_fall_time(current_ball_sample[-NUMBER_OF_CLICKS:]) 
+                                    fall_time = ball_sample.get_fall_time_averaged(lap_time)
                                     if fall_time > 0:
                                         fall_time_timestamp = Ball.time()
                                         #print(f"FALL TIME CALCULATED TO BE {fall_time} MS FROM NOW")
@@ -166,7 +164,7 @@ class Ball:
 
 
     @staticmethod
-    def start_ball_fall_capture(in_queue, out_queue, ball_fall_detection_zones):
+    def start_ball_fall_capture(in_queue, out_queue, ball_fall_detection_zone):
         while True:
             if in_queue.empty():
                 continue
@@ -176,43 +174,37 @@ class Ball:
             else:
                 frame = in_msg["frame"]
                 
-                for i, ball_fall_detection_zone in enumerate(ball_fall_detection_zones):
-                    ball_frame = frame.crop(ball_fall_detection_zone.bounding_box)
-                    ball_reference_frame = ball_fall_detection_zone.reference_frame
-                    ball_frame = np.array(ball_frame)
+                # fall ref frame is already preprocessed
+                fall_reference_frame = ball_fall_detection_zone.reference_frame
+                ball_frame = np.array(frame)
 
-                    ball_reference_frame = Image.frombytes('RGB', ball_reference_frame.size, ball_reference_frame.rgb)
-                    ball_reference_frame = np.array(ball_reference_frame)
-                    ball_reference_frame_gray = cv2.cvtColor(ball_reference_frame, cv2.COLOR_BGR2GRAY)
-                    ball_reference_frame_gray = cv2.GaussianBlur(ball_reference_frame_gray, (11, 11), 0)
+                gray = cv2.cvtColor(ball_frame, cv2.COLOR_BGR2GRAY)
+                gray = cv2.GaussianBlur(gray, (11, 11), 0)
 
-                    gray = cv2.cvtColor(ball_frame, cv2.COLOR_BGR2GRAY)
-                    gray = cv2.GaussianBlur(gray, (11, 11), 0)
+                # mask ball_frame to match fall_reference_frame
+                gray = np.bitwise_and(gray, ball_fall_detection_zone.mask)
 
-                    ball_frame_delta = cv2.absdiff(ball_reference_frame_gray, gray)
-                    ball_thresh = cv2.threshold(ball_frame_delta, BALL_FALL_THRESH, 255, cv2.THRESH_BINARY)[1]
+                ball_frame_delta = cv2.absdiff(fall_reference_frame, gray)
+                ball_thresh = cv2.threshold(ball_frame_delta, BALL_FALL_THRESH, 255, cv2.THRESH_BINARY)[1]
 
-                    ball_thresh = cv2.dilate(ball_thresh, None, iterations=2)
-                    ball_cnts = cv2.findContours(ball_thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                    ball_cnts = imutils.grab_contours(ball_cnts)
+                ball_thresh = cv2.dilate(ball_thresh, None, iterations=2)
+                ball_cnts = cv2.findContours(ball_thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                ball_cnts = imutils.grab_contours(ball_cnts)
 
-                    for c in ball_cnts:
-                        area = cv2.contourArea(c)
-                        '''
-                        if area < MIN_BALL_AREA or area > MAX_BALL_AREA:
-                            continue
-                        '''
-
-                        timestamp = Ball.time()
-                        print(f"BALL FALL DETECTED VIA DETECTION {i}")
-                        out_queue.put({"state" : "ball_fall_detected", "timestamp" : timestamp})
-                        return
-
-
+                for c in ball_cnts:
+                    area = cv2.contourArea(c)
                     '''
-                    cv2.imshow(f"Ball Fall Detection {i}", ball_thresh)
-                    key = cv2.waitKey(1) & 0xFF
+                    if area < MIN_BALL_AREA or area > MAX_BALL_AREA:
+                        continue
                     '''
+
+                    timestamp = Ball.time()
+                    print(f"BALL FALL DETECTED")
+                    out_queue.put({"state" : "ball_fall_detected", "timestamp" : timestamp})
+                    return
+
+                cv2.imshow(f"Ball Fall Detection", ball_thresh)
+                key = cv2.waitKey(1) & 0xFF
 
     @staticmethod
     def time():

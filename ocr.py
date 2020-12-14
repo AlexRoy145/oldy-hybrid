@@ -18,6 +18,47 @@ from rotor import Rotor
 
 DIFF_RATIO = 9
 
+class BallFallDetectionZone:
+    def __init__(self, wheel_bounding_box, reference_frame, outer_diamond_points, inner_diamond_points):
+        self.reference_frame = np.array(Image.frombytes('RGB', reference_frame.size, reference_frame.rgb))
+        self.reference_frame = cv2.cvtColor(self.reference_frame, cv2.COLOR_BGR2GRAY)
+        self.reference_frame = cv2.GaussianBlur(self.reference_frame, (11, 11), 0)
+
+        self.wheel_bounding_box = wheel_bounding_box
+        self.outer_diamond_points = outer_diamond_points
+        self.inner_diamond_points = inner_diamond_points
+
+        mask = np.zeros_like(self.reference_frame)
+
+        outer_ellipse_mask = self.get_ellipse(mask, outer_diamond_points)
+        self.mask = self.get_ellipse(outer_ellipse_mask, inner_diamond_points, inner=True)
+        self.reference_frame = np.bitwise_and(self.reference_frame, self.mask)
+        cv2.imshow("ref zone", self.reference_frame)
+        cv2.waitKey(0)
+
+    def get_ellipse(self, mask, diamond_points, inner=False):
+        x_average = int(round(sum([x[0] for x in diamond_points.values()]) / len(diamond_points)))
+        y_average = int(round(sum([x[1] for x in diamond_points.values()]) / len(diamond_points)))
+        center = x_average, y_average
+        ninety_degree_point = center[0] + 10, center[1]
+        ellipse_angle = self.get_angle(ninety_degree_point, center, diamond_points["three"])
+        axis_1 = int(round(self.get_distance(diamond_points["three"], diamond_points["nine"]) / 2))
+        axis_2 = int(round(self.get_distance(diamond_points["twelve"], diamond_points["six"]) / 2))
+        if inner:
+            color = (0,0,0)
+        else:
+            color = (255,255,255)
+        return cv2.ellipse(mask, center, axes=(axis_1,axis_2), angle=ellipse_angle, startAngle=0, endAngle=360, color=color, thickness=-1)
+
+
+    def get_angle(self, a, b, c):
+        ang = math.degrees(math.atan2(c[1]-b[1], c[0]-b[0]) - math.atan2(a[1]-b[1], a[0]-b[0]))
+        return (ang + 360) if ang < 0 else ang
+
+    def get_distance(self, a, b):
+        return math.sqrt( (a[0] - b[0])**2 + (a[1] - b[1])**2 )
+
+        
 class BallDetectionZone:
     def __init__(self, bounding_box, reference_frame):
         self.bounding_box = bounding_box
@@ -32,8 +73,7 @@ class OCR:
         self.reference_diamond_point = None
         self.ball_detection_zone = None
         
-        # a list of BallDetectionZone's
-        self.ball_fall_detection_zones = []
+        self.ball_fall_detection_zone = None
 
         self.screenshot_zone = []
         self.diff_thresh = 0
@@ -78,24 +118,24 @@ class OCR:
                  "wheel_detection_area" : self.wheel_detection_area,
                  "rotor_acceleration" : self.rotor_acceleration,
                  "rotor_angle_ellipse" : self.rotor_angle_ellipse,
-                 "ball_fall_detection_zones" : self.ball_fall_detection_zones,
+                 "ball_fall_detection_zone" : self.ball_fall_detection_zone,
                  "ball_sample" : self.ball_sample}
             pickle.dump(d, f)
 
     
     def set_ball_detection_zone(self):
         zone = []
-        input(f"Hover the mouse over the upper left corner of the detection zone for the BALL, then hit ENTER.")
+        input(f"hover the mouse over the upper left corner of the detection zone for the ball, then hit enter.")
         x_top,y_top = self.m.position
         zone.append(x_top)
         zone.append(y_top)
 
-        input("Hover the mouse over the bottom right corner of the detection zone, then hit ENTER.")
+        input("hover the mouse over the bottom right corner of the detection zone, then hit enter.")
         x_bot,y_bot = self.m.position
         zone.append(x_bot)
         zone.append(y_bot)
 
-        print(f"Bounding box: {zone}")
+        print(f"bounding box: {zone}")
 
         # take screenshot to get first frame 
         bbox = zone
@@ -117,53 +157,37 @@ class OCR:
         self.ball_detection_zone = BallDetectionZone(ball_detection_zone_bbox, ball_reference_frame)
 
     def set_ball_fall_detection_zones(self):
-        choice = int(input("Enter the index of the ball fall zone you want to edit (0,1,2,3) or -1 to reset everything: "))
-        if choice == -1:
-            self.ball_fall_detection_zones = []
-        else:
-            print("Capture the ball fall zones. Set however many you'd like. ENSURE THAT NO BALL IS PRESENT IN THE ZONE WHEN THE LAST ENTER IS PRESSED. Press CTRL+C to stop.")
+        print("Capture the ball fall zone. ENSURE THAT NO BALL IS PRESENT IN THE ZONE WHEN THE LAST ENTER IS PRESSED.")
+        print("Capture the outermost points of the ball fall elliptical zone. These 4 points are the outermost points on the 4 vertical diamonds")
+        diamonds = ["twelve", "three", "six", "nine"]
+        outer_diamond_points = {}
+        for diamond in diamonds:
+            input(f"Hover the mouse over the outermost point of the {diamond} o'clock diamond, then press ENTER: ")
+            x, y = self.m.position
+            x = x - self.wheel_detection_zone[0]
+            y = y - self.wheel_detection_zone[1]
+            outer_diamond_points[diamond] = x,y
 
-        try:
-            while True:
-                zone = []
-                input(f"Hover the mouse over the upper left corner of the detection zone for the BALL FALL, then hit ENTER.")
-                x_top,y_top = self.m.position
-                zone.append(x_top)
-                zone.append(y_top)
+        inner_diamond_points = {}
+        for diamond in diamonds:
+            input(f"Hover the mouse over the innermost point of the {diamond} o'clock diamond, then press ENTER: ")
+            x, y = self.m.position
+            x = x - self.wheel_detection_zone[0]
+            y = y - self.wheel_detection_zone[1]
+            inner_diamond_points[diamond] = x,y
 
-                input("Hover the mouse over the bottom right corner of the detection zone, then hit ENTER.")
-                x_bot,y_bot = self.m.position
-                zone.append(x_bot)
-                zone.append(y_bot)
 
-                print(f"Bounding box: {zone}")
+        # take screenshot to get first frame 
+        bbox = self.wheel_detection_zone
+        width = bbox[2]-bbox[0]
+        height = bbox[3]-bbox[1]
 
-                # take screenshot to get first frame 
-                bbox = zone
-                width = bbox[2]-bbox[0]
-                height = bbox[3]-bbox[1]
+        with mss.mss() as sct:
+            frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
+            reference_frame = frame
 
-                with mss.mss() as sct:
-                    frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
-                    ball_reference_frame = frame
+        self.ball_fall_detection_zone = BallFallDetectionZone(self.wheel_detection_zone, reference_frame, outer_diamond_points, inner_diamond_points)
                     
-
-                # get the coords for within the context of wheel detection zone
-                new_ball_leftupper_x = zone[0] - self.wheel_detection_zone[0]
-                new_ball_leftupper_y = zone[1] - self.wheel_detection_zone[1]
-                new_ball_rightbottom_x = zone[2] - self.wheel_detection_zone[0]
-                new_ball_rightbottom_y = zone[3] - self.wheel_detection_zone[1]
-
-                ball_detection_zone_bbox = [new_ball_leftupper_x, new_ball_leftupper_y, new_ball_rightbottom_x, new_ball_rightbottom_y]
-                ball_detection_zone = BallDetectionZone(ball_detection_zone_bbox, ball_reference_frame)
-                if choice != -1:
-                    self.ball_fall_detection_zones[choice] = ball_detection_zone
-                    break
-                else:
-                    self.ball_fall_detection_zones.append(ball_detection_zone)
-        except KeyboardInterrupt:
-            return
-
 
     def set_wheel_detection_zone(self):
         self.wheel_detection_zone = []
@@ -228,7 +252,7 @@ class OCR:
             ball_in_queue = mp.Queue()
             rotor_proc = mp.Process(target=Rotor.start_capture, args=(rotor_in_queue, rotor_out_queue, self.wheel_detection_zone, self.wheel_detection_area, self.wheel_center_point, self.reference_diamond_point, self.diff_thresh, self.rotor_angle_ellipse))
             rotor_proc.start()
-            ball_proc = mp.Process(target=Ball.start_capture, args=(ball_in_queue, ball_out_queue, self.ball_sample, self.ball_detection_zone, self.ball_fall_detection_zones))
+            ball_proc = mp.Process(target=Ball.start_capture, args=(ball_in_queue, ball_out_queue, self.ball_sample, self.ball_detection_zone, self.ball_fall_detection_zone))
             ball_proc.start()
 
             direction = ""
@@ -367,8 +391,11 @@ class OCR:
                         ball_out_msg = ball_out_queue.get()
                         if ball_out_msg["state"] == "ball_update":
                             current_ball_sample = ball_out_msg["current_ball_sample"]
+                            
+                            '''
                             self.ball_sample.update_sample(current_ball_sample)
                             self.save_profile(self.data_file)
+                            '''
 
                             # at this point, everything is officially over
                             rotor_in_queue.put({"state" : "quit"})
