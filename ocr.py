@@ -401,11 +401,6 @@ class OCR:
                             rotor_in_queue.put({"state" : "quit"})
                             ball_in_queue.put({"state" : "quit"})
                             self.quit = True
-                            rotor_proc.join()
-                            rotor_proc.close()
-                            if ball_proc:
-                                ball_proc.join()
-                                ball_proc.close()
                             return
 
 
@@ -466,6 +461,8 @@ class OCR:
 
         except mss.exception.ScreenShotError:
             print(f"THREADING ERROR!! You need to quit the detection loop!")
+        except BrokenPipeError:
+            pass
 
         cv2.destroyAllWindows()
 

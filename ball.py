@@ -53,12 +53,14 @@ class Ball:
             in_msg = in_queue.get()
             if in_msg["state"] == "quit":
                 cv2.destroyAllWindows()
+                '''
                 try:
                     ball_fall_in_queue.put({"state" : "quit"})
                     ball_fall_proc.join()
                     ball_fall_proc.close()
                 except BrokenPipeError:
                     pass
+                '''
                 return
             else:
                 frame = in_msg["frame"]
@@ -106,6 +108,7 @@ class Ball:
                                 print(f"The ball fall beep was {-diff}ms early.")
                             else:
                                 print(f"The ball fall beep was {diff}ms late.")
+                            ball_fall_in_queue.put({"state" : "quit"})
                             '''
                             ball_fall_proc.join()
                             ball_fall_proc.close()
@@ -165,6 +168,7 @@ class Ball:
 
     @staticmethod
     def start_ball_fall_capture(in_queue, out_queue, ball_fall_detection_zone):
+        ball_fall_detected = False
         while True:
             if in_queue.empty():
                 continue
@@ -174,37 +178,40 @@ class Ball:
             else:
                 frame = in_msg["frame"]
                 
-                # fall ref frame is already preprocessed
-                fall_reference_frame = ball_fall_detection_zone.reference_frame
-                ball_frame = np.array(frame)
+                if not ball_fall_detected:
+                    # fall ref frame is already preprocessed
+                    fall_reference_frame = ball_fall_detection_zone.reference_frame
+                    ball_frame = np.array(frame)
 
-                gray = cv2.cvtColor(ball_frame, cv2.COLOR_BGR2GRAY)
-                gray = cv2.GaussianBlur(gray, (11, 11), 0)
+                    gray = cv2.cvtColor(ball_frame, cv2.COLOR_BGR2GRAY)
+                    gray = cv2.GaussianBlur(gray, (11, 11), 0)
 
-                # mask ball_frame to match fall_reference_frame
-                gray = np.bitwise_and(gray, ball_fall_detection_zone.mask)
+                    # mask ball_frame to match fall_reference_frame
+                    gray = np.bitwise_and(gray, ball_fall_detection_zone.mask)
 
-                ball_frame_delta = cv2.absdiff(fall_reference_frame, gray)
-                ball_thresh = cv2.threshold(ball_frame_delta, BALL_FALL_THRESH, 255, cv2.THRESH_BINARY)[1]
+                    ball_frame_delta = cv2.absdiff(fall_reference_frame, gray)
+                    ball_thresh = cv2.threshold(ball_frame_delta, BALL_FALL_THRESH, 255, cv2.THRESH_BINARY)[1]
 
-                ball_thresh = cv2.dilate(ball_thresh, None, iterations=2)
-                ball_cnts = cv2.findContours(ball_thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                ball_cnts = imutils.grab_contours(ball_cnts)
+                    ball_thresh = cv2.dilate(ball_thresh, None, iterations=2)
+                    ball_cnts = cv2.findContours(ball_thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                    ball_cnts = imutils.grab_contours(ball_cnts)
 
-                for c in ball_cnts:
-                    area = cv2.contourArea(c)
+                    for c in ball_cnts:
+                        area = cv2.contourArea(c)
+                        '''
+                        if area < MIN_BALL_AREA or area > MAX_BALL_AREA:
+                            continue
+                        '''
+
+                        timestamp = Ball.time()
+                        print(f"BALL FALL DETECTED")
+                        out_queue.put({"state" : "ball_fall_detected", "timestamp" : timestamp})
+                        ball_fall_detected = True
+
                     '''
-                    if area < MIN_BALL_AREA or area > MAX_BALL_AREA:
-                        continue
+                    cv2.imshow(f"Ball Fall Detection", ball_thresh)
+                    key = cv2.waitKey(1) & 0xFF
                     '''
-
-                    timestamp = Ball.time()
-                    print(f"BALL FALL DETECTED")
-                    out_queue.put({"state" : "ball_fall_detected", "timestamp" : timestamp})
-                    return
-
-                cv2.imshow(f"Ball Fall Detection", ball_thresh)
-                key = cv2.waitKey(1) & 0xFF
 
     @staticmethod
     def time():
