@@ -176,6 +176,11 @@ class OCR:
             y = y - self.wheel_detection_zone[1]
             inner_diamond_points[diamond] = x,y
 
+        # set wheel center here to be more accurate
+        x_average = int(round(sum([x[0] for x in diamond_points.values()]) / len(diamond_points)))
+        y_average = int(round(sum([x[1] for x in diamond_points.values()]) / len(diamond_points)))
+        center = x_average, y_average
+        self.wheel_center_point = center
 
         # take screenshot to get first frame 
         bbox = self.wheel_detection_zone
@@ -204,12 +209,13 @@ class OCR:
 
         print(f"Bounding box: {zone}")
 
+        '''
         input(f"Hover the mouse over the EXACT CENTER of the wheel, then hit ENTER.")
         x_center,y_center = self.m.position
         x_center -= self.wheel_detection_zone[0]
         y_center -= self.wheel_detection_zone[1]
         self.wheel_center_point = x_center,y_center
-
+        '''
 
         input(f"Hover the mouse over the the center of the pocket RIGHT UNDER the REFERENCE DIAMOND, then hit ENTER.")
         x_ref,y_ref = self.m.position
