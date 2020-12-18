@@ -5,6 +5,7 @@ import numpy as np
 import time as t
 from collections import deque
 from PIL import Image
+from util import Util
 
 
 GREEN_LOWER = (29, 86, 6)
@@ -105,7 +106,7 @@ class Rotor:
 
                     # Code to determine if we need to send rotor position out
                     if fall_time > 0:
-                        elapsed_time = (Rotor.time() - fall_time_timestamp) * 1000
+                        elapsed_time = (Util.time() - fall_time_timestamp) * 1000
                         if not sent_fall and abs(elapsed_time - fall_time) < EPSILON:
                             out_queue.put({"state" : "green_position_update", "green_position" : center})
                             sent_fall = True
@@ -114,15 +115,15 @@ class Rotor:
                     if direction_change_stable:
                         if not rotor_start_point:
                             rotor_start_point = center
-                            rotor_measure_start_time = Rotor.time()
+                            rotor_measure_start_time = Util.time()
                         elif not rotor_end_point:
                             # calculate how many degrees have been measured since rotor_start_point
-                            degrees = Rotor.get_angle(rotor_start_point, wheel_center, center)
+                            degrees = Util.get_angle(rotor_start_point, wheel_center, center)
                             if degrees > 180:
                                 degrees = 360 - degrees
                             if degrees >= rotor_angle_ellipse:
                                 rotor_end_point = center
-                                rotor_measure_complete_timestamp = Rotor.time()
+                                rotor_measure_complete_timestamp = Util.time()
                                 rotor_measure_duration = rotor_measure_complete_timestamp - rotor_measure_start_time
                                 # converting from degrees/second to seconds/degrees to seconds/rotation to milliseconds/rotation
                                 rotor_speed = (1 / (degrees / rotor_measure_duration)) * 360 * 1000
@@ -176,14 +177,14 @@ class Rotor:
                             if direction_changed:
                                 direction_changed = False
                             else:
-                                if Rotor.time() - seen_direction_start_time > TIME_FOR_STABLE_DIRECTION:
+                                if Util.time() - seen_direction_start_time > TIME_FOR_STABLE_DIRECTION:
                                     direction_changed = True
-                                    seen_direction_change_start_time = Rotor.time()
+                                    seen_direction_change_start_time = Util.time()
                                 else:
                                     # initial direction changed too rapidly
                                     current_direction = ""
                         if current_direction == "":
-                            seen_direction_start_time = Rotor.time()
+                            seen_direction_start_time = Util.time()
                             
                         current_direction = "anticlockwise"
                     else:
@@ -191,21 +192,21 @@ class Rotor:
                             if direction_changed:
                                 direction_changed = False
                             else:
-                                if Rotor.time() - seen_direction_start_time > TIME_FOR_STABLE_DIRECTION:
+                                if Util.time() - seen_direction_start_time > TIME_FOR_STABLE_DIRECTION:
                                     direction_changed = True
-                                    seen_direction_change_start_time = Rotor.time()
+                                    seen_direction_change_start_time = Util.time()
                                 else:
                                     current_direction = ""
                         if current_direction == "":
-                            seen_direction_start_time = Rotor.time()
+                            seen_direction_start_time = Util.time()
 
                         current_direction = "clockwise"
 
             if direction_changed:
-                duration = Rotor.time() - seen_direction_change_start_time
+                duration = Util.time() - seen_direction_change_start_time
                 if duration > TIME_FOR_STABLE_DIRECTION:
                     direction_change_stable = True
-                    spin_start_time = Rotor.time()
+                    spin_start_time = Util.time()
                     # reset some state so this block doesn't happen again
                     direction_changed = False
 
@@ -313,20 +314,8 @@ class Rotor:
 
 
             # show the frame to our screen
-            cv2.circle(frame, wheel_center_point, 15, (0, 0, 255), -1)
+            cv2.circle(frame, wheel_center_point, 5, (0, 0, 255), -1)
             cv2.circle(frame, reference_diamond_point, 5, (0, 0, 255), -1)
             cv2.imshow("Wheel Detection", frame)
             key = cv2.waitKey(1) & 0xFF
 
-
-
-
-    @staticmethod
-    def get_angle(a, b, c):
-        ang = math.degrees(math.atan2(c[1]-b[1], c[0]-b[0]) - math.atan2(a[1]-b[1], a[0]-b[0]))
-        return (ang + 360) if ang < 0 else ang
-
-
-    @staticmethod
-    def time():
-        return t.time_ns() / 1000000000

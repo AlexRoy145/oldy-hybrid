@@ -90,9 +90,9 @@ AS: Add sample manually.
 CM: Change max samples for ball sample.
 CA: Change rotor acceleration.
 CE: Change ellipse angle.
-RA: Run rotor acceleration setting loop. QUIT NORMAL DETECTION FIRST USING Q.
 DW: Change wheel detection zone (DO THIS BEFORE BALL DETECTION).
 DB: Change ball detection zone.
+DF: Change ball fall detection zone.
 SJ: Show jump values.
 J: Change jump values.
 SC: Show connected clients.
@@ -229,7 +229,10 @@ Enter your choice: """).lower()
                 continue
             elif choice == "db":
                 self.ocr.set_ball_detection_zone()
-                self.ocr.set_ball_fall_detection_zones()
+                self.ocr.save_profile(OCR_PROFILE)
+                continue
+            elif choice == "df":
+                self.ocr.set_ball_fall_detection_zone()
                 self.ocr.save_profile(OCR_PROFILE)
                 continue
             elif choice == "sj":

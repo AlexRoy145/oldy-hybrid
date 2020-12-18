@@ -15,11 +15,14 @@ from pytessy import PyTessy
 from ball_sample import BallSample
 from ball import Ball 
 from rotor import Rotor
+from util import Util
 
 DIFF_RATIO = 9
+DIAMONDS = ["twelve", "three", "six", "nine"]
 
-class BallFallDetectionZone:
-    def __init__(self, wheel_bounding_box, reference_frame, outer_diamond_points, inner_diamond_points):
+class EllipticalDetectionZone:
+    def __init__(self, wheel_bounding_box, reference_frame, outer_diamond_points, inner_diamond_points, angles=None):
+        self.center = None
         self.reference_frame = np.array(Image.frombytes('RGB', reference_frame.size, reference_frame.rgb))
         self.reference_frame = cv2.cvtColor(self.reference_frame, cv2.COLOR_BGR2GRAY)
         self.reference_frame = cv2.GaussianBlur(self.reference_frame, (11, 11), 0)
@@ -30,41 +33,36 @@ class BallFallDetectionZone:
 
         mask = np.zeros_like(self.reference_frame)
 
-        outer_ellipse_mask = self.get_ellipse(mask, outer_diamond_points)
-        self.mask = self.get_ellipse(outer_ellipse_mask, inner_diamond_points, inner=True)
+        outer_ellipse_mask = self.get_ellipse(mask, outer_diamond_points, angles=angles)
+        self.mask = self.get_ellipse(outer_ellipse_mask, inner_diamond_points, inner=True, angles=angles)
         self.reference_frame = np.bitwise_and(self.reference_frame, self.mask)
         cv2.imshow("ref zone", self.reference_frame)
         cv2.waitKey(0)
 
-    def get_ellipse(self, mask, diamond_points, inner=False):
+    def get_ellipse(self, mask, diamond_points, inner=False, angles=None):
+        if not angles:
+            start_angle = 0
+            end_angle = 360
+        else:
+            start_angle = angles[0]
+            end_angle = angles[1]
         x_average = int(round(sum([x[0] for x in diamond_points.values()]) / len(diamond_points)))
         y_average = int(round(sum([x[1] for x in diamond_points.values()]) / len(diamond_points)))
-        center = x_average, y_average
-        ninety_degree_point = center[0] + 10, center[1]
-        ellipse_angle = self.get_angle(ninety_degree_point, center, diamond_points["three"])
-        axis_1 = int(round(self.get_distance(diamond_points["three"], diamond_points["nine"]) / 2))
-        axis_2 = int(round(self.get_distance(diamond_points["twelve"], diamond_points["six"]) / 2))
+        if not self.center:
+            self.center = x_average, y_average
+        ninety_degree_point = self.center[0] + 10, self.center[1]
+        ellipse_angle = Util.get_angle(ninety_degree_point, self.center, diamond_points["three"])
+        axis_1 = int(round(Util.get_distance(diamond_points["three"], diamond_points["nine"]) / 2))
+        axis_2 = int(round(Util.get_distance(diamond_points["twelve"], diamond_points["six"]) / 2))
         if inner:
             color = (0,0,0)
         else:
             color = (255,255,255)
-        return cv2.ellipse(mask, center, axes=(axis_1,axis_2), angle=ellipse_angle, startAngle=0, endAngle=360, color=color, thickness=-1)
+        return cv2.ellipse(mask, self.center, axes=(axis_1,axis_2), angle=ellipse_angle, startAngle=start_angle, endAngle=end_angle, color=color, thickness=-1)
 
 
-    def get_angle(self, a, b, c):
-        ang = math.degrees(math.atan2(c[1]-b[1], c[0]-b[0]) - math.atan2(a[1]-b[1], a[0]-b[0]))
-        return (ang + 360) if ang < 0 else ang
-
-    def get_distance(self, a, b):
-        return math.sqrt( (a[0] - b[0])**2 + (a[1] - b[1])**2 )
 
         
-class BallDetectionZone:
-    def __init__(self, bounding_box, reference_frame):
-        self.bounding_box = bounding_box
-        self.reference_frame = reference_frame
-
-
 class OCR:
 
     def __init__(self, profile_dir):
@@ -124,44 +122,41 @@ class OCR:
 
     
     def set_ball_detection_zone(self):
-        zone = []
-        input(f"hover the mouse over the upper left corner of the detection zone for the ball, then hit enter.")
-        x_top,y_top = self.m.position
-        zone.append(x_top)
-        zone.append(y_top)
+        print("Capture the ball detection zone. ENSURE THAT NO BALL IS PRESENT IN THE ZONE WHEN THE LAST ENTER IS PRESSED.")
+        print("Capture the outer points of the ball detection points aligned with the diamonds.")
+        outer_diamond_points = {}
+        for diamond in DIAMONDS:
+            input(f"Hover the mouse over the outermost point of the ball track aligned with the {diamond} o'clock diamond, then press ENTER: ")
+            x, y = self.m.position
+            x = x - self.wheel_detection_zone[0]
+            y = y - self.wheel_detection_zone[1]
+            outer_diamond_points[diamond] = x,y
 
-        input("hover the mouse over the bottom right corner of the detection zone, then hit enter.")
-        x_bot,y_bot = self.m.position
-        zone.append(x_bot)
-        zone.append(y_bot)
-
-        print(f"bounding box: {zone}")
+        inner_diamond_points = {}
+        for diamond in DIAMONDS:
+            input(f"Hover the mouse over the innermost point of the {diamond} o'clock diamond, then press ENTER: ")
+            x, y = self.m.position
+            x = x - self.wheel_detection_zone[0]
+            y = y - self.wheel_detection_zone[1]
+            inner_diamond_points[diamond] = x,y
 
         # take screenshot to get first frame 
-        bbox = zone
+        bbox = self.wheel_detection_zone
         width = bbox[2]-bbox[0]
         height = bbox[3]-bbox[1]
 
         with mss.mss() as sct:
             frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
-            ball_reference_frame = frame
-            
+            reference_frame = frame
 
-        # get the coords for within the context of wheel detection zone
-        new_ball_leftupper_x = zone[0] - self.wheel_detection_zone[0]
-        new_ball_leftupper_y = zone[1] - self.wheel_detection_zone[1]
-        new_ball_rightbottom_x = zone[2] - self.wheel_detection_zone[0]
-        new_ball_rightbottom_y = zone[3] - self.wheel_detection_zone[1]
+        self.ball_detection_zone = EllipticalDetectionZone(self.wheel_detection_zone, reference_frame, outer_diamond_points, inner_diamond_points)
 
-        ball_detection_zone_bbox = [new_ball_leftupper_x, new_ball_leftupper_y, new_ball_rightbottom_x, new_ball_rightbottom_y]
-        self.ball_detection_zone = BallDetectionZone(ball_detection_zone_bbox, ball_reference_frame)
 
     def set_ball_fall_detection_zones(self):
         print("Capture the ball fall zone. ENSURE THAT NO BALL IS PRESENT IN THE ZONE WHEN THE LAST ENTER IS PRESSED.")
         print("Capture the outermost points of the ball fall elliptical zone. These 4 points are the outermost points on the 4 vertical diamonds")
-        diamonds = ["twelve", "three", "six", "nine"]
         outer_diamond_points = {}
-        for diamond in diamonds:
+        for diamond in DIAMONDS:
             input(f"Hover the mouse over the outermost point of the {diamond} o'clock diamond, then press ENTER: ")
             x, y = self.m.position
             x = x - self.wheel_detection_zone[0]
@@ -169,7 +164,7 @@ class OCR:
             outer_diamond_points[diamond] = x,y
 
         inner_diamond_points = {}
-        for diamond in diamonds:
+        for diamond in DIAMONDS:
             input(f"Hover the mouse over the innermost point of the {diamond} o'clock diamond, then press ENTER: ")
             x, y = self.m.position
             x = x - self.wheel_detection_zone[0]
@@ -177,8 +172,8 @@ class OCR:
             inner_diamond_points[diamond] = x,y
 
         # set wheel center here to be more accurate
-        x_average = int(round(sum([x[0] for x in diamond_points.values()]) / len(diamond_points)))
-        y_average = int(round(sum([x[1] for x in diamond_points.values()]) / len(diamond_points)))
+        x_average = int(round(sum([x[0] for x in outer_diamond_points.values()]) / len(outer_diamond_points)))
+        y_average = int(round(sum([x[1] for x in outer_diamond_points.values()]) / len(outer_diamond_points)))
         center = x_average, y_average
         self.wheel_center_point = center
 
@@ -191,7 +186,7 @@ class OCR:
             frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
             reference_frame = frame
 
-        self.ball_fall_detection_zone = BallFallDetectionZone(self.wheel_detection_zone, reference_frame, outer_diamond_points, inner_diamond_points)
+        self.ball_fall_detection_zone = EllipticalDetectionZone(self.wheel_detection_zone, reference_frame, outer_diamond_points, inner_diamond_points)
                     
 
     def set_wheel_detection_zone(self):
@@ -258,7 +253,7 @@ class OCR:
             ball_in_queue = mp.Queue()
             rotor_proc = mp.Process(target=Rotor.start_capture, args=(rotor_in_queue, rotor_out_queue, self.wheel_detection_zone, self.wheel_detection_area, self.wheel_center_point, self.reference_diamond_point, self.diff_thresh, self.rotor_angle_ellipse))
             rotor_proc.start()
-            ball_proc = mp.Process(target=Ball.start_capture, args=(ball_in_queue, ball_out_queue, self.ball_sample, self.ball_detection_zone, self.ball_fall_detection_zone))
+            ball_proc = mp.Process(target=Ball.start_capture, args=(ball_in_queue, ball_out_queue, self.ball_sample, self.ball_detection_zone, self.ball_fall_detection_zone, self.wheel_center_point, self.reference_diamond_point))
             ball_proc.start()
 
             direction = ""
@@ -413,7 +408,7 @@ class OCR:
                     if not rotor_out_queue.empty():
                         # ROTOR ACCURACY EVALUATION
                         true_green_position = rotor_out_queue.get()["green_position"]
-                        true_green_offset = self.get_angle(true_green_position, self.wheel_center_point, self.reference_diamond_point)
+                        true_green_offset = Util.get_angle(true_green_position, self.wheel_center_point, self.reference_diamond_point)
                         degrees_off = abs(true_green_offset - self.green_calculated_offset)
                         if degrees_off >= 180:
                             pockets_off = int(round((360 - degrees_off) / (360 / len(self.european_wheel))))
@@ -554,10 +549,6 @@ class OCR:
 
         return prediction
 
-    def get_angle(self, a, b, c):
-        ang = math.degrees(math.atan2(c[1]-b[1], c[0]-b[0]) - math.atan2(a[1]-b[1], a[0]-b[0]))
-        return (ang + 360) if ang < 0 else ang
-
 
     def is_valid_prediction(self, raw_prediction):
         try:
@@ -578,7 +569,7 @@ class OCR:
         # get the degree offset green is from the reference diamond
         # if degree_offset is less than 180, green is ABOVE reference diamond, assuming ref diamond is to the right
         # if degree_offset is more than 180, green is BELOW reference diamond, assuming ref diamond is to the right
-        degree_offset = self.get_angle(green_point, self.wheel_center_point, self.reference_diamond_point)
+        degree_offset = Util.get_angle(green_point, self.wheel_center_point, self.reference_diamond_point)
 
         # now calculate where the green 0 will be in fall_time_from_now seconds
         full_degrees_green_travels = (speed * fall_time_from_now + .5 * self.rotor_acceleration * (fall_time_from_now ** 2))
