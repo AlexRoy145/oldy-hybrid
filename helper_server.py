@@ -59,7 +59,8 @@ class CRMServer:
             print("Could not find ocr data. Setting up from scratch.")
             self.ocr.set_wheel_detection_zone()
             self.ocr.set_ball_detection_zone()
-            self.ocr.set_ball_fall_detection_zones()
+            self.ocr.set_ball_fall_detection_zone()
+            self.ocr.set_sample_detection_zone()
             self.ocr.save_profile(OCR_PROFILE) 
 
 
@@ -77,8 +78,6 @@ class CRMServer:
 IMPORTANT: The following commands can only be run if the direction detection loop is stopped: D, DW, DT, T
 Q: Quit the direction detection loop.
 R: Run the direction detection loop.
-W: Enter winning number.
-E: Set end difference.
 B: Start ball timings.
 V: Change VPS.
 T: Toggle test mode. Test mode will let detection run, but WON'T send commands to clients.
