@@ -66,7 +66,7 @@ class BallSample:
         self.end_difference = 0
         initial_sample = [567, 601, 673, 746, 884, 1083, 1268, 1402, 1502, 1652, 1735, 1885, 2052]
         initial_sample = Sample(initial_sample, self.target_time)
-        self.max_samples = 4
+        self.max_samples = 1
         self.samples = deque(maxlen=self.max_samples)
         self.samples.append(initial_sample)
         self.averaged_sample = self.samples[0]
