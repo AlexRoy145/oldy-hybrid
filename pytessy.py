@@ -357,7 +357,7 @@ class PyTessy(object):
         """
 
         bytes_per_line = width * bytes_per_pixel
-        self._tess.set_variable("tessedit_pageseg_mode", "0")
+        self._tess.set_variable("tessedit_pageseg_mode", "5")
         if raw:
             return self.justread_raw(imagedata, width, height, bytes_per_pixel,
                                      bytes_per_line, resolution)

@@ -61,12 +61,11 @@ class EllipticalDetectionZone:
         return cv2.ellipse(mask, self.center, axes=(axis_1,axis_2), angle=ellipse_angle, startAngle=start_angle, endAngle=end_angle, color=color, thickness=-1)
 
 
-
-        
 class OCR:
 
     def __init__(self, profile_dir):
         self.wheel_detection_zone = []
+        self.sample_detection_zone = []
         self.wheel_center_point = None
         self.reference_diamond_point = None
         self.ball_detection_zone = None
@@ -109,6 +108,7 @@ class OCR:
         with open(path, "wb") as f:
             d = {"wheel_detection_zone" : self.wheel_detection_zone,
                  "wheel_center_point" : self.wheel_center_point,
+                 "sample_detection_zone" : self.sample_detection_zone,
                  "reference_diamond_point" : self.reference_diamond_point,
                  "ball_detection_zone" : self.ball_detection_zone,
                  "screenshot_zone" : self.screenshot_zone,
@@ -187,7 +187,23 @@ class OCR:
             reference_frame = frame
 
         self.ball_fall_detection_zone = EllipticalDetectionZone(self.wheel_detection_zone, reference_frame, outer_diamond_points, inner_diamond_points)
-                    
+
+
+    def set_sample_detection_zone(self):
+        self.sample_detection_zone = []
+        zone = self.sample_detection_zone
+        input(f"Hover the mouse over the upper left corner of the detection zone for the sample, then hit ENTER.")
+        x_top,y_top = self.m.position
+        zone.append(x_top)
+        zone.append(y_top)
+
+        input("Hover the mouse over the bottom right corner of the detection zone, then hit ENTER.")
+        x_bot,y_bot = self.m.position
+        zone.append(x_bot)
+        zone.append(y_bot)
+
+        print(f"Bounding box: {zone}")
+
 
     def set_wheel_detection_zone(self):
         self.wheel_detection_zone = []
@@ -204,20 +220,11 @@ class OCR:
 
         print(f"Bounding box: {zone}")
 
-        '''
-        input(f"Hover the mouse over the EXACT CENTER of the wheel, then hit ENTER.")
-        x_center,y_center = self.m.position
-        x_center -= self.wheel_detection_zone[0]
-        y_center -= self.wheel_detection_zone[1]
-        self.wheel_center_point = x_center,y_center
-        '''
-
         input(f"Hover the mouse over the the center of the pocket RIGHT UNDER the REFERENCE DIAMOND, then hit ENTER.")
         x_ref,y_ref = self.m.position
         x_ref -= self.wheel_detection_zone[0]
         y_ref -= self.wheel_detection_zone[1]
         self.reference_diamond_point = x_ref, y_ref
-
 
 
         self.diff_thresh = int((self.wheel_detection_zone[2] - self.wheel_detection_zone[0]) / DIFF_RATIO)
@@ -671,3 +678,14 @@ class OCR:
 
     def graph_samples(self):
         self.ball_sample.graph_samples()
+
+
+    def scan_sample(self):
+        sample = self.read(zone=self.sample_detection_zone).split("\n")
+        parsed_sample = []
+        for rev in sample:
+            if rev != "\n" and rev != "":
+                parsed_sample.append(int(rev))
+
+        self.add_ball_sample(parsed_sample)
+        print(parsed_sample)

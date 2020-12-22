@@ -87,12 +87,14 @@ G: Graph samples.
 GD: Graph data.
 CS: Clear sample by sample number.
 AS: Add sample manually.
+OS: Scan sample into hybrid.
 CM: Change max samples for ball sample.
 CA: Change rotor acceleration.
 CE: Change ellipse angle.
 DW: Change wheel detection zone (DO THIS BEFORE BALL DETECTION).
 DB: Change ball detection zone.
 DF: Change ball fall detection zone.
+DS: Change sample detection zone.
 SJ: Show jump values.
 J: Change jump values.
 SC: Show connected clients.
@@ -199,6 +201,9 @@ Enter your choice: """).lower()
                     print("Invalid sample.")
 
                 continue
+            elif choice == "os":
+                self.ocr.scan_sample()
+                continue
             elif choice == "cm":
                 print(f"Current max samples: {self.ocr.ball_sample.max_samples}")
                 try:
@@ -233,6 +238,10 @@ Enter your choice: """).lower()
                 continue
             elif choice == "df":
                 self.ocr.set_ball_fall_detection_zone()
+                self.ocr.save_profile(OCR_PROFILE)
+                continue
+            elif choice == "ds":
+                self.ocr.set_sample_detection_zone()
                 self.ocr.save_profile(OCR_PROFILE)
                 continue
             elif choice == "sj":
