@@ -58,7 +58,7 @@ class Sample:
 
 class BallSample:
 
-    REV_TOLERANCE = 20
+    REV_TOLERANCE = 50
 
     def __init__(self):
         # array of ints representing milliseconds of ball rev times

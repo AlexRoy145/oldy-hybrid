@@ -130,6 +130,8 @@ class OCR:
                         out_msg = rotor_out_queue.get()
                         if out_msg["state"] == "direction_change_stable":
                             direction = out_msg["direction"]
+                            # automatically start ball timings
+                            self.start_ball_timings = True
                             break
 
                 if not self.is_running:

@@ -9,16 +9,22 @@ from PIL import Image
 from util import Util
 
 MIN_BALL_AREA = 50
-MAX_BALL_AREA = 2000
+MAX_BALL_AREA = 500
 BALL_START_TIMINGS = 450
 THRESH = 65
 BALL_FALL_THRESH = 65
 MAX_SPIN_DURATION = 30
 FALSE_DETECTION_THRESH = 100
 EPSILON = 25
+FRAME_LOOKBACK = 2
 
-ANGLE_START = 20
-ANGLE_END = 340
+MAX_EXTENSION = 30 # 30 degrees each direction, which is about 3 pockets each direction
+
+WAIT_FOR_FALL_DETECTION = 5 #seconds
+SINGLE_CONTOURS_NEEDED = 38 #frames, about 18ms per frame
+
+ANGLE_START = 10
+ANGLE_END = 350
 
 class Ball:
 
@@ -37,6 +43,11 @@ class Ball:
             false_detections = False
             spin_start_time = 0
             start_ball_timings = False
+
+            start_ball_timings_timestamp = -1
+
+            single_contour_detected_count = 0
+            previous_angle = None
 
             ball_reference_frame = ball_detection_zone.reference_frame
 
@@ -78,10 +89,16 @@ class Ball:
                     ball_frame = np.array(frame)
 
                 if start_ball_timings:
-                    try:
-                        ball_fall_in_queue.put({"frame" : frame, "state" : "good"})
-                    except BrokenPipeError:
-                        pass
+
+                    if start_ball_timings_timestamp == -1:
+                        start_ball_timings_timestamp = Util.time()
+
+                    if Util.time() - start_ball_timings_timestamp > WAIT_FOR_FALL_DETECTION:
+                        try:
+                            ball_fall_in_queue.put({"frame" : frame, "state" : "good"})
+                        except BrokenPipeError:
+                            pass
+
                     if not false_detections:
                         gray = cv2.cvtColor(ball_frame, cv2.COLOR_BGR2GRAY)
                         gray = cv2.GaussianBlur(gray, (11, 11), 0)
@@ -121,43 +138,59 @@ class Ball:
                         ball_cnts = cv2.findContours(ball_thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
                         ball_cnts = imutils.grab_contours(ball_cnts)
 
+                        #print(f"NUM BALL_CNTS: {len(ball_cnts)}")
+
+                        filtered_contours = []
                         for c in ball_cnts:
                             M = cv2.moments(c)
                             center = int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"])
                             area = cv2.contourArea(c)
                             if area < MIN_BALL_AREA or area > MAX_BALL_AREA:
                                 continue
+                            filtered_contours.append(center)
 
-                            angle_from_ref = Util.get_angle(center, wheel_center_point, reference_diamond_point)
-                            if angle_from_ref > ANGLE_START and angle_from_ref < ANGLE_END:
-                                continue
+                        if len(filtered_contours) == 1:
+                            single_contour_detected_count += 1
+                            if single_contour_detected_count >= SINGLE_CONTOURS_NEEDED:
+                                contour = filtered_contours[0]
+                                angle_from_ref = Util.get_angle(contour, wheel_center_point, reference_diamond_point)
+                                if not previous_angle:
+                                    previous_angle = angle_from_ref
+                                else: 
+                                    difference = abs(angle_from_ref - previous_angle) % 180
+                                    extension = Ball.get_extension(difference)
 
-                            now = int(round(Util.time() * 1000))
-                            if first_pass:
-                                start_time = now
-                                first_pass = False
-                            else:
-                                lap_time = now - start_time
+                                    # if extension is -1, the difference is too large, which means a likely error 
+                                    if extension != -1 and Ball.in_range(angle_from_ref, ANGLE_START, ANGLE_END, extension=extension):
+                                        now = int(round(Util.time() * 1000))
+                                        if first_pass:
+                                            start_time = now
+                                            first_pass = False
+                                        else:
+                                            lap_time = now - start_time
 
-                                if lap_time > BALL_START_TIMINGS:
-                                    start_time = now
-                                    print("Ball detected, lap: %dms" % lap_time)
-                                    if len(current_ball_sample) > 0:
-                                        if current_ball_sample[-1] - lap_time > FALSE_DETECTION_THRESH:
-                                            print("FALSE DETECTIONS")
-                                            out_msg = {"state" : "false_detections"}
-                                            out_queue.put(out_msg)
+                                            if lap_time > BALL_START_TIMINGS:
+                                                start_time = now
+                                                frame_counter = 0
+                                                print("Ball detected, lap: %dms" % lap_time)
+                                                if len(current_ball_sample) > 0:
+                                                    '''
+                                                    if current_ball_sample[-1] - lap_time > FALSE_DETECTION_THRESH:
+                                                        print("FALSE DETECTIONS")
+                                                        out_msg = {"state" : "false_detections"}
+                                                        out_queue.put(out_msg)
+                                                    '''
 
-                                    current_ball_sample.append(lap_time)
-                                    if fall_time < 0:
-                                        fall_time = ball_sample.get_fall_time_averaged(lap_time)
-                                        if fall_time > 0:
-                                            fall_time_timestamp = Util.time()
-                                            #print(f"FALL TIME CALCULATED TO BE {fall_time} MS FROM NOW")
-                                            out_msg = {"state": "fall_time_calculated",
-                                                       "fall_time" : fall_time,
-                                                       "fall_time_timestamp" : fall_time_timestamp}
-                                            out_queue.put(out_msg)
+                                                current_ball_sample.append(lap_time)
+                                                if fall_time < 0:
+                                                    fall_time = ball_sample.get_fall_time_averaged(lap_time)
+                                                    if fall_time > 0:
+                                                        fall_time_timestamp = Util.time()
+                                                        #print(f"FALL TIME CALCULATED TO BE {fall_time} MS FROM NOW")
+                                                        out_msg = {"state": "fall_time_calculated",
+                                                                   "fall_time" : fall_time,
+                                                                   "fall_time_timestamp" : fall_time_timestamp}
+                                                        out_queue.put(out_msg)
 
 
                 
@@ -213,3 +246,23 @@ class Ball:
                     cv2.imshow(f"Ball Fall Detection", ball_thresh)
                     key = cv2.waitKey(1) & 0xFF
                     '''
+
+    @staticmethod
+    def in_range(angle, start_angle, end_angle, extension=0):
+        return (angle < start_angle + extension and angle > 0) or (angle > end_angle - extension and angle < 360)
+
+
+    @staticmethod
+    def get_extension(difference):
+        if difference < 20:
+            return 0
+        elif difference < 30:
+            return 10
+        elif difference < 40:
+            return 20
+        elif difference < 50:
+            return 30
+        elif difference < 60:
+            return 40
+        else:
+            return -1
