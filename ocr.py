@@ -340,6 +340,7 @@ class OCR:
         if prediction:
             prediction = prediction.replace("s", "5")
             prediction = prediction.replace("S", "5")
+            prediction = prediction.replace("$", "5")
 
             prediction = prediction.replace("Z", "2")
             prediction = prediction.replace("z", "2")
