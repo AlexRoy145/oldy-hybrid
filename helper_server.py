@@ -97,8 +97,10 @@ DB: Change ball detection zone.
 DF: Change ball fall detection zone.
 DN: Change winning number detection zone.
 DS: Change sample detection zone.
-SJ: Show jump values.
-J: Change jump values.
+SJ: Show default jump values.
+J: Change default jump values.
+SB: Show ball rev ranges for ball rev isolation.
+JB: Change ball rev ranges for ball rev isolation.
 SC: Show connected clients.
 K: Execute signin macro on all machines.
 Enter your choice: """).lower()
@@ -264,6 +266,14 @@ Enter your choice: """).lower()
                 continue
             elif choice == "j":
                 self.clickbot.set_jump_values()
+                self.clickbot.save_profile(CLICKBOT_PROFILE)
+                continue
+            elif choice == "sb":
+                print(f"Anticlockwise ball revs: {self.clickbot.ball_revs_anti}")
+                print(f"Clockwise ball revs: {self.clickbot.ball_revs_clock}")
+                continue
+            elif choice == "jb":
+                self.clickbot.set_ball_revs()
                 self.clickbot.save_profile(CLICKBOT_PROFILE)
                 continue
             elif choice == "sc":

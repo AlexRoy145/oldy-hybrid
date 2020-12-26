@@ -13,6 +13,8 @@ class Clickbot:
         self.number_coords = []
         self.jump_anti = []
         self.jump_clock = []
+        self.ball_revs_anti = ""
+        self.ball_revs_clock = ""
         self.peak_center_idxs = []
         self.european_wheel = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26]
         self.jump_array = list(range(0,19)) + list(range(-18,0))
@@ -46,6 +48,10 @@ class Clickbot:
             return True
         else:
             return False
+
+    def set_ball_revs(self):
+        self.ball_revs_anti = input("Input ball revs for anticlockwise (example: 8,9,10): ").split(",")
+        self.ball_revs_clock = input("Input ball revs for clockwise (example: 15,16,17): ").split(",")
 
 
     def set_jump_helper(self, range_str, jump_list):
@@ -161,16 +167,21 @@ class Clickbot:
 
     def get_tuned_from_raw_using_rotor_isolation(self, direction, rotor_speed, raw_prediction):
         if self.rotor_isolation_scatter:
+            # find correct rotor speed
             for rotor_speed_range in self.rotor_isolation_scatter.keys():
                 split = rotor_speed_range.split("-")
                 start_speed = int(split[0])
                 end_speed = int(split[1])
                 if rotor_speed >= start_speed and rotor_speed < end_speed:
-                    scatter = self.rotor_isolation_scatter[rotor_speed_range]
-                    if direction == "a":
-                        return self.get_tuned_given_jumps(scatter["anticlockwise"], raw_prediction)
-                    else:
-                        return self.get_tuned_given_jumps(scatter["clockwise"], raw_prediction)
+                    ball_rev_scatter = self.rotor_isolation_scatter[rotor_speed_range]
+                    # find correct ball revs
+                    for ball_rev_range in ball_rev_scatter.keys():
+                        if direction == "a":
+                            if ball_rev_range == self.ball_revs_anti:
+                                return self.get_tuned_given_jumps(ball_rev_scatter[ball_rev_range]["anticlockwise"], raw_prediction)
+                        else:
+                            if ball_rev_range == self.ball_revs_clock:
+                                return self.get_tuned_given_jumps(ball_rev_scatter[ball_rev_range]["clockwise"], raw_prediction)
 
         # no rotor isolation data found, using default scatter
         return self.get_tuned_from_raw(direction, raw_prediction)
