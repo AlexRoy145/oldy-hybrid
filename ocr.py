@@ -15,6 +15,7 @@ from rotor import Rotor
 from util import Util
 from detection_zone import SetDetection
 
+BALL_FILE = "crm_saved_profiles/ball_small.png"
 
 class OCR:
 
@@ -24,6 +25,7 @@ class OCR:
         self.wheel_center_point = None
         self.reference_diamond_point = None
         self.ball_detection_zone = None
+        self.winning_number_detection_zone = None
         
         self.ball_fall_detection_zone = None
 
@@ -38,6 +40,7 @@ class OCR:
         self.ball_sample = BallSample()
 
         self.is_running = True
+        self.databot_mode = False
         self.start_ball_timings = False
         self.p = PyTessy()
 
@@ -60,6 +63,7 @@ class OCR:
             d = {"wheel_detection_zone" : self.wheel_detection_zone,
                  "wheel_center_point" : self.wheel_center_point,
                  "sample_detection_zone" : self.sample_detection_zone,
+                 "winning_number_detection_zone" : self.winning_number_detection_zone,
                  "reference_diamond_point" : self.reference_diamond_point,
                  "ball_detection_zone" : self.ball_detection_zone,
                  "screenshot_zone" : self.screenshot_zone,
@@ -89,6 +93,9 @@ class OCR:
     def set_sample_detection_zone(self):
         self.sample_detection_zone = SetDetection.set_sample_detection_zone()
 
+    def set_winning_number_detection_zone(self):
+        self.winning_number_detection_zone = SetDetection.set_winning_number_detection_zone(self.wheel_detection_zone)
+
     def set_screenshot_zone(self):
         self.screenshot_zone = SetDetection.set_screenshot_zone()
     
@@ -100,7 +107,10 @@ class OCR:
             ball_in_queue = mp.Queue()
             rotor_proc = mp.Process(target=Rotor.start_capture, args=(rotor_in_queue, rotor_out_queue, self.wheel_detection_zone, self.wheel_detection_area, self.wheel_center_point, self.reference_diamond_point, self.diff_thresh, self.rotor_angle_ellipse))
             rotor_proc.start()
-            ball_proc = mp.Process(target=Ball.start_capture, args=(ball_in_queue, ball_out_queue, self.ball_sample, self.ball_detection_zone, self.ball_fall_detection_zone, self.wheel_center_point, self.reference_diamond_point))
+            if self.databot_mode:
+                ball_proc = mp.Process(target=Ball.start_capture_databot, args=(ball_in_queue, ball_out_queue, self.ball_sample, self.ball_detection_zone, self.ball_fall_detection_zone, self.wheel_center_point, self.reference_diamond_point))
+            else:
+                ball_proc = mp.Process(target=Ball.start_capture, args=(ball_in_queue, ball_out_queue, self.ball_sample, self.ball_detection_zone, self.ball_fall_detection_zone, self.wheel_center_point, self.reference_diamond_point))
             ball_proc.start()
 
             direction = ""
@@ -112,6 +122,9 @@ class OCR:
             self.raw = -1
             self.direction = ""
             self.rotor_speed = -1
+            self.winning_number = -1
+            self.fall_zone = -1
+            self.ball_revs = -1
 
             bbox = self.wheel_detection_zone
             width = bbox[2]-bbox[0]
@@ -167,10 +180,105 @@ class OCR:
                     
                     if not rotor_out_queue.empty():
                         rotor_out_msg = rotor_out_queue.get()
+                        rotor_speed = rotor_out_msg["rotor_speed"]
                         rotor_done = True
                     
                     if not ball_out_queue.empty():
                         ball_out_msg = ball_out_queue.get()
+
+                        if self.databot_mode:
+                            # at this point, we have just about everything to calculate things for databot, so the rest of the code won't execute
+                            if ball_out_msg["state"] == "failed_detect":
+                                print("Failed to detect ball, restarting state...")
+                                ball_in_queue.put({"state" : "quit"})
+                                rotor_in_queue.put({"state" : "quit"})
+                                self.quit = True
+                                return
+                            fall_point = ball_out_msg["fall_point"]
+                            ball_revs = ball_out_msg["ball_revs"]
+                            rotor_in_queue.put({"state" : "ball_fell", "frame" : frame})
+
+                            while True:
+                                # wait for the rotor to come back with position
+                                if not rotor_out_queue.empty():
+                                    rotor_out_msg = rotor_out_queue.get()
+                                    green_position = rotor_out_msg["green_position"]
+
+                                    # get the TRUE raw
+                                    green_offset = Util.get_angle(green_position, self.wheel_center_point, self.reference_diamond_point)
+                                    ratio = int(round((green_offset / 360) * len(Util.EUROPEAN_WHEEL)))
+                                    if ratio == len(Util.EUROPEAN_WHEEL):
+                                        ratio = 0
+                                    true_raw = Util.EUROPEAN_WHEEL[ratio]
+                                    break
+
+                            WAIT_FOR_WINNING_NUMBER = 7 # seconds
+                            time.sleep(WAIT_FOR_WINNING_NUMBER)
+                            
+                            # do template matching to get winning number
+                            frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
+                            frame_img = Image.frombytes('RGB', frame.size, frame.rgb)
+                            frame_img = np.array(frame_img)
+
+                            gray = cv2.cvtColor(frame_img, cv2.COLOR_BGR2GRAY)
+                            gray = cv2.GaussianBlur(gray, (11, 11), 0)
+
+                            gray = np.bitwise_and(gray, self.winning_number_detection_zone.mask)
+                            ball_template = cv2.imread(BALL_FILE, 0)
+                            w, h = ball_template.shape[::-1]
+                            res = cv2.matchTemplate(gray, ball_template, cv2.TM_SQDIFF)
+                            min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+                            top_left = min_loc
+                            bottom_right = (top_left[0] + w, top_left[1] + h)
+                            ball_center = ( int(round((top_left[0] + bottom_right[0]) / 2)), int(round((top_left[1] + bottom_right[1]) / 2)) )
+
+                            # reset ball detection zone reference frame
+                            self.ball_fall_detection_zone.process_reference_frame(frame) 
+                            self.ball_fall_detection_zone.mask_reference_frame()
+                            self.ball_detection_zone.process_reference_frame(frame)
+                            self.ball_detection_zone.mask_reference_frame()
+                            
+                            # pass the same frame into the rotor to get the green position
+                            rotor_in_queue.put({"state" : "winning_number", "frame" : frame})
+                            while self.is_running:
+                                if not rotor_out_queue.empty():
+                                    rotor_out_msg = rotor_out_queue.get()
+                                    green_position = rotor_out_msg["green_position"]
+
+                                    # get the winning number using angles
+                                    green_offset = Util.get_angle(green_position, self.wheel_center_point, ball_center)
+                                    ratio = int(round(green_offset / 360 * len(Util.EUROPEAN_WHEEL)))
+                                    if ratio == len(Util.EUROPEAN_WHEEL):
+                                        ratio = 0
+                                    winning_number = Util.EUROPEAN_WHEEL[ratio]
+                                    '''
+                                    cv2.circle(frame_img, ball_center, 5, (0, 0, 255), -1)
+                                    cv2.circle(frame_img, green_position, 5, (0, 0, 255), -1)
+                                    cv2.circle(frame_img, self.wheel_center_point, 5, (0, 0, 255), -1)
+                                    cv2.imshow("framee", frame_img)
+                                    cv2.waitKey(0)
+                                    '''
+                                    break
+
+			    # kill the rotor and ball procs
+                            rotor_in_queue.put({"state" : "quit"})
+                            ball_in_queue.put({"state" : "quit"})
+
+                            # calculate fall angle. Degrees are relative to reference diamond
+                            reference_point = self.reference_diamond_point
+                            fall_angle = int(round(Util.get_angle(fall_point, self.wheel_center_point, reference_point)))
+
+                            # update the variables main thread is listening for
+                            self.raw = true_raw
+                            self.rotor_speed = rotor_speed
+                            self.direction = direction
+                            self.winning_number = winning_number
+                            self.fall_zone = fall_angle
+                            self.ball_revs = ball_revs
+                            time.sleep(5)
+                            return
+
+
                         ball_done = True
 
                     if rotor_done and ball_done:

@@ -11,7 +11,7 @@ from util import Util
 GREEN_LOWER = (29, 86, 6)
 GREEN_UPPER = (64, 255, 255)
 GIVE_UP_LOOKING_FOR_RAW = 10 #seconds
-TIME_FOR_STABLE_DIRECTION = 1.5 #seconds
+TIME_FOR_STABLE_DIRECTION = 1.0 #seconds
 MAX_MISDETECTIONS_BEFORE_RESETTING_STATE = 60
 DIFF_RATIO = 9
 MORPH_KERNEL_RATIO = .0005
@@ -138,6 +138,9 @@ class Rotor:
 
                                 out_queue.put(out_msg)
 
+                    if in_msg["state"] == "ball_fell" or in_msg["state"] == "winning_number":
+                        out_queue.put({"state" : "green_position_update", "green_position" : center})
+
 
                 else:
                     misdetections += 1
@@ -216,7 +219,7 @@ class Rotor:
 
             cv2.putText(frame, current_direction, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 255), 3)
             # show the frame to our screen
-            cv2.circle(frame, wheel_center, 15, (0, 0, 255), -1)
+            cv2.circle(frame, wheel_center, 5, (0, 0, 255), -1)
             cv2.circle(frame, ref_diamond, 5, (0, 0, 255), -1)
             cv2.imshow("Wheel Detection", frame)
             key = cv2.waitKey(1) & 0xFF

@@ -41,6 +41,7 @@ class CRMServer:
         self.clickbot = Clickbot(PROFILE_DIR)
         self.is_running = True 
         self.test_mode = False
+        self.databot_mode = False
 
         self.scatter = Scatter(PROFILE_DIR, CSV_SCATTER)
         self.scatter.load_profile(SCATTER_DATA_FILE)
@@ -81,6 +82,7 @@ R: Run the direction detection loop.
 B: Start ball timings.
 V: Change VPS.
 T: Toggle test mode. Test mode will let detection run, but WON'T send commands to clients.
+D: Toggle data bot mode. QUIT DETECTION FIRST BEFORE TOGGLING.
 SS: Show samples.
 G: Graph samples.
 GD: Graph data.
@@ -93,6 +95,7 @@ CE: Change ellipse angle.
 DW: Change wheel detection zone (DO THIS BEFORE BALL DETECTION).
 DB: Change ball detection zone.
 DF: Change ball fall detection zone.
+DN: Change winning number detection zone.
 DS: Change sample detection zone.
 SJ: Show jump values.
 J: Change jump values.
@@ -159,6 +162,14 @@ Enter your choice: """).lower()
                 else:
                     print("Turning test mode ON.")
                     self.test_mode = True
+                continue
+            elif choice == "d":
+                if self.databot_mode:
+                    print("Turning databot mode OFF.")
+                    self.databot_mode = False
+                else:
+                    print("Turning databot mode ON.")
+                    self.databot_mode = True
                 continue
             elif choice == "ss":
                 self.ocr.show_ball_samples()
@@ -239,6 +250,10 @@ Enter your choice: """).lower()
                 self.ocr.set_ball_fall_detection_zone()
                 self.ocr.save_profile(OCR_PROFILE)
                 continue
+            elif choice == "dn":
+                self.ocr.set_winning_number_detection_zone()
+                self.ocr.save_profile(OCR_PROFILE)
+                continue
             elif choice == "ds":
                 self.ocr.set_sample_detection_zone()
                 self.ocr.save_profile(OCR_PROFILE)
@@ -282,6 +297,7 @@ Enter your choice: """).lower()
             self.ocr.quit = False
             self.ocr.raw = -1
             self.ocr.direction = ""
+            self.ocr.databot_mode = self.databot_mode
 
             print("Waiting for change in direction...")
             ocr_thread = threading.Thread(target=self.ocr.start_capture, args=())
@@ -299,12 +315,31 @@ Enter your choice: """).lower()
                     self.raw = raw_prediction
                     self.direction = direction
                     self.rotor_speed = rotor_speed
+                    if self.databot_mode:
+                        fall_zone = self.ocr.fall_zone
+                        winning_number = self.ocr.winning_number
+                        ball_revs = self.ocr.ball_revs
                     break
 
             if raw_prediction == -1 or direction == "":
                 continue
 
-            print(f"Direction: {direction}, Rotor Speed: {rotor_speed}, Raw Prediction: {raw_prediction}")
+            print(f"Direction: {direction}")
+            print(f"Rotor Speed: {rotor_speed}")
+            print(f"Raw: {raw_prediction}")
+            if self.databot_mode:
+                print(f"Winning Number: {winning_number}")
+                print(f"Fall Zone: {fall_zone}")
+                print(f"Ball Revs: {ball_revs}")
+                if self.direction == "anticlockwise":
+                    new_direction = "acw"
+                else:
+                    new_direction = "cw"
+                self.scatter.add_data(direction=new_direction, raw=self.raw, winning=winning_number, rotor_speed=rotor_speed, fall_zone=fall_zone, ball_revs=ball_revs)
+                self.scatter.save_profile(SCATTER_DATA_FILE)
+                ocr_thread.join()
+                continue
+
             if not direction:
                 continue
             direction = direction[0]
@@ -312,7 +347,7 @@ Enter your choice: """).lower()
             tuned_predictions = self.clickbot.get_tuned_from_raw_using_rotor_isolation(direction, rotor_speed, raw_prediction)
             print(f"TUNED PREDICTIONS: {tuned_predictions}")
 
-            if not self.test_mode:
+            if not self.test_mode or not self.databot_mode:
                 msg.direction = direction
                 msg.raw_prediction = raw_prediction
                 msg.tuned_predictions = tuned_predictions

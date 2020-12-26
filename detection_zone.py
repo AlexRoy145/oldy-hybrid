@@ -10,11 +10,8 @@ DIAMONDS = ["twelve", "three", "six", "nine"]
 
 class EllipticalDetectionZone:
     def __init__(self, wheel_bounding_box, reference_frame, outer_diamond_points, inner_diamond_points, angles=None):
-        self.center = None
-        self.reference_frame = np.array(Image.frombytes('RGB', reference_frame.size, reference_frame.rgb))
-        self.reference_frame = cv2.cvtColor(self.reference_frame, cv2.COLOR_BGR2GRAY)
-        self.reference_frame = cv2.GaussianBlur(self.reference_frame, (11, 11), 0)
-
+        self.center = False
+        self.process_reference_frame(reference_frame)
         self.wheel_bounding_box = wheel_bounding_box
         self.outer_diamond_points = outer_diamond_points
         self.inner_diamond_points = inner_diamond_points
@@ -23,9 +20,18 @@ class EllipticalDetectionZone:
 
         outer_ellipse_mask = self.get_ellipse(mask, outer_diamond_points, angles=angles)
         self.mask = self.get_ellipse(outer_ellipse_mask, inner_diamond_points, inner=True, angles=angles)
-        self.reference_frame = np.bitwise_and(self.reference_frame, self.mask)
+        self.mask_reference_frame()
         cv2.imshow("ref zone", self.reference_frame)
         cv2.waitKey(0)
+
+    def process_reference_frame(self, reference_frame):
+        self.reference_frame = np.array(Image.frombytes('RGB', reference_frame.size, reference_frame.rgb))
+        self.reference_frame = cv2.cvtColor(self.reference_frame, cv2.COLOR_BGR2GRAY)
+        self.reference_frame = cv2.GaussianBlur(self.reference_frame, (11, 11), 0)
+
+
+    def mask_reference_frame(self):
+        self.reference_frame = np.bitwise_and(self.reference_frame, self.mask)
 
     def get_ellipse(self, mask, diamond_points, inner=False, angles=None):
         if not angles:
@@ -76,6 +82,7 @@ class SetDetection:
         width = bbox[2]-bbox[0]
         height = bbox[3]-bbox[1]
 
+        input("Press ENTER when you're ready to take the screenshot for reference frame: ")
         with mss.mss() as sct:
             frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
             reference_frame = frame
@@ -116,6 +123,7 @@ class SetDetection:
         width = bbox[2]-bbox[0]
         height = bbox[3]-bbox[1]
 
+        input("Press ENTER when you're ready to take the screenshot for reference frame: ")
         with mss.mss() as sct:
             frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
             reference_frame = frame
@@ -198,3 +206,35 @@ class SetDetection:
         print(f"Bounding box: {zone}")
 
 
+    @staticmethod
+    def set_winning_number_detection_zone(wheel_detection_zone):
+        m = mouse.Controller()
+        print("Capture the rotor pocket zone.") 
+        print("Capture the outermost points of the pockets, aligned with the 4 vertical diamonds. These should be on the thing ring right below the rotor numbers.")
+        outer_diamond_points = {}
+        for diamond in DIAMONDS:
+            input(f"Hover the mouse over the silvery ring right below the numbers of the rotor, aligned with the {diamond} o'clock diamond, then press ENTER: ")
+            x, y = m.position
+            x = x - wheel_detection_zone[0]
+            y = y - wheel_detection_zone[1]
+            outer_diamond_points[diamond] = x,y
+
+        inner_diamond_points = {}
+        for diamond in DIAMONDS:
+            input(f"Hover the mouse over the silvery ring below the pockets themselves, aligned with the {diamond} o'clock diamond, then press ENTER: ")
+            x, y = m.position
+            x = x - wheel_detection_zone[0]
+            y = y - wheel_detection_zone[1]
+            inner_diamond_points[diamond] = x,y
+
+
+        # take screenshot to get first frame 
+        bbox = wheel_detection_zone
+        width = bbox[2]-bbox[0]
+        height = bbox[3]-bbox[1] 
+
+        with mss.mss() as sct:
+            frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
+            reference_frame = frame
+
+        return EllipticalDetectionZone(wheel_detection_zone, reference_frame, outer_diamond_points, inner_diamond_points)

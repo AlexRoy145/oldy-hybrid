@@ -9,9 +9,9 @@ from PIL import Image
 from util import Util
 
 MIN_BALL_AREA = 50
-MAX_BALL_AREA = 500
-BALL_START_TIMINGS = 450
-THRESH = 65
+MAX_BALL_AREA = 1500
+FASTEST_LAP_TIME = 250
+THRESH = 45
 BALL_FALL_THRESH = 65
 MAX_SPIN_DURATION = 30
 FALSE_DETECTION_THRESH = 100
@@ -21,7 +21,7 @@ FRAME_LOOKBACK = 2
 MAX_EXTENSION = 30 # 30 degrees each direction, which is about 3 pockets each direction
 
 WAIT_FOR_FALL_DETECTION = 5 #seconds
-SINGLE_CONTOURS_NEEDED = 38 #frames, about 18ms per frame
+SINGLE_CONTOURS_NEEDED = 8 #frames, about 18ms per frame
 
 ANGLE_START = 10
 ANGLE_END = 350
@@ -49,13 +49,14 @@ class Ball:
             single_contour_detected_count = 0
             previous_angle = None
 
+            ball_revs = 0
+
             ball_reference_frame = ball_detection_zone.reference_frame
 
-            if ball_fall_detection_zone:
-                ball_fall_in_queue = mp.Queue()
-                ball_fall_out_queue = mp.Queue()
-                ball_fall_proc = mp.Process(target=Ball.start_ball_fall_capture, args=(ball_fall_in_queue, ball_fall_out_queue, ball_fall_detection_zone))
-                ball_fall_proc.start()
+            ball_fall_in_queue = mp.Queue()
+            ball_fall_out_queue = mp.Queue()
+            ball_fall_proc = mp.Process(target=Ball.start_ball_fall_capture, args=(ball_fall_in_queue, ball_fall_out_queue, ball_fall_detection_zone))
+            ball_fall_proc.start()
 
             while True:
                 if in_queue.empty():
@@ -92,6 +93,7 @@ class Ball:
 
                     if start_ball_timings_timestamp == -1:
                         start_ball_timings_timestamp = Util.time()
+                        print("Started ball timings")
 
                     if Util.time() - start_ball_timings_timestamp > WAIT_FOR_FALL_DETECTION:
                         try:
@@ -111,21 +113,20 @@ class Ball:
                                 did_beep = True
 
                         # fall accuracy evaluation
-                        if ball_fall_detection_zone:
-                            if not ball_fall_out_queue.empty():
-                                ball_fall_out_msg = ball_fall_out_queue.get()
-                                true_ball_fall_timestamp = ball_fall_out_msg["timestamp"]
-                                expected_ball_fall_timestamp = fall_time_timestamp + fall_time / 1000
-                                diff = int((expected_ball_fall_timestamp - true_ball_fall_timestamp) * 1000)
-                                if diff <= 0:
-                                    print(f"The ball fall beep was {-diff}ms early.")
-                                else:
-                                    print(f"The ball fall beep was {diff}ms late.")
-                                ball_fall_in_queue.put({"state" : "quit"})
-                                '''
-                                ball_fall_proc.join()
-                                ball_fall_proc.close()
-                                '''
+                        if not ball_fall_out_queue.empty():
+                            ball_fall_out_msg = ball_fall_out_queue.get()
+                            true_ball_fall_timestamp = ball_fall_out_msg["timestamp"]
+                            expected_ball_fall_timestamp = fall_time_timestamp + fall_time / 1000
+                            diff = int((expected_ball_fall_timestamp - true_ball_fall_timestamp) * 1000)
+                            if diff <= 0:
+                                print(f"The ball fall beep was {-diff}ms early.")
+                            else:
+                                print(f"The ball fall beep was {diff}ms late.")
+                            ball_fall_in_queue.put({"state" : "quit"})
+                            '''
+                            ball_fall_proc.join()
+                            ball_fall_proc.close()
+                            '''
 
                         if Util.time() - spin_start_time > MAX_SPIN_DURATION:
                             out_msg = {"state" : "ball_update", "current_ball_sample" : current_ball_sample}
@@ -149,7 +150,8 @@ class Ball:
                                 continue
                             filtered_contours.append(center)
 
-                        if len(filtered_contours) == 1:
+                        #print(f"ball_cnts: {len(filtered_contours)}")
+                        if len(filtered_contours) == 1 or len(filtered_contours) == 2:
                             single_contour_detected_count += 1
                             if single_contour_detected_count >= SINGLE_CONTOURS_NEEDED:
                                 contour = filtered_contours[0]
@@ -159,20 +161,22 @@ class Ball:
                                 else: 
                                     difference = abs(angle_from_ref - previous_angle) % 180
                                     extension = Ball.get_extension(difference)
+                                    previous_angle = angle_from_ref
 
-                                    # if extension is -1, the difference is too large, which means a likely error 
-                                    if extension != -1 and Ball.in_range(angle_from_ref, ANGLE_START, ANGLE_END, extension=extension):
+                                    if Ball.in_range(angle_from_ref, ANGLE_START, ANGLE_END, extension=extension):
                                         now = int(round(Util.time() * 1000))
                                         if first_pass:
                                             start_time = now
                                             first_pass = False
+                                            ball_revs += 1
                                         else:
                                             lap_time = now - start_time
 
-                                            if lap_time > BALL_START_TIMINGS:
+                                            if lap_time > FASTEST_LAP_TIME:
                                                 start_time = now
                                                 frame_counter = 0
                                                 print("Ball detected, lap: %dms" % lap_time)
+                                                ball_revs += 1
                                                 if len(current_ball_sample) > 0:
                                                     '''
                                                     if current_ball_sample[-1] - lap_time > FALSE_DETECTION_THRESH:
@@ -182,6 +186,7 @@ class Ball:
                                                     '''
 
                                                 current_ball_sample.append(lap_time)
+
                                                 if fall_time < 0:
                                                     fall_time = ball_sample.get_fall_time_averaged(lap_time)
                                                     if fall_time > 0:
@@ -195,8 +200,10 @@ class Ball:
 
                 
                 if start_ball_timings:
+                    '''
                     cv2.imshow("Ball Detection", ball_thresh)
                     key = cv2.waitKey(1) & 0xFF
+                    '''
         except BrokenPipeError:
             pass
 
@@ -231,6 +238,8 @@ class Ball:
                     ball_cnts = imutils.grab_contours(ball_cnts)
 
                     for c in ball_cnts:
+                        M = cv2.moments(c)
+                        center = int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"])
                         area = cv2.contourArea(c)
                         '''
                         if area < MIN_BALL_AREA or area > MAX_BALL_AREA:
@@ -239,7 +248,7 @@ class Ball:
 
                         timestamp = Util.time()
                         print(f"BALL FALL DETECTED")
-                        out_queue.put({"state" : "ball_fall_detected", "timestamp" : timestamp})
+                        out_queue.put({"state" : "ball_fall_detected", "timestamp" : timestamp, "fall_point" : center})
                         ball_fall_detected = True
 
                     '''
@@ -248,8 +257,148 @@ class Ball:
                     '''
 
     @staticmethod
+    def start_capture_databot(in_queue, out_queue, ball_sample, ball_detection_zone, ball_fall_detection_zone, wheel_center_point, reference_diamond_point):
+        try:
+            current_ball_sample = []
+            first_ball_frame = []
+            first_capture = True
+            first_pass = True
+            start_time = 0
+            rev_time = 0
+            fall_time = -1
+            fall_time_timestamp = 0
+            did_beep = False
+            false_detections = False
+            spin_start_time = 0
+            start_ball_timings = False
+
+            start_ball_timings_timestamp = -1
+
+            single_contour_detected_count = 0
+            previous_angle = None
+
+            ball_revs = 0
+
+            ball_reference_frame = ball_detection_zone.reference_frame
+
+            ball_fall_in_queue = mp.Queue()
+            ball_fall_out_queue = mp.Queue()
+            ball_fall_proc = mp.Process(target=Ball.start_ball_fall_capture, args=(ball_fall_in_queue, ball_fall_out_queue, ball_fall_detection_zone))
+            ball_fall_proc.start()
+
+            expecting_left = True
+            every_two = 0
+
+            while True:
+                if in_queue.empty():
+                    continue
+                in_msg = in_queue.get()
+                if in_msg["state"] == "quit":
+                    cv2.destroyAllWindows()
+                    '''
+                    try:
+                        ball_fall_in_queue.put({"state" : "quit"})
+                        ball_fall_proc.join()
+                        ball_fall_proc.close()
+                    except BrokenPipeError:
+                        pass
+                    '''
+                    return
+                else:
+                    frame = in_msg["frame"]
+                    try:
+                        if not start_ball_timings:
+                            start_ball_timings = in_msg["start_ball_timings"]
+                    except KeyError:
+                        pass
+
+                    try:
+                        if not spin_start_time:
+                            spin_start_time = in_msg["spin_start_time"]
+                    except KeyError:
+                        pass
+                    frame = Image.frombytes('RGB', frame.size, frame.rgb)
+                    ball_frame = np.array(frame)
+
+                if start_ball_timings:
+
+                    if start_ball_timings_timestamp == -1:
+                        start_ball_timings_timestamp = Util.time()
+                        print("Started ball timings")
+
+                    if Util.time() - start_ball_timings_timestamp > WAIT_FOR_FALL_DETECTION:
+                        try:
+                            ball_fall_in_queue.put({"frame" : frame, "state" : "good"})
+                        except BrokenPipeError:
+                            pass
+
+                    if not false_detections:
+                        gray = cv2.cvtColor(ball_frame, cv2.COLOR_BGR2GRAY)
+                        gray = cv2.GaussianBlur(gray, (11, 11), 0)
+                        gray = np.bitwise_and(gray, ball_detection_zone.mask)
+
+                        if not ball_fall_out_queue.empty():
+                            ball_fall_out_msg = ball_fall_out_queue.get()
+                            out_queue.put({"state" : "ball_fell", "fall_point" : ball_fall_out_msg["fall_point"], "ball_revs" : ball_revs})
+                            ball_fall_in_queue.put({"state" : "quit"})
+
+                        if Util.time() - spin_start_time > MAX_SPIN_DURATION:
+                            # if didnt detect ball fall, quit gracefully
+                            out_queue.put({"state" : "failed_detect"})
+
+                        ball_frame_delta = cv2.absdiff(ball_reference_frame, gray)
+                        ball_thresh = cv2.threshold(ball_frame_delta, THRESH, 255, cv2.THRESH_BINARY)[1]
+
+                        ball_thresh = cv2.dilate(ball_thresh, None, iterations=2)
+                        ball_cnts = cv2.findContours(ball_thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                        ball_cnts = imutils.grab_contours(ball_cnts)
+
+                        #print(f"NUM BALL_CNTS: {len(ball_cnts)}")
+                        #for c in ball_cnts:
+                        if len(ball_cnts) > 0:
+                            c = ball_cnts[0]
+                            M = cv2.moments(c)
+                            center = int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"])
+                            area = cv2.contourArea(c)
+                            #print(area)
+                            if area < MIN_BALL_AREA or area > MAX_BALL_AREA:
+                                continue
+
+                            angle_from_ref = Util.get_angle(center, wheel_center_point, reference_diamond_point)
+
+                            if expecting_left:
+                                if Ball.in_left_sector(angle_from_ref):
+                                    expecting_left = False
+                                    every_two += 1
+                                    #break
+                            else:
+                                if Ball.in_right_sector(angle_from_ref):
+                                    expecting_left = True
+                                    ball_revs += 1
+                                    print(f"Ball revs so far: {ball_revs}")
+                                    #break
+
+                if start_ball_timings:
+                    '''
+                    cv2.imshow("Ball Detection", ball_thresh)
+                    key = cv2.waitKey(1) & 0xFF
+                    '''
+        except BrokenPipeError:
+            pass
+
+
+
+    @staticmethod
     def in_range(angle, start_angle, end_angle, extension=0):
-        return (angle < start_angle + extension and angle > 0) or (angle > end_angle - extension and angle < 360)
+        return (angle < start_angle + extension and angle >= 0) or (angle > end_angle - extension and angle <= 360)
+
+    @staticmethod
+    def in_left_sector(angle):
+        return (angle < 270 and angle > 90)
+
+    @staticmethod
+    def in_right_sector(angle):
+        return (angle < 90 and angle >= 0 or angle > 270 and angle <= 360)
 
 
     @staticmethod
@@ -265,4 +414,4 @@ class Ball:
         elif difference < 60:
             return 40
         else:
-            return -1
+            return 60

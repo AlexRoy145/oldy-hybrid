@@ -7,11 +7,13 @@ import datetime
 EUROPEAN_WHEEL = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26]
 
 class Datapoint:
-    def __init__(self, direction=None, raw=None, winning=None, rotor_speed=None, timestamp=None):
+    def __init__(self, direction=None, raw=None, winning=None, rotor_speed=None, timestamp=None, fall_zone=None, ball_revs=None):
         self.direction = direction
         self.raw = raw
         self.winning = winning
         self.rotor_speed = rotor_speed
+        self.fall_zone = fall_zone
+        self.ball_revs = ball_revs
         self.timestamp = timestamp
 
 
@@ -41,13 +43,13 @@ class Scatter:
             pickle.dump(self.__dict__, f)
 
 
-    def add_data(self, direction, raw, winning, rotor_speed):
+    def add_data(self, direction, raw, winning, rotor_speed, fall_zone, ball_revs):
         timestamp = datetime.datetime.now()
-        datapoint = Datapoint(direction=direction, raw=raw, winning=winning, rotor_speed=rotor_speed, timestamp=timestamp)
+        datapoint = Datapoint(direction=direction, raw=raw, winning=winning, rotor_speed=rotor_speed, timestamp=timestamp, fall_zone=fall_zone, ball_revs=ball_revs)
         self.data.append(datapoint)
         path = os.path.join(self.profile_dir, self.csv_filename)
         with open(path, "a") as f:
-            f.write(f"{raw},{winning},{direction},unknown,unknown,{rotor_speed},unknown\n")
+            f.write(f"{raw},{winning},{direction},unknown,{ball_revs},{rotor_speed},unknown\n")
 
     def calculate_jump(self, raw, winning):
         raw_idx = EUROPEAN_WHEEL.index(int(raw))
