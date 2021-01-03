@@ -62,7 +62,7 @@ class Scatter:
         return jump
 
     
-    def graph(self, direction=None, rotor_speed_range=None, date_range=None):
+    def graph(self, direction=None, rotor_speed_range=None, date_range=None, fall_point_range=None):
         x = []
         if rotor_speed_range:
             split = rotor_speed_range.split("-")
@@ -80,9 +80,19 @@ class Scatter:
             date_start = "1-1-1970"
             date_end = "1-1-2170"
 
+        if fall_point_range:
+            split = fall_point_range.split("-")
+            fall_point_start = int(split[0])
+            fall_point_end = int(split[1])
+        else:
+            fall_point_start = 0
+            fall_point_end = 360
+
         for datapoint in self.data:
-            if datapoint.direction == direction and datapoint.rotor_speed >= rotor_speed_start and datapoint.rotor_speed < rotor_speed_end:
+            if datapoint.direction == direction and datapoint.rotor_speed >= rotor_speed_start and datapoint.rotor_speed < rotor_speed_end and datapoint.fall_zone > fall_point_start and datapoint.fall_zone < fall_point_end:
                 x.append(self.calculate_jump(datapoint.raw, datapoint.winning))
+
+        print(f"Number of spins: {len(x)}")
 
         plt.hist(x, bins=37, range=(-18,18), ec='black')
         plt.xticks(list(range(0,19)) + list(range(-1,-19,-1))[::-1])

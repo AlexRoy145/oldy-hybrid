@@ -182,7 +182,8 @@ Enter your choice: """).lower()
             elif choice == "gd":
                 direction_data = input("Enter the direction (ex: acw or cw): ")
                 rotor_speed_range = input("Enter the rotor speed range (ex: 4000-5000): ")
-                self.scatter.graph(direction=direction_data, rotor_speed_range=rotor_speed_range)
+                fall_point_range = input("Enter the fall point range (ex: 340-20, or 270-300): ")
+                self.scatter.graph(direction=direction_data, rotor_speed_range=rotor_speed_range, fall_point_range=fall_point_range)
                 continue
             elif choice == "cs":
                 for i, sample in enumerate(self.ocr.ball_sample.samples):
