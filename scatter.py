@@ -84,6 +84,7 @@ class Scatter:
                               10.5 : "H"}
 
         diamond_hit_formatted = diamond_to_letters[diamond_hit]
+        print(f"Associated fall zone {fall_zone} to diamond {diamond_hit}, which is also diamond {diamond_hit_formatted}")
         return diamond_hit_formatted
 
 
