@@ -48,8 +48,44 @@ class Scatter:
         datapoint = Datapoint(direction=direction, raw=raw, winning=winning, rotor_speed=rotor_speed, timestamp=timestamp, fall_zone=fall_zone, ball_revs=ball_revs)
         self.data.append(datapoint)
         path = os.path.join(self.profile_dir, self.csv_filename)
+
+        # translate fall zone (0 to 359) to a diamond hit
+        diamond_hit = self.convert_fall_point_to_diamond_hit(fall_zone, direction)
+
         with open(path, "a") as f:
-            f.write(f"{raw},{winning},{direction},unknown,{ball_revs},{rotor_speed},unknown\n")
+            f.write(f"{raw},{winning},{direction},unknown,{ball_revs},{rotor_speed},{diamond_hit}\n")
+
+
+    def convert_fall_point_to_diamond_hit(self, fall_zone, direction):
+        diamonds = {3    : 0,
+                    1.5  : 45,
+                    12   : 90,
+                    10.5 : 135,
+                    9    : 180,
+                    7.5  : 225,
+                    6    : 270,
+                    4.5  : 315}
+
+        least_difference = 360
+        diamond_hit = 3
+        for diamond, diamond_degrees in diamonds:
+            difference = abs(fall_zone - diamond_degrees)
+            if difference < least_difference:
+                least_difference = difference
+                diamond_hit = diamond
+
+        diamond_to_letters = {12   : "A",
+                              1.5  : "B",
+                              3    : "C",
+                              4.5  : "D",
+                              6    : "E",
+                              7.5  : "F",
+                              9    : "G",
+                              10.5 : "H"}
+
+        diamond_hit_formatted = diamond_to_letters[diamond_hit]
+        return diamond_hit_formatted
+
 
     def calculate_jump(self, raw, winning):
         raw_idx = EUROPEAN_WHEEL.index(int(raw))
