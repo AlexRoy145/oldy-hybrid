@@ -57,6 +57,17 @@ class Scatter:
 
 
     def convert_fall_point_to_diamond_hit(self, fall_zone, direction):
+        diamond_order = [12, 1.5, 3, 4.5, 6, 7.5, 9, 10.5]
+
+        def get_next_diamond(direction, diamond_hit):
+            diamond_idx = diamond_order.index(diamond_hit)
+            if direction == "cw":
+                diamond_hit_idx = (diamond_idx + 1) % len(diamond_order)
+                return diamond_order[diamond_hit_idx]
+            else:
+                diamond_hit_idx = diamond_idx - 1
+                return diamond_order[diamond_hit_idx]
+
         diamonds = {3    : 0,
                     1.5  : 45,
                     12   : 90,
@@ -68,11 +79,27 @@ class Scatter:
 
         least_difference = 360
         diamond_hit = 3
-        for diamond, diamond_degrees in diamonds:
+        for diamond, diamond_degrees in diamonds.items():
             difference = abs(fall_zone - diamond_degrees)
             if difference < least_difference:
                 least_difference = difference
                 diamond_hit = diamond
+
+        # if the ball fell BEFORE the associated diamond and if it fell greater than 1/4 away from it, associate with previous diamond
+        if least_difference > (45 / 4):
+            if direction == "acw":
+                if diamond_hit == 3:
+                    if fall_zone > 0:
+                        diamond_hit = get_next_diamond(direction, diamond_hit)
+                elif fall_zone > diamonds[diamond_hit]:
+                    diamond_hit = get_next_diamond(direction, diamond_hit)
+            else:
+                if diamond_hit == 3:
+                    if fall_zone > 315:
+                        diamond_hit = get_next_diamond(direction, diamond_hit)
+                elif fall_zone < diamonds[diamond_hit]:
+                    diamond_hit = get_next_diamond(direction, diamond_hit)
+
 
         diamond_to_letters = {12   : "A",
                               1.5  : "B",
