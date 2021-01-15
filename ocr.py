@@ -347,19 +347,39 @@ class OCR:
                             return
                            
 
+                    #while self.is_running:
                     if not ball_out_queue.empty():
                         ball_out_msg = ball_out_queue.get()
                         if ball_out_msg["state"] == "ball_update":
                             current_ball_sample = ball_out_msg["current_ball_sample"]
+                            fall_zone = ball_out_msg["fall_point"]
+
+                            # calculate fall angle. Degrees are relative to reference diamond
+                            reference_point = self.reference_diamond_point
+                            self.fall_zone = int(round(Util.get_angle(fall_zone, self.wheel_center_point, reference_point)))
+
+                            self.ball_revs = ball_out_msg["ball_revs"]
                             
                             '''
                             self.ball_sample.update_sample(current_ball_sample)
                             self.save_profile(self.data_file)
                             '''
 
+                            '''
                             # at this point, everything is officially over
                             rotor_in_queue.put({"state" : "quit"})
                             ball_in_queue.put({"state" : "quit"})
+                            self.quit = True
+                            return
+                            '''
+                            #break
+                            rotor_in_queue.put({"state" : "quit"})
+                            ball_in_queue.put({"state" : "quit"})
+                            rotor_proc.join()
+                            rotor_proc.close()
+                            if ball_proc:
+                                ball_proc.join()
+                                ball_proc.close()
                             self.quit = True
                             return
 
@@ -374,6 +394,7 @@ class OCR:
                         else:
                             pockets_off = abs(int(round(degrees_off / (360 / len(Util.EUROPEAN_WHEEL)))))
                         print(f"Raw prediction was {pockets_off} pockets off of the TRUE raw.")
+
 
                 if not self.is_running:
                     rotor_in_queue.put({"state" : "quit"})

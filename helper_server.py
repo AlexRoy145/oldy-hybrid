@@ -4,6 +4,7 @@ import time
 import threading
 import pickle
 import msvcrt
+from collections import deque
 from pynput.keyboard import Key, Controller
 from pytessy import PyTessy
 from clickbot import Clickbot
@@ -12,6 +13,7 @@ from server import Server
 from ocr import OCR
 from macro import Macro
 from scatter import Scatter
+from util import SpinData
 
 PROFILE_DIR = "../../../Documents/crm_saved_profiles"
 CLICKBOT_PROFILE = "profile.dat"
@@ -28,6 +30,8 @@ SIGNIN_MACRO_DIR = "signin_macros"
 MAX_MACRO_COUNT = 3
 
 GREEN_MACRO_DELAY = 0.025 # IN SECONDS
+
+MOST_RECENT_SPIN_COUNT = 10
 
 IP = "0.0.0.0"
 PORT = 34453
@@ -46,6 +50,9 @@ class CRMServer:
         self.scatter = Scatter(PROFILE_DIR, CSV_SCATTER)
         self.scatter.load_profile(SCATTER_DATA_FILE)
         self.scatter.save_profile(SCATTER_DATA_FILE)
+
+        # queue of util.SpinData
+        self.most_recent_spin_data = deque(maxlen=MOST_RECENT_SPIN_COUNT)
 
         if not self.clickbot.load_profile(CLICKBOT_PROFILE):
             print("Could not find clickbot data. Setting up from scratch.")
@@ -83,6 +90,9 @@ B: Start ball timings.
 V: Change VPS.
 T: Toggle test mode. Test mode will let detection run, but WON'T send commands to clients.
 D: Toggle data bot mode. QUIT DETECTION FIRST BEFORE TOGGLING.
+
+MR: Display most recent spins.
+
 SS: Show samples.
 G: Graph samples.
 GD: Graph data.
@@ -92,11 +102,13 @@ OS: Scan sample into hybrid.
 CM: Change max samples for ball sample.
 CA: Change rotor acceleration.
 CE: Change ellipse angle.
+
 DW: Change wheel detection zone (DO THIS BEFORE BALL DETECTION).
 DB: Change ball detection zone.
 DF: Change ball fall detection zone.
 DN: Change winning number detection zone.
 DS: Change sample detection zone.
+
 SJ: Show default jump values.
 J: Change default jump values.
 SB: Show ball rev ranges for ball rev isolation.
@@ -173,6 +185,20 @@ Enter your choice: """).lower()
                     print("Turning databot mode ON.")
                     self.databot_mode = True
                 continue
+            elif choice == "mr":
+                # NEWEST SPINS ARE ON THE RIGHT OF THE DEQUE, SO REVERSE IT BEFORE FILTERING
+                anti_spins = filter(lambda x : x.direction == "a", list(self.most_recent_spin_data)[::-1])
+                clock_spins = filter(lambda x : x.direction == "c", list(self.most_recent_spin_data)[::-1])
+
+                print("\nMost recent ANTICLOCKWISE spin data (newest spins listed first):")
+                for anti_spin in anti_spins:
+                    print(f"Diamond hit: {anti_spin.diamond_hit}, Ball revs: {anti_spin.ball_revs}, Rotor speed: {anti_spin.rotor_speed}")
+
+                print("\nMost recent CLOCKWISE spin data (newest spins listed first):")
+                for clock_spin in clock_spins:
+                    print(f"Diamond hit: {clock_spin.diamond_hit}, Ball revs: {clock_spin.ball_revs}, Rotor speed: {clock_spin.rotor_speed}")
+
+                continue    
             elif choice == "ss":
                 self.ocr.show_ball_samples()
                 continue
@@ -364,7 +390,18 @@ Enter your choice: """).lower()
                 msg.tuned_predictions = tuned_predictions
                 self.server.send_message(msg)
 
-            print("Spin done. Enter the winning number in the main menu by pressing W.")
+                # predictions have been sent, now wait for the fall zone and ball rev info to come back if NOT in databot mode
+                while self.is_running:
+                    time.sleep(.05)
+                    if self.ocr.quit:
+                        break
+                    elif self.ocr.fall_zone != -1:
+                        datapoint = SpinData(direction, self.scatter.convert_fall_point_to_diamond_hit(self.ocr.fall_zone, direction), self.ocr.ball_revs, rotor_speed)
+                        self.most_recent_spin_data.append(datapoint)
+                        print("Added spin data to most recent spins list.")
+                        self.ocr.quit = True
+                        break
+
             ocr_thread.join()
 
             

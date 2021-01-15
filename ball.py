@@ -115,6 +115,7 @@ class Ball:
                         # fall accuracy evaluation
                         if not ball_fall_out_queue.empty():
                             ball_fall_out_msg = ball_fall_out_queue.get()
+                            fall_point = ball_fall_out_msg["fall_point"]
                             true_ball_fall_timestamp = ball_fall_out_msg["timestamp"]
                             expected_ball_fall_timestamp = fall_time_timestamp + fall_time / 1000
                             diff = int((expected_ball_fall_timestamp - true_ball_fall_timestamp) * 1000)
@@ -129,7 +130,7 @@ class Ball:
                             '''
 
                         if Util.time() - spin_start_time > MAX_SPIN_DURATION:
-                            out_msg = {"state" : "ball_update", "current_ball_sample" : current_ball_sample}
+                            out_msg = {"state" : "ball_update", "current_ball_sample" : current_ball_sample, "fall_point" : fall_point, "ball_revs" : ball_revs}
                             out_queue.put(out_msg)
 
                         ball_frame_delta = cv2.absdiff(ball_reference_frame, gray)
