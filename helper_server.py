@@ -92,6 +92,7 @@ T: Toggle test mode. Test mode will let detection run, but WON'T send commands t
 D: Toggle data bot mode. QUIT DETECTION FIRST BEFORE TOGGLING.
 
 MR: Display most recent spins.
+CMR: Clear most recent spins
 
 SS: Show samples.
 G: Graph samples.
@@ -199,6 +200,10 @@ Enter your choice: """).lower()
                     print(f"Diamond hit: {clock_spin.diamond_hit}, Ball revs: {clock_spin.ball_revs}, Rotor speed: {clock_spin.rotor_speed}")
 
                 continue    
+            elif choice == "cmr":
+                print("Cleared most recent spin data")
+                self.most_recent_spin_data = deque(maxlen=MOST_RECENT_SPIN_COUNT)
+                continue
             elif choice == "ss":
                 self.ocr.show_ball_samples()
                 continue
