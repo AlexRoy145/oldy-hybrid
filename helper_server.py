@@ -379,6 +379,7 @@ Enter your choice: """).lower()
                     new_direction = "cw"
                 self.scatter.add_data(direction=new_direction, raw=self.raw, winning=winning_number, rotor_speed=rotor_speed, fall_zone=fall_zone, ball_revs=ball_revs)
                 self.scatter.save_profile(SCATTER_DATA_FILE)
+                self.add_data_to_most_recent(direction[0], fall_zone, ball_revs, rotor_speed)
                 ocr_thread.join()
                 continue
 
@@ -401,15 +402,16 @@ Enter your choice: """).lower()
                     if self.ocr.quit:
                         break
                     elif self.ocr.fall_zone != -1:
-                        datapoint = SpinData(direction, self.scatter.convert_fall_point_to_diamond_hit(self.ocr.fall_zone, direction), self.ocr.ball_revs, rotor_speed)
-                        self.most_recent_spin_data.append(datapoint)
-                        print("Added spin data to most recent spins list.")
+                        self.add_data_to_most_recent(direction, self.ocr.fall_zone, self.ocr.ball_revs, rotor_speed)
                         self.ocr.quit = True
                         break
 
             ocr_thread.join()
 
-            
+    def add_data_to_most_recent(self, direction, fall_zone, ball_revs, rotor_speed):
+        datapoint = SpinData(direction, self.scatter.convert_fall_point_to_diamond_hit(fall_zone, direction), ball_revs, rotor_speed)
+        self.most_recent_spin_data.append(datapoint)
+        print("Added spin data to most recent spins list.")
 
             
 def main():
