@@ -82,7 +82,7 @@ class CRMServer:
         self.app_thread.start()
 
         while True: 
-            choice = input(f"""
+            menu = f"""
 IMPORTANT: The following commands can only be run if the direction detection loop is stopped: D, DW, DT, T
 Q: Quit the direction detection loop.
 R: Run the direction detection loop.
@@ -116,8 +116,12 @@ SB: Show ball rev ranges for ball rev isolation.
 JB: Change ball rev ranges for ball rev isolation.
 SC: Show connected clients.
 K: Execute signin macro on all machines.
-Enter your choice: """).lower()
-            if choice == "q":   
+"""
+            choice = input("Enter your choice (HELP to show menu): ").lower()
+            if choice == "help":
+                print(menu)
+                continue
+            elif choice == "q":   
                 if not self.is_running and not self.ocr.is_running:
                     print("Direction detection already stopped.")
                     continue
