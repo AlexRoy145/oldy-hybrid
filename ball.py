@@ -49,6 +49,8 @@ class Ball:
             single_contour_detected_count = 0
             previous_angle = None
 
+            previous_lap_time = None
+
             ball_revs = 0
 
             ball_reference_frame = ball_detection_zone.reference_frame
@@ -142,62 +144,66 @@ class Ball:
 
                         #print(f"NUM BALL_CNTS: {len(ball_cnts)}")
 
-                        filtered_contours = []
                         for c in ball_cnts:
                             M = cv2.moments(c)
                             center = int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"])
                             area = cv2.contourArea(c)
                             if area < MIN_BALL_AREA or area > MAX_BALL_AREA:
                                 continue
-                            filtered_contours.append(center)
 
-                        #print(f"ball_cnts: {len(filtered_contours)}")
-                        if len(filtered_contours) == 1 or len(filtered_contours) == 2:
-                            single_contour_detected_count += 1
-                            if single_contour_detected_count >= SINGLE_CONTOURS_NEEDED:
-                                contour = filtered_contours[0]
-                                angle_from_ref = Util.get_angle(contour, wheel_center_point, reference_diamond_point)
-                                if not previous_angle:
-                                    previous_angle = angle_from_ref
-                                else: 
-                                    difference = abs(angle_from_ref - previous_angle) % 180
-                                    #extension = Ball.get_extension(difference)
-                                    extension = 10
-                                    previous_angle = angle_from_ref
+                            angle_from_ref = Util.get_angle(center, wheel_center_point, reference_diamond_point)
+                            if not previous_angle:
+                                previous_angle = angle_from_ref
+                            else: 
+                                difference = abs(angle_from_ref - previous_angle) % 180
+                                #extension = Ball.get_extension(difference)
+                                extension = 5
+                                previous_angle = angle_from_ref
 
-                                    if Ball.in_range(angle_from_ref, ANGLE_START, ANGLE_END, extension=extension):
-                                        now = int(round(Util.time() * 1000))
-                                        if first_pass:
-                                            start_time = now
-                                            first_pass = False
-                                            ball_revs += 1
+                                if Ball.in_range(angle_from_ref, ANGLE_START, ANGLE_END, extension=extension):
+                                    now = int(round(Util.time() * 1000))
+                                    if first_pass:
+                                        start_time = now
+                                        first_pass = False
+                                        ball_revs += 1
+                                    else:
+                                        lap_time = now - start_time
+
+                                        # increase refractory period as laps get slower
+                                        if not previous_lap_time:
+                                            previous_lap_time = lap_time
+                                            fastest_lap_time = FASTEST_LAP_TIME
                                         else:
-                                            lap_time = now - start_time
+                                            if previous_lap_time > 1000:
+                                                fastest_lap_time = previous_lap_time - 500
+                                            else:
+                                                fastest_lap_time = FASTEST_LAP_TIME
 
-                                            if lap_time > FASTEST_LAP_TIME:
-                                                start_time = now
-                                                frame_counter = 0
-                                                print("Ball detected, lap: %dms" % lap_time)
-                                                ball_revs += 1
-                                                if len(current_ball_sample) > 0:
-                                                    '''
-                                                    if current_ball_sample[-1] - lap_time > FALSE_DETECTION_THRESH:
-                                                        print("FALSE DETECTIONS")
-                                                        out_msg = {"state" : "false_detections"}
-                                                        out_queue.put(out_msg)
-                                                    '''
+                                        if lap_time > fastest_lap_time:
+                                            previous_lap_time = lap_time
+                                            start_time = now
+                                            frame_counter = 0
+                                            print("Ball detected, lap: %dms" % lap_time)
+                                            ball_revs += 1
+                                            if len(current_ball_sample) > 0:
+                                                '''
+                                                if current_ball_sample[-1] - lap_time > FALSE_DETECTION_THRESH:
+                                                    print("FALSE DETECTIONS")
+                                                    out_msg = {"state" : "false_detections"}
+                                                    out_queue.put(out_msg)
+                                                '''
 
-                                                current_ball_sample.append(lap_time)
+                                            current_ball_sample.append(lap_time)
 
-                                                if fall_time < 0:
-                                                    fall_time = ball_sample.get_fall_time_averaged(lap_time)
-                                                    if fall_time > 0:
-                                                        fall_time_timestamp = Util.time()
-                                                        #print(f"FALL TIME CALCULATED TO BE {fall_time} MS FROM NOW")
-                                                        out_msg = {"state": "fall_time_calculated",
-                                                                   "fall_time" : fall_time,
-                                                                   "fall_time_timestamp" : fall_time_timestamp}
-                                                        out_queue.put(out_msg)
+                                            if fall_time < 0:
+                                                fall_time = ball_sample.get_fall_time_averaged(lap_time)
+                                                if fall_time > 0:
+                                                    fall_time_timestamp = Util.time()
+                                                    #print(f"FALL TIME CALCULATED TO BE {fall_time} MS FROM NOW")
+                                                    out_msg = {"state": "fall_time_calculated",
+                                                               "fall_time" : fall_time,
+                                                               "fall_time_timestamp" : fall_time_timestamp}
+                                                    out_queue.put(out_msg)
 
 
                 

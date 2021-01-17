@@ -143,8 +143,9 @@ class OCR:
                         out_msg = rotor_out_queue.get()
                         if out_msg["state"] == "direction_change_stable":
                             direction = out_msg["direction"]
-                            # automatically start ball timings
-                            self.start_ball_timings = True
+                            # automatically start ball timings if databot mode
+                            if self.databot_mode:
+                                self.start_ball_timings = True
                             break
 
                 if not self.is_running:
@@ -180,8 +181,11 @@ class OCR:
                     
                     if not rotor_out_queue.empty():
                         rotor_out_msg = rotor_out_queue.get()
-                        rotor_speed = rotor_out_msg["rotor_speed"]
-                        rotor_done = True
+                        if rotor_out_msg["state"] == "rotor_measure_complete":
+                            rotor_speed = rotor_out_msg["rotor_speed"]
+                            rotor_done = True
+                        else:
+                            print(f"Unexpected rotor message: {rotor_out_msg}")
                     
                     if not ball_out_queue.empty():
                         ball_out_msg = ball_out_queue.get()
