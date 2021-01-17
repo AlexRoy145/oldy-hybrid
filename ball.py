@@ -117,6 +117,7 @@ class Ball:
                         # fall accuracy evaluation
                         if not ball_fall_out_queue.empty():
                             ball_fall_out_msg = ball_fall_out_queue.get()
+                            out_queue.put({"state" : "ball_fell", "fall_point" : ball_fall_out_msg["fall_point"], "ball_revs" : ball_revs})
                             fall_point = ball_fall_out_msg["fall_point"]
                             true_ball_fall_timestamp = ball_fall_out_msg["timestamp"]
                             expected_ball_fall_timestamp = fall_time_timestamp + fall_time / 1000

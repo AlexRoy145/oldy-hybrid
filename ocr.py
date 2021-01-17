@@ -338,7 +338,7 @@ class OCR:
                             raw_calculated = True
                             
                             # tell the rotor when the fall time is so it can capture the true raw at expected fall time
-                            rotor_in_queue.put({"state" : "ball_info", "fall_time" : fall_time, "fall_time_timestamp" : fall_time_timestamp, "frame" : frame})
+                            #rotor_in_queue.put({"state" : "ball_info", "fall_time" : fall_time, "fall_time_timestamp" : fall_time_timestamp, "frame" : frame})
                         else:
                             rotor_in_queue.put({"state" : "quit"})
                             ball_in_queue.put({"state" : "quit"})
@@ -354,7 +354,33 @@ class OCR:
                     #while self.is_running:
                     if not ball_out_queue.empty():
                         ball_out_msg = ball_out_queue.get()
-                        if ball_out_msg["state"] == "ball_update":
+                        if ball_out_msg["state"] == "ball_fell":
+                            rotor_in_queue.put({"state" : "ball_fell", "frame" : frame})
+
+                            while True:
+                                # wait for the rotor to come back with position
+                                if not rotor_out_queue.empty():
+                                    rotor_out_msg = rotor_out_queue.get()
+                                    green_position = rotor_out_msg["green_position"]
+
+                                    # get the TRUE raw
+                                    green_offset = Util.get_angle(green_position, self.wheel_center_point, self.reference_diamond_point)
+                                    ratio = int(round((green_offset / 360) * len(Util.EUROPEAN_WHEEL)))
+                                    if ratio == len(Util.EUROPEAN_WHEEL):
+                                        ratio = 0
+                                    true_raw = Util.EUROPEAN_WHEEL[ratio]
+                                    print(f"TRUE RAW: {true_raw}")
+
+                                    true_raw_idx = Util.EUROPEAN_WHEEL.index(true_raw)
+                                    predicted_raw_idx = Util.EUROPEAN_WHEEL.index(raw)
+                                    diff = abs(true_raw_idx - predicted_raw_idx)
+                                    if diff > 18:
+                                        diff = len(Util.EUROPEAN_WHEEL) - diff
+                                    print(f"Predicted raw was {diff} pockets off.")
+
+                                    break
+
+                        elif ball_out_msg["state"] == "ball_update":
                             current_ball_sample = ball_out_msg["current_ball_sample"]
                             fall_zone = ball_out_msg["fall_point"]
 
@@ -388,6 +414,7 @@ class OCR:
                             return
 
 
+                    '''
                     if not rotor_out_queue.empty():
                         # ROTOR ACCURACY EVALUATION
                         true_green_position = rotor_out_queue.get()["green_position"]
@@ -398,6 +425,7 @@ class OCR:
                         else:
                             pockets_off = abs(int(round(degrees_off / (360 / len(Util.EUROPEAN_WHEEL)))))
                         print(f"Raw prediction was {pockets_off} pockets off of the TRUE raw.")
+                    '''
 
 
                 if not self.is_running:
