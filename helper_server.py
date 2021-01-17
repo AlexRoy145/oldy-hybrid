@@ -391,7 +391,8 @@ K: Execute signin macro on all machines.
                 continue
             direction = direction[0]
 
-            tuned_predictions = self.clickbot.get_tuned_from_raw_using_rotor_isolation(direction, rotor_speed, raw_prediction)
+            #tuned_predictions = self.clickbot.get_tuned_from_raw_using_rotor_isolation(direction, rotor_speed, raw_prediction)
+            tuned_predictions = self.clickbot.get_tuned_from_raw(direction, raw_prediction)
             print(f"TUNED PREDICTIONS: {tuned_predictions}")
 
             if not self.test_mode or not self.databot_mode:
