@@ -54,6 +54,9 @@ class CRMServer:
         # queue of util.SpinData
         self.most_recent_spin_data = deque(maxlen=MOST_RECENT_SPIN_COUNT)
 
+        # raw adjustment
+        self.raw_adjustment = 0
+
         if not self.clickbot.load_profile(CLICKBOT_PROFILE):
             print("Could not find clickbot data. Setting up from scratch.")
             self.clickbot.set_clicks()
@@ -93,6 +96,8 @@ D: Toggle data bot mode. QUIT DETECTION FIRST BEFORE TOGGLING.
 
 MR: Display most recent spins.
 CMR: Clear most recent spins
+
+CR: Change raw adjustment value.
 
 SS: Show samples.
 G: Graph samples.
@@ -207,6 +212,10 @@ K: Execute signin macro on all machines.
             elif choice == "cmr":
                 print("Cleared most recent spin data")
                 self.most_recent_spin_data = deque(maxlen=MOST_RECENT_SPIN_COUNT)
+                continue
+            elif choice == "cr":
+                print(f"Current raw adjustment: {self.raw_adjustment}")
+                self.raw_adjustment = input("Input the new raw adjustment (example, +4 to shift the raw clockwise 4 pockets, -4 to shift the raw anti 4 pockets): ")
                 continue
             elif choice == "ss":
                 self.ocr.show_ball_samples()
@@ -391,13 +400,17 @@ K: Execute signin macro on all machines.
                 continue
             direction = direction[0]
 
+            # do raw adjustment here
+            adjusted_raw = self.clickbot.get_adjusted_raw(raw_prediction, self.raw_adjustment)
+            print(f"Adjusted raw is: {adjusted_raw}")
+
             #tuned_predictions = self.clickbot.get_tuned_from_raw_using_rotor_isolation(direction, rotor_speed, raw_prediction)
-            tuned_predictions = self.clickbot.get_tuned_from_raw(direction, raw_prediction)
+            tuned_predictions = self.clickbot.get_tuned_from_raw(direction, adjusted_raw)
             print(f"TUNED PREDICTIONS: {tuned_predictions}")
 
             if not self.test_mode or not self.databot_mode:
                 msg.direction = direction
-                msg.raw_prediction = raw_prediction
+                msg.raw_prediction = adjusted_raw
                 msg.tuned_predictions = tuned_predictions
                 self.server.send_message(msg)
 
