@@ -87,7 +87,7 @@ class Scatter:
 
         # if the ball fell BEFORE the associated diamond and if it fell greater than 1 pocket away from it, associate with previous diamond
         POCKET = 10 # degrees
-        if least_difference > POCKET:
+        if least_difference > (45 / 4):
             if "a" in direction:
                 if diamond_hit == 3:
                     if fall_zone > 0:
