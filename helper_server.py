@@ -44,7 +44,7 @@ class CRMServer:
 
         self.clickbot = Clickbot(PROFILE_DIR)
         self.is_running = True 
-        self.test_mode = False
+        self.test_mode = True
         self.databot_mode = False
 
         self.scatter = Scatter(PROFILE_DIR, CSV_SCATTER)
@@ -215,7 +215,7 @@ K: Execute signin macro on all machines.
                 continue
             elif choice == "cr":
                 print(f"Current raw adjustment: {self.raw_adjustment}")
-                self.raw_adjustment = input("Input the new raw adjustment (example, +4 to shift the raw clockwise 4 pockets, -4 to shift the raw anti 4 pockets): ")
+                self.raw_adjustment = int(input("Input the new raw adjustment (example, +4 to shift the raw clockwise 4 pockets, -4 to shift the raw anti 4 pockets): "))
                 continue
             elif choice == "ss":
                 self.ocr.show_ball_samples()
@@ -408,12 +408,13 @@ K: Execute signin macro on all machines.
             tuned_predictions = self.clickbot.get_tuned_from_raw(direction, adjusted_raw)
             print(f"TUNED PREDICTIONS: {tuned_predictions}")
 
-            if not self.test_mode or not self.databot_mode:
+            if not self.test_mode and not self.databot_mode:
                 msg.direction = direction
                 msg.raw_prediction = adjusted_raw
                 msg.tuned_predictions = tuned_predictions
                 self.server.send_message(msg)
 
+            if not self.databot_mode:
                 # predictions have been sent, now wait for the fall zone and ball rev info to come back if NOT in databot mode
                 while self.is_running:
                     time.sleep(.05)

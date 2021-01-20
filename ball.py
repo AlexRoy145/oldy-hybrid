@@ -158,7 +158,7 @@ class Ball:
                             else: 
                                 difference = abs(angle_from_ref - previous_angle) % 180
                                 #extension = Ball.get_extension(difference)
-                                extension = 5
+                                extension = 10
                                 previous_angle = angle_from_ref
 
                                 if Ball.in_range(angle_from_ref, ANGLE_START, ANGLE_END, extension=extension):
@@ -205,6 +205,7 @@ class Ball:
                                                                "fall_time" : fall_time,
                                                                "fall_time_timestamp" : fall_time_timestamp}
                                                     out_queue.put(out_msg)
+                            break
 
 
                 
