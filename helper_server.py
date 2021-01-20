@@ -108,6 +108,7 @@ OS: Scan sample into hybrid.
 CM: Change max samples for ball sample.
 CA: Change rotor acceleration.
 CE: Change ellipse angle.
+CRT: Change rev tolerance.
 
 DW: Change wheel detection zone (DO THIS BEFORE BALL DETECTION).
 DB: Change ball detection zone.
@@ -277,6 +278,11 @@ K: Execute signin macro on all machines.
             elif choice == "ce":
                 print(f"Current ellipse angle: {self.ocr.rotor_angle_ellipse}")
                 self.ocr.rotor_angle_ellipse = int(input("Enter the new rotor angle ellipse: "))
+                self.ocr.save_profile(OCR_PROFILE)
+                continue
+            elif choice == "crt":
+                print(f"Current rev tolerance: {self.ocr.ball_sample.rev_tolerance}")
+                self.ocr.ball_sample.rev_tolerance = int(input("Enter the new ball sample rev tolerance: "))
                 self.ocr.save_profile(OCR_PROFILE)
                 continue
             elif choice == "ra":

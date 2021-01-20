@@ -58,8 +58,6 @@ class Sample:
 
 class BallSample:
 
-    REV_TOLERANCE = 80
-
     def __init__(self):
         # array of ints representing milliseconds of ball rev times
         self.target_time = 2250
@@ -71,6 +69,7 @@ class BallSample:
         self.samples.append(initial_sample)
         self.averaged_sample = self.samples[0]
         self.vps = 10
+        self.rev_tolerance = 50
 
 
     def get_fall_time_averaged(self, observed_rev):
@@ -86,7 +85,7 @@ class BallSample:
             smallest_diff = min(differences)
             lowest_idx = differences.index(smallest_diff)
 
-            if smallest_diff < BallSample.REV_TOLERANCE:
+            if smallest_diff < self.rev_tolerance:
                 print(f"Associating observed timing {observed_rev} with sample timing {averaged_sample[lowest_idx]}")
                 return sum(averaged_sample[lowest_idx + 1:])
             else:
