@@ -90,9 +90,11 @@ class CRMClient:
         self.resize_betting_window()
 
         # TODO temporary to test macro functionality
+        '''
         if self.site and self.username and self.password:
             self.signin_macro.execute_macro(site=self.site, username=self.username, password=self.password)
             self.resize_betting_window()
+        '''
 
 
         input("Press ENTER when ready to connect to server and to resize the betting window:")

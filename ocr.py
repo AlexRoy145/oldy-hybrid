@@ -7,6 +7,7 @@ import os.path
 import pickle
 import numpy as np
 import time
+from collections import deque
 from PIL import Image
 from pytessy import PyTessy
 from ball_sample import BallSample
@@ -16,6 +17,9 @@ from util import Util
 from detection_zone import SetDetection
 
 BALL_FILE = "crm_saved_profiles/ball_small.png"
+
+MOST_RECENT_SPIN_COUNT = 10
+
 
 class OCR:
 
@@ -38,6 +42,8 @@ class OCR:
         self.profile_dir = profile_dir
 
         self.ball_sample = BallSample()
+
+        self.most_recent_spin_data = deque(maxlen=MOST_RECENT_SPIN_COUNT)
 
         self.is_running = True
         self.databot_mode = False
@@ -72,7 +78,8 @@ class OCR:
                  "rotor_acceleration" : self.rotor_acceleration,
                  "rotor_angle_ellipse" : self.rotor_angle_ellipse,
                  "ball_fall_detection_zone" : self.ball_fall_detection_zone,
-                 "ball_sample" : self.ball_sample}
+                 "ball_sample" : self.ball_sample,
+                 "most_recent_spin_data" : self.most_recent_spin_data}
             pickle.dump(d, f)
 
     def set_ball_detection_zone(self):  

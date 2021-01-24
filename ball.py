@@ -158,7 +158,7 @@ class Ball:
                             else: 
                                 difference = abs(angle_from_ref - previous_angle) % 180
                                 #extension = Ball.get_extension(difference)
-                                extension = 10
+                                extension = 5
                                 previous_angle = angle_from_ref
 
                                 if Ball.in_range(angle_from_ref, ANGLE_START, ANGLE_END, extension=extension):

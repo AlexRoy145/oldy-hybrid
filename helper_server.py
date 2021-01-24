@@ -31,10 +31,10 @@ MAX_MACRO_COUNT = 3
 
 GREEN_MACRO_DELAY = 0.025 # IN SECONDS
 
-MOST_RECENT_SPIN_COUNT = 10
-
 IP = "0.0.0.0"
 PORT = 34453
+
+MOST_RECENT_SPIN_COUNT = 10
 
 class CRMServer:
 
@@ -50,9 +50,6 @@ class CRMServer:
         self.scatter = Scatter(PROFILE_DIR, CSV_SCATTER)
         self.scatter.load_profile(SCATTER_DATA_FILE)
         self.scatter.save_profile(SCATTER_DATA_FILE)
-
-        # queue of util.SpinData
-        self.most_recent_spin_data = deque(maxlen=MOST_RECENT_SPIN_COUNT)
 
         # raw adjustment
         self.raw_adjustment = 0
@@ -198,8 +195,8 @@ K: Execute signin macro on all machines.
                 continue
             elif choice == "mr":
                 # NEWEST SPINS ARE ON THE RIGHT OF THE DEQUE, SO REVERSE IT BEFORE FILTERING
-                anti_spins = filter(lambda x : x.direction == "a", list(self.most_recent_spin_data)[::-1])
-                clock_spins = filter(lambda x : x.direction == "c", list(self.most_recent_spin_data)[::-1])
+                anti_spins = filter(lambda x : x.direction == "a", list(self.ocr.most_recent_spin_data)[::-1])
+                clock_spins = filter(lambda x : x.direction == "c", list(self.ocr.most_recent_spin_data)[::-1])
 
                 print("\nMost recent ANTICLOCKWISE spin data (newest spins listed first):")
                 for anti_spin in anti_spins:
@@ -212,7 +209,7 @@ K: Execute signin macro on all machines.
                 continue    
             elif choice == "cmr":
                 print("Cleared most recent spin data")
-                self.most_recent_spin_data = deque(maxlen=MOST_RECENT_SPIN_COUNT)
+                self.ocr.most_recent_spin_data = deque(maxlen=MOST_RECENT_SPIN_COUNT)
                 continue
             elif choice == "cr":
                 print(f"Current raw adjustment: {self.raw_adjustment}")
@@ -435,7 +432,7 @@ K: Execute signin macro on all machines.
 
     def add_data_to_most_recent(self, direction, fall_zone, ball_revs, rotor_speed):
         datapoint = SpinData(direction, self.scatter.convert_fall_point_to_diamond_hit(fall_zone, direction), ball_revs, rotor_speed)
-        self.most_recent_spin_data.append(datapoint)
+        self.ocr.most_recent_spin_data.append(datapoint)
         print("Added spin data to most recent spins list.")
 
             
