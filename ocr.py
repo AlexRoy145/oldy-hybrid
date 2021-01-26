@@ -173,10 +173,10 @@ class OCR:
 
                     if self.start_ball_timings and spin_start_time == 0:
                         spin_start_time = time.time()
-                        ball_in_queue.put({"state" : "", "frame" : frame, "spin_start_time" : spin_start_time, "start_ball_timings" : True})
+                        ball_in_queue.put({"state" : "", "frame" : frame, "spin_start_time" : spin_start_time, "start_ball_timings" : True, "direction" : direction}) 
 
                     elif self.start_ball_timings:
-                        ball_in_queue.put({"state" : "", "frame" : frame, "start_ball_timings": True})
+                        ball_in_queue.put({"state" : "", "frame" : frame, "start_ball_timings": True, "direction" : direction})
 
                     else:
                         ball_in_queue.put({"state" : "", "frame" : frame})
@@ -328,7 +328,12 @@ class OCR:
                             self.quit = True
                             return
 
-                        if len(self.ball_sample.samples) > 0:
+                        if "a" in direction:
+                            samples = self.ball_sample.samples_anti
+                        else:
+                            samples = self.ball_sample.samples_clock
+
+                        if len(samples) > 0:
                             fall_time = ball_out_msg["fall_time"]
                             fall_time_timestamp = ball_out_msg["fall_time_timestamp"]
 
@@ -397,10 +402,8 @@ class OCR:
 
                             self.ball_revs = ball_out_msg["ball_revs"]
                             
-                            '''
-                            self.ball_sample.update_sample(current_ball_sample)
+                            self.ball_sample.update_sample(current_ball_sample, direction)
                             self.save_profile(self.data_file)
-                            '''
 
                             '''
                             # at this point, everything is officially over
@@ -548,53 +551,74 @@ class OCR:
         return True
 
 
-    def show_ball_samples(self):
-        for i, sample in enumerate(self.ball_sample.samples):
+    def show_ball_samples(self, direction):
+        if "a" in direction:
+            samples = self.ball_sample.samples_anti
+            averaged_sample = self.ball_sample.averaged_sample_anti
+        else:
+            samples = self.ball_sample.samples_clock
+            averaged_sample = self.ball_sample.averaged_sample_clock
+        
+        for i, sample in enumerate(samples):
             print(f"Sample #{i}: {sample}")
             print(f"Adjusted Sample #{i}: {sample.adjusted_sample}")
             print()
-        print(f"Averaged sample: {self.ball_sample.averaged_sample.adjusted_sample}")
+        print(f"Averaged sample: {averaged_sample.adjusted_sample}")
 
-        for i, sample in enumerate(self.ball_sample.samples):
+        '''
+        for i, sample in enumerate(samples):
             slope = []
             for j in range(len(sample.adjusted_sample) - 1):
                 slope.append(sample.adjusted_sample[j+1] - sample.adjusted_sample[j])
             print(f"Sample #{i} Slopes: {slope}")
+        '''
 
 
-    def delete_ball_sample(self, idx):
+    def delete_ball_sample(self, idx, direction):
+        if "a" in direction:
+            samples = self.ball_sample.samples_anti
+        else:
+            samples = self.ball_sample.samples_clock
+
         try:
-            del self.ball_sample.samples[idx]
+            del samples[idx]
             #self.ball_sample.update_averaged_sample()
         except IndexError:
             print("That sample doesn't exist.")
 
-        self.ball_sample.update_averaged_sample()
+        self.ball_sample.update_averaged_sample(direction)
 
         self.save_profile(self.data_file)
 
 
-    def add_ball_sample(self, sample):
-        self.ball_sample.update_sample(sample)
+    def add_ball_sample(self, sample, direction):
+        self.ball_sample.update_sample(sample, direction)
         self.save_profile(self.data_file)
 
 
-    def change_vps(self, vps):
-        self.ball_sample.change_vps(vps)
+    def change_vps(self, vps, direction):
+        self.ball_sample.change_vps(vps, direction)
         self.save_profile(self.data_file)
 
     
-    def change_max_samples(self, new_max_samples):
-        if new_max_samples != self.ball_sample.max_samples:
-            self.ball_sample.change_max_samples(new_max_samples)
+    def change_max_samples(self, new_max_samples, direction):
+        if "a" in direction:
+            max_samples = self.ball_sample.max_samples_anti
+        else:
+            max_samples = self.ball_sample.max_samples_clock
+
+        if new_max_samples != max_samples:
+            self.ball_sample.change_max_samples(new_max_samples, direction)
 
         self.save_profile(self.data_file)
 
-    def graph_samples(self):
-        self.ball_sample.graph_samples()
+    def graph_samples(self, direction):
+        self.ball_sample.graph_samples(direction)
 
 
     def scan_sample(self):
+        # not needed
+        return
         sample = self.read(zone=self.sample_detection_zone).split("\n")
         parsed_sample = []
         for rev in sample:

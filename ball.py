@@ -45,6 +45,7 @@ class Ball:
             start_ball_timings = False
 
             start_ball_timings_timestamp = -1
+            direction = "anticlockwise"
 
             single_contour_detected_count = 0
             previous_angle = None
@@ -80,6 +81,7 @@ class Ball:
                     try:
                         if not start_ball_timings:
                             start_ball_timings = in_msg["start_ball_timings"]
+                            direction = in_msg["direction"]
                     except KeyError:
                         pass
 
@@ -92,7 +94,6 @@ class Ball:
                     ball_frame = np.array(frame)
 
                 if start_ball_timings:
-
                     if start_ball_timings_timestamp == -1:
                         start_ball_timings_timestamp = Util.time()
                         print("Started ball timings")
@@ -158,7 +159,7 @@ class Ball:
                             else: 
                                 difference = abs(angle_from_ref - previous_angle) % 180
                                 #extension = Ball.get_extension(difference)
-                                extension = 5
+                                extension = 2
                                 previous_angle = angle_from_ref
 
                                 if Ball.in_range(angle_from_ref, ANGLE_START, ANGLE_END, extension=extension):
@@ -197,7 +198,7 @@ class Ball:
                                             current_ball_sample.append(lap_time)
 
                                             if fall_time < 0:
-                                                fall_time = ball_sample.get_fall_time_averaged(lap_time)
+                                                fall_time = ball_sample.get_fall_time_averaged(lap_time, direction)
                                                 if fall_time > 0:
                                                     fall_time_timestamp = Util.time()
                                                     #print(f"FALL TIME CALCULATED TO BE {fall_time} MS FROM NOW")
