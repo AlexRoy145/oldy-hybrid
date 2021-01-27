@@ -34,6 +34,7 @@ class OCR:
         self.ball_fall_detection_zone = None
 
         self.screenshot_zone = []
+        self.dealer_name_zone = []
         self.diff_thresh = 0
         self.wheel_detection_area = 0
         self.rotor_acceleration = -.127 # degrees per second per second
@@ -72,6 +73,7 @@ class OCR:
                  "winning_number_detection_zone" : self.winning_number_detection_zone,
                  "reference_diamond_point" : self.reference_diamond_point,
                  "ball_detection_zone" : self.ball_detection_zone,
+                 "dealer_name_zone" : self.dealer_name_zone,
                  "screenshot_zone" : self.screenshot_zone,
                  "diff_thresh" : self.diff_thresh,
                  "wheel_detection_area" : self.wheel_detection_area,
@@ -105,6 +107,9 @@ class OCR:
 
     def set_screenshot_zone(self):
         self.screenshot_zone = SetDetection.set_screenshot_zone()
+
+    def set_dealer_name_zone(self):
+        self.dealer_name_zone = SetDetection.set_dealer_name_zone()
     
     def start_capture(self):
         try:
@@ -457,7 +462,7 @@ class OCR:
         cv2.destroyAllWindows()
 
     
-    def read(self, test=False, capture=None, zone=None):
+    def read(self, test=False, capture=None, zone=None, get_letters=False):
         if not zone:
             zone = self.raw_detection_zone
         now = time.time()
@@ -491,7 +496,8 @@ class OCR:
         prediction = self.p.read(finalimage.ctypes, finalimage.shape[1], finalimage.shape[0], 1) 
         end_2 = time.time()
 
-        prediction = self.post_process(prediction)
+        if not get_letters:
+            prediction = self.post_process(prediction)
 
         return prediction
 

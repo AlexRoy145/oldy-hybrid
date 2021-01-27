@@ -204,6 +204,7 @@ class SetDetection:
         zone.append(y_bot)
 
         print(f"Bounding box: {zone}")
+        return zone
 
 
     @staticmethod
@@ -238,3 +239,23 @@ class SetDetection:
             reference_frame = frame
 
         return EllipticalDetectionZone(wheel_detection_zone, reference_frame, outer_diamond_points, inner_diamond_points)
+
+
+    @staticmethod
+    def set_dealer_name_zone():
+        m = mouse.Controller()
+        screenshot_zone = []
+        zone = screenshot_zone
+        input(f"Hover the mouse over the upper left corner of the dealer's name, then press ENTER: ")
+        x_top,y_top = m.position
+        zone.append(x_top)
+        zone.append(y_top)
+
+        input("Hover the mouse over the bottom right corner of the dealer's name, then hit ENTER.")
+        x_bot,y_bot = m.position
+        zone.append(x_bot)
+        zone.append(y_bot)
+
+        print(f"Bounding box: {zone}")
+        return zone
+
