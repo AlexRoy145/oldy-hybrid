@@ -33,6 +33,9 @@ class OCR:
         
         self.ball_fall_detection_zone = None
 
+        # used for typing out to anydesk
+        self.most_recent_timings = []
+
         self.screenshot_zone = []
         self.dealer_name_zone = []
         self.diff_thresh = 0
@@ -333,10 +336,13 @@ class OCR:
                             self.quit = True
                             return
 
+                        '''
                         if "a" in direction:
                             samples = self.ball_sample.samples_anti
                         else:
                             samples = self.ball_sample.samples_clock
+                        '''
+                        samples = self.ball_sample.samples
 
                         if len(samples) > 0:
                             fall_time = ball_out_msg["fall_time"]
@@ -407,7 +413,10 @@ class OCR:
 
                             self.ball_revs = ball_out_msg["ball_revs"]
                             
-                            self.ball_sample.update_sample(current_ball_sample, direction)
+                            #TODO don't update with using steve's default sample
+                            #self.ball_sample.update_sample(current_ball_sample, direction)
+                            #self.ball_sample.update_sample(current_ball_sample)
+                            self.most_recent_timings = current_ball_sample
                             self.save_profile(self.data_file)
 
                             '''
@@ -557,13 +566,18 @@ class OCR:
         return True
 
 
-    def show_ball_samples(self, direction):
+    #def show_ball_samples(self, direction):
+    def show_ball_samples(self):
+        '''
         if "a" in direction:
             samples = self.ball_sample.samples_anti
             averaged_sample = self.ball_sample.averaged_sample_anti
         else:
             samples = self.ball_sample.samples_clock
             averaged_sample = self.ball_sample.averaged_sample_clock
+        '''
+        samples = self.ball_sample.samples
+        averaged_sample = self.ball_sample.averaged_sample
         
         for i, sample in enumerate(samples):
             print(f"Sample #{i}: {sample}")
@@ -580,11 +594,15 @@ class OCR:
         '''
 
 
-    def delete_ball_sample(self, idx, direction):
+    #def delete_ball_sample(self, idx, direction):
+    def delete_ball_sample(self, idx):
+        '''
         if "a" in direction:
             samples = self.ball_sample.samples_anti
         else:
             samples = self.ball_sample.samples_clock
+        '''
+        samples = self.ball_sample.samples
 
         try:
             del samples[idx]
@@ -592,39 +610,52 @@ class OCR:
         except IndexError:
             print("That sample doesn't exist.")
 
-        self.ball_sample.update_averaged_sample(direction)
-
+        #self.ball_sample.update_averaged_sample(direction)
+        self.ball_sample.update_averaged_sample()
         self.save_profile(self.data_file)
 
 
-    def add_ball_sample(self, sample, direction):
-        self.ball_sample.update_sample(sample, direction)
+    #def add_ball_sample(self, sample, direction):
+    def add_ball_sample(self, sample):
+        #self.ball_sample.update_sample(sample, direction)
+        self.ball_sample.update_sample(sample)
         self.save_profile(self.data_file)
 
 
-    def change_vps(self, vps, direction):
-        self.ball_sample.change_vps(vps, direction)
+    #def change_vps(self, vps, direction):
+    def change_vps(self, vps):
+        #self.ball_sample.change_vps(vps, direction)
+        self.ball_sample.change_vps(vps)
         self.save_profile(self.data_file)
 
     
-    def change_max_samples(self, new_max_samples, direction):
+    #def change_max_samples(self, new_max_samples, direction):
+    def change_max_samples(self, new_max_samples):
+        '''
         if "a" in direction:
             max_samples = self.ball_sample.max_samples_anti
         else:
             max_samples = self.ball_sample.max_samples_clock
+        '''
+        max_samples = self.ball_sample.max_samples
 
         if new_max_samples != max_samples:
-            self.ball_sample.change_max_samples(new_max_samples, direction)
+            #self.ball_sample.change_max_samples(new_max_samples, direction)
+            self.ball_sample.change_max_samples(new_max_samples)
+            
 
         self.save_profile(self.data_file)
 
-    def graph_samples(self, direction):
-        self.ball_sample.graph_samples(direction)
+    #def graph_samples(self, direction):
+    def graph_samples(self):
+        self.ball_sample.graph_samples()
 
 
     def scan_sample(self):
+        '''
         # not needed
         return
+        '''
         sample = self.read(zone=self.sample_detection_zone).split("\n")
         parsed_sample = []
         for rev in sample:

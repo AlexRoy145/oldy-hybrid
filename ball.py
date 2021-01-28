@@ -4,7 +4,6 @@ import multiprocessing as mp
 import numpy as np
 import time as t
 import winsound
-import autoit
 from collections import deque
 from PIL import Image
 from util import Util
@@ -187,7 +186,6 @@ class Ball:
                                             start_time = now
                                             frame_counter = 0
                                             print("Ball detected, lap: %dms" % lap_time)
-                                            autoit.send("z")
                                             ball_revs += 1
                                             if len(current_ball_sample) > 0:
                                                 '''
@@ -200,7 +198,8 @@ class Ball:
                                             current_ball_sample.append(lap_time)
 
                                             if fall_time < 0:
-                                                fall_time = ball_sample.get_fall_time_averaged(lap_time, direction)
+                                                #fall_time = ball_sample.get_fall_time_averaged(lap_time, direction)
+                                                fall_time = ball_sample.get_fall_time_averaged(lap_time)
                                                 if fall_time > 0:
                                                     fall_time_timestamp = Util.time()
                                                     #print(f"FALL TIME CALCULATED TO BE {fall_time} MS FROM NOW")
