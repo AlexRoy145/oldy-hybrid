@@ -10,7 +10,7 @@ from util import Util
 
 MIN_BALL_AREA = 50
 MAX_BALL_AREA = 1500
-FASTEST_LAP_TIME = 300
+FASTEST_LAP_TIME = 150
 THRESH = 45
 BALL_FALL_THRESH = 65
 MAX_SPIN_DURATION = 30
@@ -60,6 +60,7 @@ class Ball:
             ball_fall_out_queue = mp.Queue()
             ball_fall_proc = mp.Process(target=Ball.start_ball_fall_capture, args=(ball_fall_in_queue, ball_fall_out_queue, ball_fall_detection_zone))
             ball_fall_proc.start()
+            angles = []
 
             while True:
                 if in_queue.empty():
@@ -157,12 +158,15 @@ class Ball:
                             if not previous_angle:
                                 previous_angle = angle_from_ref
                             else: 
-                                difference = abs(angle_from_ref - previous_angle) % 180
+                                difference = abs(angle_from_ref - previous_angle)
                                 #extension = Ball.get_extension(difference)
                                 extension = 2
-                                previous_angle = angle_from_ref
 
-                                if Ball.in_range(angle_from_ref, ANGLE_START, ANGLE_END, extension=extension):
+                                angles.append((previous_angle, angle_from_ref))
+
+                                #if Ball.in_range(angle_from_ref, ANGLE_START, ANGLE_END, extension=extension):
+                                if direction == "anticlockwise" and angle_from_ref > previous_angle or direction == "clockwise" and angle_from_ref < previous_angle:
+
                                     now = int(round(Util.time() * 1000))
                                     if first_pass:
                                         start_time = now
@@ -207,6 +211,9 @@ class Ball:
                                                                "fall_time" : fall_time,
                                                                "fall_time_timestamp" : fall_time_timestamp}
                                                     out_queue.put(out_msg)
+
+                                previous_angle = angle_from_ref
+
                             break
 
 

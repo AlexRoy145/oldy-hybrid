@@ -658,9 +658,19 @@ class OCR:
         '''
         sample = self.read(zone=self.sample_detection_zone).split("\n")
         parsed_sample = []
-        for rev in sample:
-            if rev != "\n" and rev != "":
-                parsed_sample.append(int(rev))
 
-        self.add_ball_sample(parsed_sample)
-        print(parsed_sample)
+        try:
+            for rev in sample:
+                if rev != "\n" and rev != "":
+                    parsed_sample.append(rev)
+
+            sample_str = ""
+            for rev in parsed_sample:
+                sample_str += f"{rev}, "
+                
+            print(f"Scanned sample: {sample_str}")
+            parsed_sample = [int(x) for x in parsed_sample]
+            self.add_ball_sample(parsed_sample)
+        except ValueError:
+            print(f"There is an error in the sample. Either reset detection zone, or manually copy the above sample and add it manually with AS")
+

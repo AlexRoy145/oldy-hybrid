@@ -158,17 +158,23 @@ K: Execute signin macro on all machines.
                 self.scatter.save_profile(SCATTER_DATA_FILE)
                 continue
             elif choice == "e":
+                '''
                 print(f"Current end difference ANTI: {self.ocr.ball_sample.end_difference_anti}")
                 print(f"Current end difference CLOCK: {self.ocr.ball_sample.end_difference_clock}")
+                '''
+                print(f"Current end difference: {self.ocr.ball_sample.end_difference}")
 
                 while True:
                     try:
-                        direction = input("Enter the direction (anti or clock): ")
+                        #direction = input("Enter the direction (anti or clock): ")
                         end_difference = int(input("Enter the new end difference: "))
+                        '''
                         if "a" in direction:
                             self.ocr.ball_sample.end_difference_anti = end_difference
                         else:
                             self.ocr.ball_sample.end_difference_clock = end_difference
+                        '''
+                        self.ocr.ball_sample.end_difference = end_difference
 
                         self.ocr.save_profile(OCR_PROFILE)
                         break
