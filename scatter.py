@@ -50,13 +50,14 @@ class Scatter:
         path = os.path.join(self.profile_dir, self.csv_filename)
 
         # translate fall zone (0 to 359) to a diamond hit
-        diamond_hit = self.convert_fall_point_to_diamond_hit(fall_zone, direction)
+        diamond_hit = Scatter.convert_fall_point_to_diamond_hit(fall_zone, direction)
 
         with open(path, "a") as f:
             f.write(f"{raw},{winning},{direction},unknown,{ball_revs},{rotor_speed},{diamond_hit}\n")
 
 
-    def convert_fall_point_to_diamond_hit(self, fall_zone, direction):
+    @staticmethod
+    def convert_fall_point_to_diamond_hit(fall_zone, direction):
         diamond_order = [12, 1.5, 3, 4.5, 6, 7.5, 9, 10.5]
 
         def get_previous_diamond(direction, diamond_hit):
@@ -112,7 +113,7 @@ class Scatter:
                               10.5 : "H"}
 
         diamond_hit_formatted = diamond_to_letters[diamond_hit]
-        print(f"Associated fall zone {fall_zone} to diamond {diamond_hit}, which is also diamond {diamond_hit_formatted}")
+        #print(f"Associated fall zone {fall_zone} to diamond {diamond_hit}, which is also diamond {diamond_hit_formatted}")
         return diamond_hit_formatted
 
 

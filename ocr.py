@@ -7,6 +7,7 @@ import os.path
 import pickle
 import numpy as np
 import time
+import PIL.ImageOps
 from collections import deque
 from PIL import Image
 from pytessy import PyTessy
@@ -416,6 +417,7 @@ class OCR:
                             #TODO don't update with using steve's default sample
                             #self.ball_sample.update_sample(current_ball_sample, direction)
                             #self.ball_sample.update_sample(current_ball_sample)
+                            print(f"Sample: {current_ball_sample}")
                             self.most_recent_timings = current_ball_sample
                             self.save_profile(self.data_file)
 
@@ -471,7 +473,7 @@ class OCR:
         cv2.destroyAllWindows()
 
     
-    def read(self, test=False, capture=None, zone=None, get_letters=False):
+    def read(self, test=False, capture=None, zone=None, get_letters=False, pageseg=5, invert=False):
         if not zone:
             zone = self.raw_detection_zone
         now = time.time()
@@ -488,6 +490,8 @@ class OCR:
                 print("Threading issue!!! Close detection thread?")
                 return None
         pil_image = Image.frombytes('RGB', sct_img.size, sct_img.rgb)
+        if invert:
+            pil_image = PIL.ImageOps.invert(pil_image)
         open_cv_image = np.array(pil_image)
         open_cv_image = open_cv_image[:, :, ::-1].copy() 
         finalimage = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2GRAY)
@@ -502,7 +506,7 @@ class OCR:
         end = time.time()
 
         now_2 = time.time()
-        prediction = self.p.read(finalimage.ctypes, finalimage.shape[1], finalimage.shape[0], 1) 
+        prediction = self.p.read(finalimage.ctypes, finalimage.shape[1], finalimage.shape[0], 1, pageseg=pageseg) 
         end_2 = time.time()
 
         if not get_letters:

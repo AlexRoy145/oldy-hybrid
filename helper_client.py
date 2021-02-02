@@ -190,8 +190,10 @@ class CRMClient:
                             break
 
             # take screenshot
+            '''
             self.ocr.take_screenshot(SCREENSHOT_FILE)
             self.send_screenshot(msg.seq_num)
+            '''
 
 
     def resize_betting_window(self):

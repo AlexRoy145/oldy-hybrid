@@ -506,7 +506,7 @@ K: Execute signin macro on all machines.
             ocr_thread.join()
 
     def add_data_to_most_recent(self, direction, fall_zone, ball_revs, rotor_speed):
-        datapoint = SpinData(direction, self.scatter.convert_fall_point_to_diamond_hit(fall_zone, direction), ball_revs, rotor_speed)
+        datapoint = SpinData(direction, Scatter.convert_fall_point_to_diamond_hit(fall_zone, direction), ball_revs, rotor_speed)
         self.ocr.most_recent_spin_data.append(datapoint)
         print("Added spin data to most recent spins list.")
 
