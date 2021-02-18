@@ -41,19 +41,17 @@ class Sample:
             self.adjusted_sample.append(self.target_time)
             '''
 
-            #'''
+            '''
             poly_order = 5
             x = list(range(len(self.full_sample)))
             y = self.full_sample
             coefs = poly.polyfit(x, y, poly_order)
             ffit = poly.polyval(x, coefs)
             self.adjusted_sample = [int(round(x)) for x in ffit]
-            #'''
-
             '''
+
             self.adjusted_sample = self.full_sample
             return
-            '''
 
             '''
             # normal averaging
@@ -94,37 +92,34 @@ class BallSample:
         if self.averaged_sample:
             averaged_sample = self.averaged_sample.get_trimmed_sample(self.vps)
             differences = []
+
+            '''
+            first_diff = averaged_sample[0] - observed_rev
+            if first_diff < self.rev_tolerance:
+                smallest_diff = first_diff
+                lowest_idx = -1
+            else:
+            '''
             for i, sample_rev in enumerate(averaged_sample):
                 diff = abs(sample_rev - observed_rev)
                 differences.append(diff)
 
-            # we want the LEAST difference that is still positive
-            # negative means that the timing was greater than the corresponding sample timing
-
-            '''
-            smallest_diff = min([i for i in differences if i >= 0])
-            lowest_idx = differences.index(smallest_diff)
-            '''
 
             smallest_diff = min(differences)
             lowest_idx = differences.index(smallest_diff)
 
-            revs_left = len(averaged_sample) - lowest_idx + 1
-
-            if observed_rev > averaged_sample[lowest_idx]:
-                to_add = smallest_diff * revs_left
-            else:
-                to_add = -smallest_diff * revs_left
-            #to_add = 0
-
             '''
-            revs_left = len(averaged_sample) - lowest_idx + 1
-            to_add = -smallest_diff * revs_left
+            associated_idx = lowest_idx + 1
+            revs_left = len(averaged_sample) - associated_idx + 1
+            associated_sample_timing = averaged_sample[associated_idx]
+            true_diff = abs(associated_sample_timing - observed_rev)
+            to_subtract = -true_diff * revs_left
             '''
+            to_subtract = 0
 
             if smallest_diff < self.rev_tolerance:
                 print(f"Associating observed timing {observed_rev} with sample timing {averaged_sample[lowest_idx]}")
-                return sum(averaged_sample[lowest_idx + 1:], to_add) + self.end_difference
+                return sum(averaged_sample[lowest_idx+1:-1], to_subtract) + self.end_difference
             else:
                 return -1
         else:
@@ -245,7 +240,7 @@ class BallSample:
             plt.scatter(x, y)
 
             plt.xticks(range(1, longest_sample_len + 1))
-            plt.yticks(range(500, 2300, 100))
+            plt.yticks(range(500, 2400, 100))
             plt.xlabel("Revs")
             plt.ylabel("Rev duration in MS")
             plt.title("Samples")

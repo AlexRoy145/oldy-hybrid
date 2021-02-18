@@ -189,8 +189,8 @@ class CRMClient:
                         else:
                             break
 
-            # take screenshot
             '''
+            # take screenshot
             self.ocr.take_screenshot(SCREENSHOT_FILE)
             self.send_screenshot(msg.seq_num)
             '''

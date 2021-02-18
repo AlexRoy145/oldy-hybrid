@@ -62,6 +62,8 @@ class Ball:
             ball_fall_proc.start()
             angles = []
 
+            # diamond isolation testing
+
             while True:
                 if in_queue.empty():
                     continue
@@ -164,8 +166,17 @@ class Ball:
 
                                 angles.append((previous_angle, angle_from_ref))
 
+                                now = int(round(Util.time() * 1000))
+
                                 #if Ball.in_range(angle_from_ref, ANGLE_START, ANGLE_END, extension=extension):
-                                if direction == "anticlockwise" and angle_from_ref > previous_angle or direction == "clockwise" and angle_from_ref < previous_angle:
+                                if (direction == "anticlockwise" and 
+                                    angle_from_ref > previous_angle or 
+                                    
+                                    (angle_from_ref < ANGLE_START and
+                                    angle_from_ref > ANGLE_END) or
+
+                                    direction == "clockwise" and 
+                                    angle_from_ref < previous_angle):
 
                                     now = int(round(Util.time() * 1000))
                                     if first_pass:
@@ -201,6 +212,7 @@ class Ball:
 
                                             current_ball_sample.append(lap_time)
 
+
                                             if fall_time < 0:
                                                 #fall_time = ball_sample.get_fall_time_averaged(lap_time, direction)
                                                 fall_time = ball_sample.get_fall_time_averaged(lap_time)
@@ -214,7 +226,7 @@ class Ball:
 
                                 previous_angle = angle_from_ref
 
-                            break
+                                break
 
 
                 

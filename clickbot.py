@@ -165,7 +165,7 @@ class Clickbot:
         return self.get_tuned_given_jumps(jumps, raw_prediction)
 
 
-    def get_tuned_from_raw_using_rotor_isolation(self, direction, rotor_speed, raw_prediction):
+    def get_tuned_from_raw_using_rotor_and_ball(self, direction, rotor_speed, raw_prediction):
         if self.rotor_isolation_scatter:
             # find correct rotor speed
             for rotor_speed_range in self.rotor_isolation_scatter.keys():
@@ -185,6 +185,24 @@ class Clickbot:
 
         # no rotor isolation data found, using default scatter
         return self.get_tuned_from_raw(direction, raw_prediction)
+
+
+    def get_tuned_from_raw_using_rotor_isolation(self, direction, rotor_speed, raw_prediction):
+        if self.rotor_isolation_scatter:
+            # find correct rotor speed
+            for rotor_speed_range in self.rotor_isolation_scatter.keys():
+                split = rotor_speed_range.split("-")
+                start_speed = int(split[0])
+                end_speed = int(split[1])
+                if rotor_speed >= start_speed and rotor_speed < end_speed:
+                    scatter = self.rotor_isolation_scatter[rotor_speed_range]
+                    if direction == "a":
+                        return self.get_tuned_given_jumps(scatter["anticlockwise"], raw_prediction)
+                    else:
+                        return self.get_tuned_given_jumps(scatter["clockwise"], raw_prediction)
+
+        # no rotor isolation data found, returning nothing for risk call
+        return []
 
 
     def make_clicks_given_raw(self, direction, raw_prediction):

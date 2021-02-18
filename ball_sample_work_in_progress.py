@@ -40,12 +40,14 @@ class Sample:
             self.adjusted_sample = self.full_sample
             #return
             # normal averaging
+            '''
             poly_order = 5
             x = list(range(len(self.full_sample)))
             y = self.full_sample
             coefs = poly.polyfit(x, y, poly_order)
             ffit = poly.polyval(x, coefs)
             self.adjusted_sample = [int(round(x)) for x in ffit]
+            '''
 
 
         def __len__(self):
@@ -107,9 +109,17 @@ class BallSample:
             smallest_diff = min(differences)
             lowest_idx = differences.index(smallest_diff)
 
+            revs_left = len(averaged_sample) - lowest_idx + 1
+
+            if observed_rev > averaged_sample[lowest_idx]:
+                to_add = smallest_diff * revs_left
+            else:
+                to_add = -smallest_diff * revs_left
+
+
             if smallest_diff < rev_tolerance:
                 print(f"Associating observed timing {observed_rev} with sample timing {averaged_sample[lowest_idx]}")
-                return sum(averaged_sample[lowest_idx + 1:]) + end_diff
+                return sum(averaged_sample[lowest_idx + 1:], to_add) + end_diff
             else:
                 return -1
         else:

@@ -37,6 +37,11 @@ class OCR:
         # used for typing out to anydesk
         self.most_recent_timings = []
 
+        # diamond isolation testing
+        self.target_start_time = 600
+        self.target_wait_time = 800
+        self.target_time_tolerance = 50
+
         self.screenshot_zone = []
         self.dealer_name_zone = []
         self.diff_thresh = 0
@@ -570,18 +575,15 @@ class OCR:
         return True
 
 
-    #def show_ball_samples(self, direction):
-    def show_ball_samples(self):
-        '''
+    def show_ball_samples(self, direction):
         if "a" in direction:
             samples = self.ball_sample.samples_anti
             averaged_sample = self.ball_sample.averaged_sample_anti
         else:
             samples = self.ball_sample.samples_clock
             averaged_sample = self.ball_sample.averaged_sample_clock
-        '''
-        samples = self.ball_sample.samples
-        averaged_sample = self.ball_sample.averaged_sample
+        #samples = self.ball_sample.samples
+        #averaged_sample = self.ball_sample.averaged_sample
         
         for i, sample in enumerate(samples):
             print(f"Sample #{i}: {sample}")
@@ -597,16 +599,22 @@ class OCR:
             print(f"Sample #{i} Slopes: {slope}")
         '''
 
+    def show_ball_samples(self):
+        samples = self.ball_sample.samples
+        averaged_sample = self.ball_sample.averaged_sample
+        
+        for i, sample in enumerate(samples):
+            print(f"Sample #{i}: {sample}")
+            print(f"Adjusted Sample #{i}: {sample.adjusted_sample}")
+            print()
+        print(f"Averaged sample: {averaged_sample.adjusted_sample}")
 
-    #def delete_ball_sample(self, idx, direction):
-    def delete_ball_sample(self, idx):
-        '''
+
+    def delete_ball_sample(self, idx, direction):
         if "a" in direction:
             samples = self.ball_sample.samples_anti
         else:
             samples = self.ball_sample.samples_clock
-        '''
-        samples = self.ball_sample.samples
 
         try:
             del samples[idx]
@@ -614,43 +622,65 @@ class OCR:
         except IndexError:
             print("That sample doesn't exist.")
 
-        #self.ball_sample.update_averaged_sample(direction)
+        self.ball_sample.update_averaged_sample(direction)
+        #self.ball_sample.update_averaged_sample()
+        self.save_profile(self.data_file)
+
+
+    def delete_ball_sample(self, idx):
+        samples = self.ball_sample.samples
+        try:
+            del samples[idx]
+        except IndexError:
+            print("That sample doesn't exist.")
+
         self.ball_sample.update_averaged_sample()
         self.save_profile(self.data_file)
 
 
-    #def add_ball_sample(self, sample, direction):
+    def add_ball_sample(self, sample, direction):
+        self.ball_sample.update_sample(sample, direction)
+        self.save_profile(self.data_file)
+
+
     def add_ball_sample(self, sample):
-        #self.ball_sample.update_sample(sample, direction)
         self.ball_sample.update_sample(sample)
         self.save_profile(self.data_file)
 
+    def change_vps(self, vps, direction):
+        self.ball_sample.change_vps(vps, direction)
+        self.save_profile(self.data_file)
 
-    #def change_vps(self, vps, direction):
+
     def change_vps(self, vps):
-        #self.ball_sample.change_vps(vps, direction)
         self.ball_sample.change_vps(vps)
         self.save_profile(self.data_file)
 
-    
-    #def change_max_samples(self, new_max_samples, direction):
-    def change_max_samples(self, new_max_samples):
-        '''
+
+    def change_max_samples(self, new_max_samples, direction):
         if "a" in direction:
             max_samples = self.ball_sample.max_samples_anti
         else:
             max_samples = self.ball_sample.max_samples_clock
-        '''
-        max_samples = self.ball_sample.max_samples
 
         if new_max_samples != max_samples:
-            #self.ball_sample.change_max_samples(new_max_samples, direction)
-            self.ball_sample.change_max_samples(new_max_samples)
-            
+            self.ball_sample.change_max_samples(new_max_samples, direction)
 
         self.save_profile(self.data_file)
 
-    #def graph_samples(self, direction):
+    
+    def change_max_samples(self, new_max_samples):
+        max_samples = self.ball_sample.max_samples
+
+        if new_max_samples != max_samples:
+            self.ball_sample.change_max_samples(new_max_samples)
+
+        self.save_profile(self.data_file)
+
+
+    def graph_samples(self, direction):
+        self.ball_sample.graph_samples(direction)
+
     def graph_samples(self):
         self.ball_sample.graph_samples()
 

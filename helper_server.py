@@ -88,6 +88,8 @@ IMPORTANT: The following commands can only be run if the direction detection loo
 Q: Quit the direction detection loop.
 R: Run the direction detection loop.
 B: Start ball timings.
+CTS: Change target start time for ball.
+CTW: Change target wait time for ball.
 V: Change VPS.
 T: Toggle test mode. Test mode will let detection run, but WON'T send commands to clients.
 D: Toggle data bot mode. QUIT DETECTION FIRST BEFORE TOGGLING.
@@ -183,6 +185,15 @@ K: Execute signin macro on all machines.
                 continue    
             elif choice == "b":
                 self.ocr.start_ball_timings = True
+                continue
+            elif choice == "cts":
+                self.ocr.target_start_time = int(input("Enter the target start time for the ball: "))
+                continue
+            elif choice == "ctw":
+                self.ocr.target_wait_time = int(input("Enter the target wait time for the ball: "))
+                continue
+            elif choice == "ctt":
+                self.ocr.target_time_tolerance = int(input("Enter the target time tolerance for the ball: "))
                 continue
             elif choice == "v":
                 '''
@@ -482,11 +493,15 @@ K: Execute signin macro on all machines.
             adjusted_raw = self.clickbot.get_adjusted_raw(raw_prediction, self.raw_adjustment)
             print(f"Adjusted raw is: {adjusted_raw}")
 
-            #tuned_predictions = self.clickbot.get_tuned_from_raw_using_rotor_isolation(direction, rotor_speed, raw_prediction)
-            tuned_predictions = self.clickbot.get_tuned_from_raw(direction, adjusted_raw)
+            tuned_predictions = self.clickbot.get_tuned_from_raw_using_rotor_isolation(direction, rotor_speed, raw_prediction)
+            #tuned_predictions = self.clickbot.get_tuned_from_raw(direction, adjusted_raw)
+
+            if not tuned_predictions:
+                print(f"Rotor speed outside isolation, not betting.")
+
             print(f"TUNED PREDICTIONS: {tuned_predictions}")
 
-            if not self.test_mode and not self.databot_mode:
+            if not self.test_mode and not self.databot_mode and tuned_predictions:
                 msg.direction = direction
                 msg.raw_prediction = adjusted_raw
                 msg.tuned_predictions = tuned_predictions
