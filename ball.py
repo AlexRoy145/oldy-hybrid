@@ -54,6 +54,8 @@ class Ball:
 
             ball_revs = 0
 
+            time_elapsed_since_frame = 0
+
             ball_reference_frame = ball_detection_zone.reference_frame
 
             ball_fall_in_queue = mp.Queue()
@@ -81,6 +83,7 @@ class Ball:
                     return
                 else:
                     frame = in_msg["frame"]
+                    time_elapsed_since_frame = int(round(Util.time() * 1000))
                     try:
                         if not start_ball_timings:
                             start_ball_timings = in_msg["start_ball_timings"]
@@ -185,6 +188,9 @@ class Ball:
                                         ball_revs += 1
                                     else:
                                         lap_time = now - start_time
+                                        time_elapsed_since_frame = now - time_elapsed_since_frame
+                                        
+                                        #print(f"MS difference: {time_elapsed_since_frame}")
 
                                         # increase refractory period as laps get slower
                                         if not previous_lap_time:
