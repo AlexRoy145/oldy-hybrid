@@ -11,3 +11,5 @@ pip install.txt
 whitelist.txt
 lobby_urls.txt
 .git/
+*.dat
+best_dealers.txt

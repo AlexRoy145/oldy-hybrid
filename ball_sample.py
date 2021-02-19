@@ -32,22 +32,22 @@ class Sample:
                 return self.adjusted_sample
 
         def adjust_sample(self):
-            # TODO: miracle math to adjust sample to target time, then poly the result
+            # adjust sample to target time
             '''
-            ratio = self.full_sample[-1] / self.target_time
-            self.adjusted_sample = [int(round(x / ratio)) for x in self.full_sample]
-            diff = self.target_time - self.full_sample[-1]
-            self.adjusted_sample = [x + diff for x in self.full_sample[:-1]]
-            self.adjusted_sample.append(self.target_time)
-            '''
+            ratio = self.target_time / self.full_sample[-1]
+            self.adjusted_sample = [int(round(x * ratio)) for x in self.full_sample]
 
-            '''
-            poly_order = 5
+            poly_order = 4
+            length = len(self.full_sample)
+            if length > 10:
+                poly_order = 5
+
             x = list(range(len(self.full_sample)))
-            y = self.full_sample
+            y = self.adjusted_sample
             coefs = poly.polyfit(x, y, poly_order)
             ffit = poly.polyval(x, coefs)
             self.adjusted_sample = [int(round(x)) for x in ffit]
+            self.adjusted_sample[-1] = self.target_time
             '''
 
             self.adjusted_sample = self.full_sample
@@ -93,33 +93,36 @@ class BallSample:
             averaged_sample = self.averaged_sample.get_trimmed_sample(self.vps)
             differences = []
 
-            '''
-            first_diff = averaged_sample[0] - observed_rev
-            if first_diff < self.rev_tolerance:
-                smallest_diff = first_diff
-                lowest_idx = -1
-            else:
-            '''
-            for i, sample_rev in enumerate(averaged_sample):
-                diff = abs(sample_rev - observed_rev)
-                differences.append(diff)
+            if observed_rev > averaged_sample[0]:
+                '''
+                first_diff = averaged_sample[0] - observed_rev
+                if first_diff < self.rev_tolerance:
+                    smallest_diff = first_diff
+                    lowest_idx = -1
+                else:
+                '''
+                for i, sample_rev in enumerate(averaged_sample):
+                    diff = abs(sample_rev - observed_rev)
+                    differences.append(diff)
 
 
-            smallest_diff = min(differences)
-            lowest_idx = differences.index(smallest_diff)
+                smallest_diff = min(differences)
+                lowest_idx = differences.index(smallest_diff)
 
-            '''
-            associated_idx = lowest_idx + 1
-            revs_left = len(averaged_sample) - associated_idx + 1
-            associated_sample_timing = averaged_sample[associated_idx]
-            true_diff = abs(associated_sample_timing - observed_rev)
-            to_subtract = -true_diff * revs_left
-            '''
-            to_subtract = 0
+                '''
+                associated_idx = lowest_idx + 1
+                revs_left = len(averaged_sample) - associated_idx + 1
+                associated_sample_timing = averaged_sample[associated_idx]
+                true_diff = abs(associated_sample_timing - observed_rev)
+                to_subtract = -true_diff * revs_left
+                '''
+                to_subtract = 0
 
-            if smallest_diff < self.rev_tolerance:
-                print(f"Associating observed timing {observed_rev} with sample timing {averaged_sample[lowest_idx]}")
-                return sum(averaged_sample[lowest_idx+1:-1], to_subtract) + self.end_difference
+                if smallest_diff < self.rev_tolerance:
+                    print(f"Associating observed timing {observed_rev} with sample timing {averaged_sample[lowest_idx]}")
+                    return sum(averaged_sample[lowest_idx+1:-1], to_subtract) + self.end_difference
+                else:
+                    return -1
             else:
                 return -1
         else:

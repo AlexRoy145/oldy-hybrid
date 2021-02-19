@@ -88,8 +88,7 @@ IMPORTANT: The following commands can only be run if the direction detection loo
 Q: Quit the direction detection loop.
 R: Run the direction detection loop.
 B: Start ball timings.
-CTS: Change target start time for ball.
-CTW: Change target wait time for ball.
+CT: Change target time.
 V: Change VPS.
 T: Toggle test mode. Test mode will let detection run, but WON'T send commands to clients.
 D: Toggle data bot mode. QUIT DETECTION FIRST BEFORE TOGGLING.
@@ -186,14 +185,8 @@ K: Execute signin macro on all machines.
             elif choice == "b":
                 self.ocr.start_ball_timings = True
                 continue
-            elif choice == "cts":
-                self.ocr.target_start_time = int(input("Enter the target start time for the ball: "))
-                continue
-            elif choice == "ctw":
-                self.ocr.target_wait_time = int(input("Enter the target wait time for the ball: "))
-                continue
-            elif choice == "ctt":
-                self.ocr.target_time_tolerance = int(input("Enter the target time tolerance for the ball: "))
+            elif choice == "ct":
+                self.ocr.ball_sample.target_time = int(input("Enter the target time for the ball sample: "))
                 continue
             elif choice == "v":
                 '''
