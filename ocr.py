@@ -11,7 +11,7 @@ import PIL.ImageOps
 from collections import deque
 from PIL import Image
 from pytessy import PyTessy
-from ball_sample import BallSample
+from ball_sample_work_in_progress import BallSample
 from ball import Ball 
 from rotor import Rotor
 from util import Util
@@ -38,9 +38,9 @@ class OCR:
         self.most_recent_timings = []
 
         # diamond isolation testing
-        self.target_start_time = 600
-        self.target_wait_time = 800
-        self.target_time_tolerance = 50
+        self.diamond_target_time = 600
+        self.diamond_target_time_tolerance = 50
+        self.diamond_targeting_button_zone = []
 
         self.screenshot_zone = []
         self.dealer_name_zone = []
@@ -90,7 +90,9 @@ class OCR:
                  "rotor_angle_ellipse" : self.rotor_angle_ellipse,
                  "ball_fall_detection_zone" : self.ball_fall_detection_zone,
                  "ball_sample" : self.ball_sample,
-                 "most_recent_spin_data" : self.most_recent_spin_data}
+                 "most_recent_spin_data" : self.most_recent_spin_data,
+                 "diamond_target_time" : self.diamond_target_time,
+                 "diamond_targeting_button_zone" : self.diamond_targeting_button_zone}
             pickle.dump(d, f)
 
     def set_ball_detection_zone(self):  
@@ -119,6 +121,9 @@ class OCR:
 
     def set_dealer_name_zone(self):
         self.dealer_name_zone = SetDetection.set_dealer_name_zone()
+
+    def set_diamond_targeting_button_zone(self):
+        self.diamond_targeting_button_zone = SetDetection.set_diamond_targeting_button_zone()
     
     def start_capture(self):
         try:
@@ -131,7 +136,7 @@ class OCR:
             if self.databot_mode:
                 ball_proc = mp.Process(target=Ball.start_capture_databot, args=(ball_in_queue, ball_out_queue, self.ball_sample, self.ball_detection_zone, self.ball_fall_detection_zone, self.wheel_center_point, self.reference_diamond_point))
             else:
-                ball_proc = mp.Process(target=Ball.start_capture, args=(ball_in_queue, ball_out_queue, self.ball_sample, self.ball_detection_zone, self.ball_fall_detection_zone, self.wheel_center_point, self.reference_diamond_point))
+                ball_proc = mp.Process(target=Ball.start_capture, args=(ball_in_queue, ball_out_queue, self.ball_sample, self.ball_detection_zone, self.ball_fall_detection_zone, self.wheel_center_point, self.reference_diamond_point, self.diamond_target_time, self.diamond_targeting_button_zone))
             ball_proc.start()
 
             direction = ""
@@ -342,13 +347,13 @@ class OCR:
                             self.quit = True
                             return
 
-                        '''
+                        #'''
                         if "a" in direction:
                             samples = self.ball_sample.samples_anti
                         else:
                             samples = self.ball_sample.samples_clock
-                        '''
-                        samples = self.ball_sample.samples
+                        #'''
+                        #samples = self.ball_sample.samples
 
                         if len(samples) > 0:
                             fall_time = ball_out_msg["fall_time"]
@@ -599,6 +604,7 @@ class OCR:
             print(f"Sample #{i} Slopes: {slope}")
         '''
 
+    '''
     def show_ball_samples(self):
         samples = self.ball_sample.samples
         averaged_sample = self.ball_sample.averaged_sample
@@ -608,6 +614,7 @@ class OCR:
             print(f"Adjusted Sample #{i}: {sample.adjusted_sample}")
             print()
         print(f"Averaged sample: {averaged_sample.adjusted_sample}")
+    '''
 
 
     def delete_ball_sample(self, idx, direction):
@@ -627,6 +634,7 @@ class OCR:
         self.save_profile(self.data_file)
 
 
+    '''
     def delete_ball_sample(self, idx):
         samples = self.ball_sample.samples
         try:
@@ -636,6 +644,7 @@ class OCR:
 
         self.ball_sample.update_averaged_sample()
         self.save_profile(self.data_file)
+    '''
 
 
     def add_ball_sample(self, sample, direction):
@@ -643,18 +652,22 @@ class OCR:
         self.save_profile(self.data_file)
 
 
+    '''
     def add_ball_sample(self, sample):
         self.ball_sample.update_sample(sample)
         self.save_profile(self.data_file)
+    '''
 
     def change_vps(self, vps, direction):
         self.ball_sample.change_vps(vps, direction)
         self.save_profile(self.data_file)
 
 
+    '''
     def change_vps(self, vps):
         self.ball_sample.change_vps(vps)
         self.save_profile(self.data_file)
+    '''
 
 
     def change_max_samples(self, new_max_samples, direction):
@@ -669,6 +682,7 @@ class OCR:
         self.save_profile(self.data_file)
 
     
+    '''
     def change_max_samples(self, new_max_samples):
         max_samples = self.ball_sample.max_samples
 
@@ -676,13 +690,16 @@ class OCR:
             self.ball_sample.change_max_samples(new_max_samples)
 
         self.save_profile(self.data_file)
+    '''
 
 
     def graph_samples(self, direction):
         self.ball_sample.graph_samples(direction)
 
+    '''
     def graph_samples(self):
         self.ball_sample.graph_samples()
+    '''
 
 
     def scan_sample(self):

@@ -70,6 +70,7 @@ class CRMServer:
             self.ocr.set_ball_detection_zone()
             self.ocr.set_ball_fall_detection_zone()
             self.ocr.set_sample_detection_zone()
+            self.ocr.set_diamond_targeting_button_zone()
             self.ocr.save_profile(OCR_PROFILE) 
 
 
@@ -110,12 +111,14 @@ CM: Change max samples for ball sample.
 CA: Change rotor acceleration.
 CE: Change ellipse angle.
 CRT: Change rev tolerance.
+CDT: Change diamond targeting lap time.
 
 DW: Change wheel detection zone (DO THIS BEFORE BALL DETECTION).
 DB: Change ball detection zone.
 DF: Change ball fall detection zone.
 DN: Change winning number detection zone.
 DS: Change sample detection zone.
+DD: Change diamond targeting button location.
 
 SJ: Show default jump values.
 J: Change default jump values.
@@ -189,17 +192,15 @@ K: Execute signin macro on all machines.
                 self.ocr.ball_sample.target_time = int(input("Enter the target time for the ball sample: "))
                 continue
             elif choice == "v":
-                '''
                 print(f"Current VPS ANTI: {self.ocr.ball_sample.vps_anti}")
                 print(f"Current VPS CLOCK: {self.ocr.ball_sample.vps_clock}")
-                '''
-                print(f"Current VPS: {self.ocr.ball_sample.vps}")
+                #print(f"Current VPS: {self.ocr.ball_sample.vps}")
                 while True:
                     try:
-                        #direction = input("Enter the direction (anti or clock): ")
+                        direction = input("Enter the direction (anti or clock): ")
                         vps = int(input("Enter the new VPS: "))
-                        #self.ocr.change_vps(vps, direction)
-                        self.ocr.change_vps(vps)
+                        self.ocr.change_vps(vps, direction)
+                        #self.ocr.change_vps(vps)
                         break
                     except ValueError:
                         print("Invalid value.")
@@ -251,18 +252,18 @@ K: Execute signin macro on all machines.
                 self.raw_adjustment = int(input("Input the new raw adjustment (example, +4 to shift the raw clockwise 4 pockets, -4 to shift the raw anti 4 pockets): "))
                 continue
             elif choice == "ss":
-                '''
+                #'''
                 direction = input("Enter the direction (anti or clock): ")
                 self.ocr.show_ball_samples(direction)
-                '''
-                self.ocr.show_ball_samples()
+                #'''
+                #self.ocr.show_ball_samples()
                 continue
             elif choice == "g":
-                '''
+                #'''
                 direction = input("Enter the direction (anti or clock): ")
                 self.ocr.graph_samples(direction)
-                '''
-                self.ocr.graph_samples()
+                #'''
+                #self.ocr.graph_samples()
                 continue
             elif choice == "gd":
                 direction_data = input("Enter the direction (ex: acw or cw): ")
@@ -271,29 +272,29 @@ K: Execute signin macro on all machines.
                 self.scatter.graph(direction=direction_data, rotor_speed_range=rotor_speed_range, fall_point_range=fall_point_range)
                 continue
             elif choice == "cs":
-                '''
+                #'''
                 direction = input("Enter the direction (anti or clock): ")
                 if "a" in direction:
                     samples = self.ocr.ball_sample.samples_anti
                 else:
                     samples = self.ocr.ball_sample.samples_clock
-                '''
-                samples = self.ocr.ball_sample.samples
+                #'''
+                #samples = self.ocr.ball_sample.samples
 
                 for i, sample in enumerate(samples):
                     print(f"Sample #{i}: {sample}")
                 while True:
                     try:
                         sample_idx = int(input("Enter sample number to delete: "))
-                        #self.ocr.delete_ball_sample(sample_idx, direction)
-                        self.ocr.delete_ball_sample(sample_idx)
+                        self.ocr.delete_ball_sample(sample_idx, direction)
+                        #self.ocr.delete_ball_sample(sample_idx)
                         break
                     except ValueError:
                         print("Invalid value.")
 
                 continue
             elif choice == "as":
-                #direction = input("Enter the direction (anti or clock): ")
+                direction = input("Enter the direction (anti or clock): ")
                 sample_to_add = []
                 new_sample = input("Enter the sample as a comma delimited list of numbers: ")
                 new_sample = new_sample.replace(" ", "").split(",")
@@ -305,8 +306,8 @@ K: Execute signin macro on all machines.
                             print("Invalid value in sample.")
                             break
 
-                    #self.ocr.add_ball_sample(sample_to_add, direction)
-                    self.ocr.add_ball_sample(sample_to_add)
+                    self.ocr.add_ball_sample(sample_to_add, direction)
+                    #self.ocr.add_ball_sample(sample_to_add)
                 else:
                     print("Invalid sample.")
 
@@ -315,17 +316,17 @@ K: Execute signin macro on all machines.
                 self.ocr.scan_sample()
                 continue
             elif choice == "cm":
-                '''
+                #'''
                 print(f"Current max samples ANTI: {self.ocr.ball_sample.max_samples_anti}")
                 print(f"Current max samples CLOCK: {self.ocr.ball_sample.max_samples_clock}")
-                '''
-                print(f"Current max samples: {self.ocr.ball_sample.max_samples}")
+                #'''
+                #print(f"Current max samples: {self.ocr.ball_sample.max_samples}")
 
                 try:
-                    #direction = input("Enter the direction (anti or clock): ")
+                    direction = input("Enter the direction (anti or clock): ")
                     new_max_samples = int(input("Enter the new max samples: "))
-                    #self.ocr.change_max_samples(new_max_samples, direction)
-                    self.ocr.change_max_samples(new_max_samples)
+                    self.ocr.change_max_samples(new_max_samples, direction)
+                    #self.ocr.change_max_samples(new_max_samples)
                 except ValueError:
                     print("Invalid value.")
                 continue
@@ -344,22 +345,25 @@ K: Execute signin macro on all machines.
                 self.ocr.save_profile(OCR_PROFILE)
                 continue
             elif choice == "crt":
-                '''
+                #'''
                 direction = input("Enter the direction (anti or clock): ")
                 print(f"Current rev tolerance ANTI: {self.ocr.ball_sample.rev_tolerance_anti}")
                 print(f"Current rev tolerance CLOCK: {self.ocr.ball_sample.rev_tolerance_clock}")
-                '''
-                print(f"Current rev tolerance: {self.ocr.ball_sample.rev_tolerance}")
+                #'''
+                #print(f"Current rev tolerance: {self.ocr.ball_sample.rev_tolerance}")
                 
                 rev_tolerance = int(input("Enter the new ball sample rev tolerance: "))
-                '''
+                #'''
                 if "a" in direction:
                     self.ocr.ball_sample.rev_tolerance_anti = rev_tolerance
                 else:
                     self.ocr.ball_sample.rev_tolerance_clock = rev_tolerance
-                '''
-                self.ocr.ball_sample.rev_tolerance = rev_tolerance
+                #'''
+                #self.ocr.ball_sample.rev_tolerance = rev_tolerance
                 self.ocr.save_profile(OCR_PROFILE)
+                continue
+            elif choice == "cdt":
+                self.ocr.diamond_target_time = int(input("Enter the lap time the computer needs to see to click the diamond targeting button: "))
                 continue
             elif choice == "ra":
                 self.accel_thread = threading.Thread(target=self.get_rotor_accel, args=())
@@ -385,6 +389,10 @@ K: Execute signin macro on all machines.
                 continue
             elif choice == "ds":
                 self.ocr.set_sample_detection_zone()
+                self.ocr.save_profile(OCR_PROFILE)
+                continue
+            elif choice == "dd":
+                self.ocr.set_diamond_targeting_button_zone()
                 self.ocr.save_profile(OCR_PROFILE)
                 continue
             elif choice == "sj":
@@ -486,7 +494,8 @@ K: Execute signin macro on all machines.
             adjusted_raw = self.clickbot.get_adjusted_raw(raw_prediction, self.raw_adjustment)
             print(f"Adjusted raw is: {adjusted_raw}")
 
-            tuned_predictions = self.clickbot.get_tuned_from_raw_using_rotor_isolation(direction, rotor_speed, raw_prediction)
+            #tuned_predictions = self.clickbot.get_tuned_from_raw_using_rotor_isolation(direction, rotor_speed, raw_prediction)
+            tuned_predictions = self.clickbot.get_tuned_from_raw_using_rotor_isolation(direction, rotor_speed, adjusted_raw)
             #tuned_predictions = self.clickbot.get_tuned_from_raw(direction, adjusted_raw)
 
             if not tuned_predictions:

@@ -111,10 +111,13 @@ class BallSample:
 
             revs_left = len(averaged_sample) - lowest_idx + 1
 
+            '''
             if observed_rev > averaged_sample[lowest_idx]:
                 to_add = smallest_diff * revs_left
             else:
                 to_add = -smallest_diff * revs_left
+            '''
+            to_add = 0
 
 
             if smallest_diff < rev_tolerance:

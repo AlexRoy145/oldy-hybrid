@@ -120,7 +120,7 @@ class BallSample:
 
                 if smallest_diff < self.rev_tolerance:
                     print(f"Associating observed timing {observed_rev} with sample timing {averaged_sample[lowest_idx]}")
-                    return sum(averaged_sample[lowest_idx+1:-1], to_subtract) + self.end_difference
+                    return sum(averaged_sample[lowest_idx+1:], to_subtract) + self.end_difference
                 else:
                     return -1
             else:
@@ -154,6 +154,40 @@ class BallSample:
         else:
             return -1
     '''
+
+    def get_fall_time(self, observed_rev):
+        if self.samples:
+            differences = []
+            for sample in self.samples:
+                sample_diffs = []
+                trimmed_sample = sample.get_trimmed_sample(self.vps)
+                for i, sample_rev in enumerate(trimmed_sample):
+                    diff = abs(observed_rev - sample_rev)
+                    sample_diffs.append(diff)
+
+                differences.append(sample_diffs)
+
+            results = []
+            for i, sample_diff in enumerate(differences):
+                smallest_diff = min(sample_diff)
+                lowest_idx = sample_diff.index(smallest_diff)
+
+                if smallest_diff < self.rev_tolerance:
+                    results.append({"sample_idx" : i,
+                                    "smallest_diff" : smallest_diff,
+                                    "rev_idx" : lowest_idx})
+
+            results.sort(key=lambda x: x["smallest_diff"])
+            if results:
+                best_result = results[0]
+                sample = self.samples[best_result["sample_idx"]].get_trimmed_sample(self.vps)
+                sample_rev = best_result["rev_idx"]
+                print(f"Using sample #{best_result['sample_idx']}: {sample} and rev {sample[sample_rev]} for prediction.")
+                return sum(sample[sample_rev + 1:]) + self.end_difference
+            else:
+                return -1
+        else:
+            return -1
 
     
     def update_sample(self, new_sample):

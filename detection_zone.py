@@ -259,3 +259,16 @@ class SetDetection:
         print(f"Bounding box: {zone}")
         return zone
 
+    @staticmethod
+    def set_diamond_targeting_button_zone():
+        m = mouse.Controller()
+        screenshot_zone = []
+        zone = screenshot_zone
+        input(f"Hover the mouse over the diamond targeting start button, then press ENTER: ")
+        x_top,y_top = m.position
+        zone.append(x_top)
+        zone.append(y_top)
+
+        print(f"Bounding box: {zone}")
+        return zone
+

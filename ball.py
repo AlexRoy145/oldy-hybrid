@@ -5,6 +5,7 @@ import numpy as np
 import time as t
 import winsound
 from collections import deque
+from pynput.mouse import Button, Controller
 from PIL import Image
 from util import Util
 
@@ -20,17 +21,35 @@ FRAME_LOOKBACK = 2
 
 MAX_EXTENSION = 30 # 30 degrees each direction, which is about 3 pockets each direction
 
+MAX_STDEV = 150
+
 WAIT_FOR_FALL_DETECTION = 5 #seconds
 SINGLE_CONTOURS_NEEDED = 8 #frames, about 18ms per frame
 
 ANGLE_START = 10
 ANGLE_END = 350
 
+ANGLE_1 = 30
+ANGLE_MAIN = 0
+ANGLE_2 = 330
+
+TEST_ANGLE_1 = 40
+TEST_ANGLE_2 = 20
+TEST_ANGLE_3 = 340
+TEST_ANGLE_4 = 320
+
+CENTER_ANGLE_IDX = 2
+
+DONT_NEED_AVERAGING_TIMING = 2000
+
+NUMBER_OF_CLICKS = 2
+
 class Ball:
 
     @staticmethod
-    def start_capture(in_queue, out_queue, ball_sample, ball_detection_zone, ball_fall_detection_zone, wheel_center_point, reference_diamond_point):
+    def start_capture(in_queue, out_queue, ball_sample, ball_detection_zone, ball_fall_detection_zone, wheel_center_point, reference_diamond_point, diamond_target_time, diamond_targeting_button_zone):
         try:
+            mouse = Controller()
             current_ball_sample = []
             first_ball_frame = []
             first_capture = True
@@ -54,6 +73,8 @@ class Ball:
 
             ball_revs = 0
 
+            ball_in_detection_zone = True
+
             time_elapsed_since_frame = 0
 
             ball_reference_frame = ball_detection_zone.reference_frame
@@ -62,7 +83,11 @@ class Ball:
             ball_fall_out_queue = mp.Queue()
             ball_fall_proc = mp.Process(target=Ball.start_ball_fall_capture, args=(ball_fall_in_queue, ball_fall_out_queue, ball_fall_detection_zone))
             ball_fall_proc.start()
-            angles = []
+
+            timestamps = [0, 0, 0, 0, 0]
+            timings = [0, 0, 0, 0, 0]
+            #angles = ANGLE_1, ANGLE_MAIN, ANGLE_2
+            angles = TEST_ANGLE_1, TEST_ANGLE_2, ANGLE_MAIN, TEST_ANGLE_3, TEST_ANGLE_4
 
             # diamond isolation testing
 
@@ -133,6 +158,12 @@ class Ball:
                                 print(f"The ball fall beep was {-diff}ms early.")
                             else:
                                 print(f"The ball fall beep was {diff}ms late.")
+
+                            # calculate how much time passed since last rev timing and when the ball fell
+                            fall_time_last_rev = int(round(true_ball_fall_timestamp * 1000 - timestamps[CENTER_ANGLE_IDX]))
+                            print(f"Fall time after last rev was {fall_time_last_rev} ms")
+                            current_ball_sample[-1] += fall_time_last_rev
+
                             ball_fall_in_queue.put({"state" : "quit"})
                             '''
                             ball_fall_proc.join()
@@ -158,77 +189,92 @@ class Ball:
                             area = cv2.contourArea(c)
                             if area < MIN_BALL_AREA or area > MAX_BALL_AREA:
                                 continue
-
+                            
                             angle_from_ref = Util.get_angle(center, wheel_center_point, reference_diamond_point)
+
+                            if ball_in_detection_zone:
+                                if angle_from_ref > 90 and angle_from_ref < 270:
+                                    ball_in_detection_zone = False
+
                             if not previous_angle:
                                 previous_angle = angle_from_ref
                             else: 
-                                difference = abs(angle_from_ref - previous_angle)
-                                #extension = Ball.get_extension(difference)
-                                extension = 2
-
-                                angles.append((previous_angle, angle_from_ref))
-
-                                now = int(round(Util.time() * 1000))
-
-                                #if Ball.in_range(angle_from_ref, ANGLE_START, ANGLE_END, extension=extension):
-                                if (direction == "anticlockwise" and 
-                                    angle_from_ref > previous_angle or 
-                                    
-                                    (angle_from_ref < ANGLE_START and
-                                    angle_from_ref > ANGLE_END) or
-
-                                    direction == "clockwise" and 
-                                    angle_from_ref < previous_angle):
-
+                                if not ball_in_detection_zone:
+                                    timestamps, timings = Ball.measure_ball(direction, previous_angle, angle_from_ref, timestamps, timings, angles)
+                                #print(f"Timings: {timings}, Timestamps: {timestamps}")
+                                
+                                if not 0 in timings or timings[2] > DONT_NEED_AVERAGING_TIMING:
                                     now = int(round(Util.time() * 1000))
-                                    if first_pass:
-                                        start_time = now
-                                        first_pass = False
-                                        ball_revs += 1
+                                    diff = now - time_elapsed_since_frame
+                                    if timings[2] > DONT_NEED_AVERAGING_TIMING:
+                                        lap_time = timings[2] - diff
+                                        filtered_lap_times = []
                                     else:
-                                        lap_time = now - start_time
-                                        time_elapsed_since_frame = now - time_elapsed_since_frame
-                                        
-                                        #print(f"MS difference: {time_elapsed_since_frame}")
+                                        m = 2
+                                        np_timings = np.array(timings)
+                                        filtered_lap_times = Ball.reject_outliers(np_timings, m=m)
+                                        if len(filtered_lap_times) == 0:
+                                            timings = [0, 0, 0, 0, 0]
+                                            timestamps = [0, 0, 0, 0, 0]
+                                            break
+                                        lap_time = int(round(sum(filtered_lap_times) / len(filtered_lap_times))) - diff
+                                        #lap_time = int(round((timings[0] + timings[2]) / 2)) - diff
 
-                                        # increase refractory period as laps get slower
-                                        if not previous_lap_time:
-                                            previous_lap_time = lap_time
-                                            fastest_lap_time = FASTEST_LAP_TIME
+
+                                    '''
+                                    diamond_target_time_diff = lap_time - diamond_target_time
+                                    #print(f"diamond target time: {diamond_target_time} | diamond diff: {diamond_target_time_diff}")
+                                    if (diamond_target_time_diff < 0 and diamond_target_time_diff >= -10) or (diamond_target_time_diff >= 0 and diamond_target_time_diff < ball_sample.rev_tolerance):
+                                        print("clicking diamond")
+                                        mouse.position = diamond_targeting_button_zone
+                                        mouse.click(Button.left)
+                                    '''
+
+                                    # increase refractory period as laps get slower
+                                    if not previous_lap_time:
+                                        previous_lap_time = lap_time
+                                        fastest_lap_time = FASTEST_LAP_TIME
+                                    else:
+                                        if previous_lap_time > 1000:
+                                            fastest_lap_time = previous_lap_time - 500
                                         else:
-                                            if previous_lap_time > 1000:
-                                                fastest_lap_time = previous_lap_time - 500
-                                            else:
-                                                fastest_lap_time = FASTEST_LAP_TIME
+                                            fastest_lap_time = FASTEST_LAP_TIME
 
-                                        if lap_time > fastest_lap_time:
-                                            previous_lap_time = lap_time
-                                            start_time = now
-                                            frame_counter = 0
-                                            print("Ball detected, lap: %dms" % lap_time)
-                                            ball_revs += 1
-                                            if len(current_ball_sample) > 0:
-                                                '''
-                                                if current_ball_sample[-1] - lap_time > FALSE_DETECTION_THRESH:
-                                                    print("FALSE DETECTIONS")
-                                                    out_msg = {"state" : "false_detections"}
-                                                    out_queue.put(out_msg)
-                                                '''
+                                    if lap_time > fastest_lap_time:
+                                        
+                                        #print(f"MS difference: {now - time_elapsed_since_frame}")
+                                        previous_lap_time = lap_time
+                                        frame_counter = 0
+                                        print(f"Ball detected, lap: {lap_time}ms, filtered timings: {filtered_lap_times}") 
+                                        ball_revs += 1
+                                        if len(current_ball_sample) > 0:
+                                            '''
+                                            if current_ball_sample[-1] - lap_time > FALSE_DETECTION_THRESH:
+                                                print("FALSE DETECTIONS")
+                                                out_msg = {"state" : "false_detections"}
+                                                out_queue.put(out_msg)
+                                            '''
 
-                                            current_ball_sample.append(lap_time)
+                                        current_ball_sample.append(lap_time)
+                                        timings = [0, 0, 0, 0, 0]
 
 
-                                            if fall_time < 0:
-                                                #fall_time = ball_sample.get_fall_time_averaged(lap_time, direction)
-                                                fall_time = ball_sample.get_fall_time_averaged(lap_time)
-                                                if fall_time > 0:
-                                                    fall_time_timestamp = Util.time()
-                                                    #print(f"FALL TIME CALCULATED TO BE {fall_time} MS FROM NOW")
-                                                    out_msg = {"state": "fall_time_calculated",
-                                                               "fall_time" : fall_time,
-                                                               "fall_time_timestamp" : fall_time_timestamp}
-                                                    out_queue.put(out_msg)
+                                        if fall_time < 0:
+                                            fall_time = ball_sample.get_fall_time_averaged(lap_time, direction)
+                                            '''
+                                            if len(current_ball_sample) >= NUMBER_OF_CLICKS:
+                                                fall_time = ball_sample.get_fall_time(current_ball_sample[-NUMBER_OF_CLICKS:]) 
+                                            '''
+
+                                            #fall_time = ball_sample.get_fall_time_averaged(lap_time)
+                                            #fall_time = ball_sample.get_fall_time(lap_time)
+                                            if fall_time > 0:
+                                                fall_time_timestamp = Util.time()
+                                                #print(f"FALL TIME CALCULATED TO BE {fall_time} MS FROM NOW")
+                                                out_msg = {"state": "fall_time_calculated",
+                                                           "fall_time" : fall_time,
+                                                           "fall_time_timestamp" : fall_time_timestamp}
+                                                out_queue.put(out_msg)
 
                                 previous_angle = angle_from_ref
 
@@ -243,6 +289,66 @@ class Ball:
                     '''
         except BrokenPipeError:
             pass
+
+    '''
+    Returns two lists: the updated timestamps and timings.
+    The timestamps list will have the new NOW timestamps for each respective angle.
+    The timings list will have the previous lap timings for each respective angle.
+    The initial values for both will be 0.
+    '''
+    @staticmethod
+    def measure_ball(direction, previous_angle, angle_from_ref, timestamps, timings, angles):
+        now = int(round(Util.time() * 1000))
+
+        timestamps_to_return = timestamps[:]
+        timings_to_return = timings[:]
+
+        if "a" in direction:
+            i = 0
+            for timestamp, timing, angle in zip(timestamps, timings, angles):
+                if angle == 0:
+                    if angle_from_ref > previous_angle:
+                        timestamps_to_return[i] = now
+                        if timestamps[i] != 0:
+                            timings_to_return[i] = now - timestamps[i]
+                else:
+                    if angle_from_ref < angle and previous_angle > angle:
+                        timestamps_to_return[i] = now
+                        if timestamps[i] != 0:
+                            timings_to_return[i] = now - timestamps[i]
+
+                i += 1
+
+        else:
+            i = 0
+            for timestamp, timing, angle in zip(timestamps, timings, angles):
+                if angle == 0:
+                    if angle_from_ref < previous_angle:
+                        timestamps_to_return[i] = now
+                        if timestamps[i] != 0:
+                            timings_to_return[i] = now - timestamps[i]
+                else:
+                    if angle_from_ref > angle and previous_angle < angle:
+                        timestamps_to_return[i] = now
+                        if timestamps[i] != 0:
+                            timings_to_return[i] = now - timestamps[i]
+
+                i += 1
+
+
+        return timestamps_to_return, timings_to_return
+
+    @staticmethod
+    def reject_outliers(data, m = 6.):
+        d = np.abs(data - np.mean(data))
+        mdev = np.mean(d)
+        s = d/mdev if mdev else 0.
+        filtered = data[s<m]
+        if np.std(filtered, ddof=1) > MAX_STDEV:
+            return []
+            
+        return data[s<m]
+
 
     @staticmethod
     def start_ball_fall_capture(in_queue, out_queue, ball_fall_detection_zone):
