@@ -125,7 +125,7 @@ J: Change default jump values.
 SB: Show ball rev ranges for ball rev isolation.
 JB: Change ball rev ranges for ball rev isolation.
 SC: Show connected clients.
-K: Execute signin macro on all machines.
+KICK: Execute signin macro on all machines.
 """
             choice = input("Enter your choice (HELP to show menu): ").lower()
             if choice == "help":
@@ -415,7 +415,7 @@ K: Execute signin macro on all machines.
                 for addr in self.server.clients.keys():
                     print(addr)
                 continue
-            elif choice == "k":
+            elif choice == "kick":
                 yesorno = input(f"Are you sure you want to execute signin macro on all machines? (Y/N): ").lower()
                 if yesorno == "y":
                     msg = Message()

@@ -38,10 +38,10 @@ class CRMClient:
     def send_screenshot(self, seq_num):
         self.webhook.send(f"{self.hostname}, Spin #: {seq_num}", file=discord.File(SCREENSHOT_FILE))
 
-    def __init__(self, server_ip, server_port, site, username, password):
+    def __init__(self, server_ips, server_port, site, username, password):
 
         print(password)
-        self.server_ip = server_ip
+        self.server_ips = server_ips
         self.server_port = server_port
         self.site = site
         self.username = username
@@ -53,7 +53,7 @@ class CRMClient:
         self.hostname = gethostname()
 
         self.resize_cmd_window()
-        self.resize_betting_window()
+        #self.resize_betting_window()
 
         # error metrics
         self.refreshes_used = 0
@@ -86,6 +86,8 @@ class CRMClient:
                 self.signin_macro.record_signin_macro()
                 self.signin_macro.save_profile(self.signin_macro_name)
 
+            self.signin_macro.execute_macro(site=self.site, username=self.username, password=self.password)
+
 
         self.resize_betting_window()
 
@@ -97,14 +99,16 @@ class CRMClient:
         '''
 
 
-        input("Press ENTER when ready to connect to server and to resize the betting window:")
+        #input("Press ENTER when ready to connect to server and to resize the betting window:")
         self.resize_betting_window()
-        self.client = Client(self.server_ip, self.server_port)
+        self.client = Client(self.server_ips, self.server_port)
         self.client.connect_to_server()
 
+        '''
         if self.site and self.username and self.password:
             self.signin_macro.execute_macro(site=self.site, username=self.username, password=self.password)
             self.resize_betting_window()
+        '''
 
 
 
@@ -215,7 +219,7 @@ class CRMClient:
     def resize_cmd_window(self):
         def callback(handle, data):
             title = win32gui.GetWindowText(handle).lower()
-            if "command prompt" in title:
+            if "command prompt" in title or "cmd" in title or "login" in title:
                 handles.append(handle)
 
         handles = []
@@ -229,14 +233,14 @@ class CRMClient:
 
 def main():
     parser = argparse.ArgumentParser(description="Run the client betting program.")
-    parser.add_argument("server_ip", type=str, help="The server's IP address.")
-    parser.add_argument("server_port", type=int, help="The server's port.")
+    parser.add_argument("--server-ips", nargs="+", help="REQUIRED: The server IP addresses.")
+    parser.add_argument("--server-port", type=int, help="REQUIRED: The server's port.")
     parser.add_argument("--site-url", type=str, help="The url of the site (do NOT include www, but include the .com or .ag or .eu) for use with signin macros")
     parser.add_argument("--username", type=str, help="The username to use for the website for the signin macro.")
     parser.add_argument("--password", type=str, help="The password to use for the website for the signin macro.")
     args = parser.parse_args()
 
-    app = CRMClient(args.server_ip, args.server_port, args.site_url, args.username, args.password)
+    app = CRMClient(args.server_ips, args.server_port, args.site_url, args.username, args.password)
     try:
         app.run()
     except KeyboardInterrupt:

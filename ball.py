@@ -214,6 +214,7 @@ class Ball:
                                         np_timings = np.array(timings)
                                         filtered_lap_times = Ball.reject_outliers(np_timings, m=m)
                                         if len(filtered_lap_times) == 0:
+                                            print(f"Rejected all timings: {np_timings}")
                                             timings = [0, 0, 0, 0, 0]
                                             timestamps = [0, 0, 0, 0, 0]
                                             break
