@@ -110,6 +110,7 @@ OS: Scan sample into hybrid.
 CM: Change max samples for ball sample.
 CA: Change rotor acceleration.
 CE: Change ellipse angle.
+CRW: Change rotor wait time.
 CRT: Change rev tolerance.
 CDT: Change diamond targeting lap time.
 
@@ -342,6 +343,11 @@ KICK: Execute signin macro on all machines.
             elif choice == "ce":
                 print(f"Current ellipse angle: {self.ocr.rotor_angle_ellipse}")
                 self.ocr.rotor_angle_ellipse = int(input("Enter the new rotor angle ellipse: "))
+                self.ocr.save_profile(OCR_PROFILE)
+                continue
+            elif choice == "crw":
+                print(f"Current rotor wait time: {self.ocr.time_for_stable_direction}")
+                self.ocr.time_for_stable_direction = float(input("Enter the new rotor wait time in seconds: "))
                 self.ocr.save_profile(OCR_PROFILE)
                 continue
             elif choice == "crt":

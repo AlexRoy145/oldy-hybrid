@@ -84,10 +84,11 @@ class Ball:
             ball_fall_proc = mp.Process(target=Ball.start_ball_fall_capture, args=(ball_fall_in_queue, ball_fall_out_queue, ball_fall_detection_zone))
             ball_fall_proc.start()
 
-            timestamps = [0, 0, 0, 0, 0]
-            timings = [0, 0, 0, 0, 0]
-            #angles = ANGLE_1, ANGLE_MAIN, ANGLE_2
             angles = TEST_ANGLE_1, TEST_ANGLE_2, ANGLE_MAIN, TEST_ANGLE_3, TEST_ANGLE_4
+            #angles = TEST_ANGLE_1, ANGLE_MAIN, TEST_ANGLE_4
+            timestamps = [0] * len(angles)
+            timings = [0] * len(angles)
+            #angles = ANGLE_1, ANGLE_MAIN, ANGLE_2
 
             # diamond isolation testing
 
@@ -203,33 +204,39 @@ class Ball:
                                     timestamps, timings = Ball.measure_ball(direction, previous_angle, angle_from_ref, timestamps, timings, angles)
                                 #print(f"Timings: {timings}, Timestamps: {timestamps}")
                                 
-                                if not 0 in timings or timings[2] > DONT_NEED_AVERAGING_TIMING:
+                                if not 0 in timings or timings[len(angles) // 2] > DONT_NEED_AVERAGING_TIMING:
                                     now = int(round(Util.time() * 1000))
                                     diff = now - time_elapsed_since_frame
-                                    if timings[2] > DONT_NEED_AVERAGING_TIMING:
-                                        lap_time = timings[2] - diff
+                                    if timings[len(angles) // 2] > DONT_NEED_AVERAGING_TIMING:
+                                        lap_time = timings[len(angles) // 2] - diff
                                         filtered_lap_times = []
                                     else:
                                         m = 2
                                         np_timings = np.array(timings)
-                                        filtered_lap_times = Ball.reject_outliers(np_timings, m=m)
+                                        filtered_lap_times = list(Ball.reject_outliers(np_timings, m=m))
                                         if len(filtered_lap_times) == 0:
                                             print(f"Rejected all timings: {np_timings}")
-                                            timings = [0, 0, 0, 0, 0]
-                                            timestamps = [0, 0, 0, 0, 0]
+                                            timings = [0] * len(angles)
+                                            timestamps = [0] * len(angles)
                                             break
-                                        lap_time = int(round(sum(filtered_lap_times) / len(filtered_lap_times))) - diff
+                                        try:
+                                            lap_time = int(round(sum(filtered_lap_times) / len(filtered_lap_times))) - diff
+                                        except TypeError:
+                                            lap_time = int(round(sum(list(filtered_lap_times[0][0])) / len(filtered_lap_times))) - diff
                                         #lap_time = int(round((timings[0] + timings[2]) / 2)) - diff
 
 
-                                    '''
                                     diamond_target_time_diff = lap_time - diamond_target_time
                                     #print(f"diamond target time: {diamond_target_time} | diamond diff: {diamond_target_time_diff}")
-                                    if (diamond_target_time_diff < 0 and diamond_target_time_diff >= -10) or (diamond_target_time_diff >= 0 and diamond_target_time_diff < ball_sample.rev_tolerance):
+                                    if "a" in direction:
+                                        rev_tol = ball_sample.rev_tolerance_anti
+                                    else:
+                                        rev_tol = ball_sample.rev_tolerance_clock
+
+                                    if (diamond_target_time_diff < 0 and diamond_target_time_diff >= -10) or (diamond_target_time_diff >= 0 and diamond_target_time_diff < rev_tol):
                                         print("clicking diamond")
                                         mouse.position = diamond_targeting_button_zone
                                         mouse.click(Button.left)
-                                    '''
 
                                     # increase refractory period as laps get slower
                                     if not previous_lap_time:
@@ -257,7 +264,7 @@ class Ball:
                                             '''
 
                                         current_ball_sample.append(lap_time)
-                                        timings = [0, 0, 0, 0, 0]
+                                        timings = [0] * len(angles)
 
 
                                         if fall_time < 0:
@@ -341,6 +348,7 @@ class Ball:
 
     @staticmethod
     def reject_outliers(data, m = 6.):
+        #return data
         d = np.abs(data - np.mean(data))
         mdev = np.mean(d)
         s = d/mdev if mdev else 0.

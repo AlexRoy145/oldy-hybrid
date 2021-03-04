@@ -31,6 +31,8 @@ class OCR:
         self.reference_diamond_point = None
         self.ball_detection_zone = None
         self.winning_number_detection_zone = None
+
+        self.time_for_stable_direction = 1.5 #seconds
         
         self.ball_fall_detection_zone = None
 
@@ -81,6 +83,7 @@ class OCR:
                  "sample_detection_zone" : self.sample_detection_zone,
                  "winning_number_detection_zone" : self.winning_number_detection_zone,
                  "reference_diamond_point" : self.reference_diamond_point,
+                 "time_for_stable_direction" : self.time_for_stable_direction,
                  "ball_detection_zone" : self.ball_detection_zone,
                  "dealer_name_zone" : self.dealer_name_zone,
                  "screenshot_zone" : self.screenshot_zone,
@@ -131,7 +134,7 @@ class OCR:
             rotor_in_queue = mp.Queue()
             ball_out_queue = mp.Queue()
             ball_in_queue = mp.Queue()
-            rotor_proc = mp.Process(target=Rotor.start_capture, args=(rotor_in_queue, rotor_out_queue, self.wheel_detection_zone, self.wheel_detection_area, self.wheel_center_point, self.reference_diamond_point, self.diff_thresh, self.rotor_angle_ellipse))
+            rotor_proc = mp.Process(target=Rotor.start_capture, args=(rotor_in_queue, rotor_out_queue, self.wheel_detection_zone, self.wheel_detection_area, self.wheel_center_point, self.reference_diamond_point, self.diff_thresh, self.rotor_angle_ellipse, self.time_for_stable_direction))
             rotor_proc.start()
             if self.databot_mode:
                 ball_proc = mp.Process(target=Ball.start_capture_databot, args=(ball_in_queue, ball_out_queue, self.ball_sample, self.ball_detection_zone, self.ball_fall_detection_zone, self.wheel_center_point, self.reference_diamond_point))
@@ -721,7 +724,8 @@ class OCR:
                 
             print(f"Scanned sample: {sample_str}")
             parsed_sample = [int(x) for x in parsed_sample]
-            self.add_ball_sample(parsed_sample)
+            self.add_ball_sample(parsed_sample, "anticlockwise")
+            self.add_ball_sample(parsed_sample, "clockwise")
         except ValueError:
             print(f"There is an error in the sample. Either reset detection zone, or manually copy the above sample and add it manually with AS")
 

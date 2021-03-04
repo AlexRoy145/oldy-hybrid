@@ -172,7 +172,7 @@ class CRMClient:
             if not msg.test_mode:
                 macro_count = 0
                 # sleep to make sure all bets get on before trying to refresh for kickout
-                time.sleep(7)
+                time.sleep(10)
                 if self.refresh_macro.is_screen_condition_true():
                     while True:
                         if macro_count > MAX_MACRO_COUNT:

@@ -11,7 +11,6 @@ from util import Util
 GREEN_LOWER = (29, 86, 6)
 GREEN_UPPER = (64, 255, 255)
 GIVE_UP_LOOKING_FOR_RAW = 10 #seconds
-TIME_FOR_STABLE_DIRECTION = 1.0 #seconds
 MAX_MISDETECTIONS_BEFORE_RESETTING_STATE = 60
 DIFF_RATIO = 9
 MORPH_KERNEL_RATIO = .0005
@@ -21,7 +20,7 @@ DELAY_FOR_RAW_UPDATE = .1
 class Rotor:
 
     @staticmethod
-    def start_capture(in_queue, out_queue, wheel_detection_zone, wheel_detection_area, wheel_center_point, reference_diamond_point, diff_thresh, rotor_angle_ellipse):
+    def start_capture(in_queue, out_queue, wheel_detection_zone, wheel_detection_area, wheel_center_point, reference_diamond_point, diff_thresh, rotor_angle_ellipse, time_for_stable_direction):
         # ROTOR VARS
         pts = deque(maxlen=LOOKBACK)
         current_direction = ""
@@ -180,7 +179,7 @@ class Rotor:
                             if direction_changed:
                                 direction_changed = False
                             else:
-                                if Util.time() - seen_direction_start_time > TIME_FOR_STABLE_DIRECTION:
+                                if Util.time() - seen_direction_start_time > time_for_stable_direction:
                                     direction_changed = True
                                     seen_direction_change_start_time = Util.time()
                                 else:
@@ -195,7 +194,7 @@ class Rotor:
                             if direction_changed:
                                 direction_changed = False
                             else:
-                                if Util.time() - seen_direction_start_time > TIME_FOR_STABLE_DIRECTION:
+                                if Util.time() - seen_direction_start_time > time_for_stable_direction:
                                     direction_changed = True
                                     seen_direction_change_start_time = Util.time()
                                 else:
@@ -207,7 +206,7 @@ class Rotor:
 
             if direction_changed:
                 duration = Util.time() - seen_direction_change_start_time
-                if duration > TIME_FOR_STABLE_DIRECTION:
+                if duration > time_for_stable_direction:
                     direction_change_stable = True
                     spin_start_time = Util.time()
                     # reset some state so this block doesn't happen again
