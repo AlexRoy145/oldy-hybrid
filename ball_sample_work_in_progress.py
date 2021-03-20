@@ -7,7 +7,8 @@ MINIMUM_REV_SPEED_FOR_DIFF = 750
 
 class Sample:
         
-        def __init__(self, full_sample, direction, averaged=False):
+        def __init__(self, full_sample, target_time, direction, averaged=False):
+            self.target_time = target_time
             self.full_sample = full_sample
             self.direction = direction
             if averaged:
@@ -26,9 +27,11 @@ class Sample:
         def adjust_sample(self):
             # TODO: miracle math to adjust sample to target time, then poly the result
             '''
-            ratio = self.full_sample[-1] / self.target_time
-            self.adjusted_sample = [int(round(x / ratio)) for x in self.full_sample]
+            ratio = self.target_time / self.full_sample[-1] 
+            self.adjusted_sample = [int(round(x * ratio)) for x in self.full_sample]
+            '''
 
+            '''
             poly_order = 5
             x = list(range(len(self.full_sample)))
             y = self.adjusted_sample
@@ -37,8 +40,17 @@ class Sample:
             self.adjusted_sample = [int(round(x)) for x in ffit]
             self.adjusted_sample[-1] = self.target_time
             '''
+
+            # the below does simple translation
+            '''
+            delta = self.full_sample[-1] - self.target_time
+            self.adjusted_sample = [x - delta for x in self.full_sample]
+            '''
+
+
             self.adjusted_sample = self.full_sample
             #return
+
             # normal averaging
             '''
             poly_order = 5
@@ -62,13 +74,13 @@ class BallSample:
 
     def __init__(self):
         # array of ints representing milliseconds of ball rev times
-        self.target_time = 2250
+        self.target_time = 2120
         self.end_difference_anti = 0
         self.end_difference_clock = 0
 
         initial_sample = [567, 601, 673, 746, 884, 1083, 1268, 1402, 1502, 1652, 1735, 1885, 2052]
-        initial_sample_anti = Sample(initial_sample, "anticlockwise")
-        initial_sample_clock = Sample(initial_sample, "clockwise")
+        initial_sample_anti = Sample(initial_sample, self.target_time, "anticlockwise")
+        initial_sample_clock = Sample(initial_sample, self.target_time, "clockwise")
 
         self.max_samples_anti = 4
         self.max_samples_clock = 4
@@ -97,34 +109,33 @@ class BallSample:
             rev_tolerance = self.rev_tolerance_clock
 
         if averaged_sample:
-            '''
             if observed_rev < averaged_sample[0]:
                 return -1
-            '''
-            differences = []
+
+            sample_idx = -1
             for i, sample_rev in enumerate(averaged_sample):
-                diff = abs(observed_rev - sample_rev)
-                differences.append(diff)
+                if i < len(averaged_sample) - 1:
+                    if observed_rev >= sample_rev and observed_rev <= averaged_sample[i+1]:
+                        sample_idx = i
+                        break
+                else:
+                    return -1
 
-            smallest_diff = min(differences)
-            lowest_idx = differences.index(smallest_diff)
+            sample_start_timing = averaged_sample[sample_idx]
+            sample_end_timing = averaged_sample[sample_idx+1]
 
-            revs_left = len(averaged_sample) - lowest_idx + 1
+            sample_diff = sample_end_timing - sample_start_timing
+            observed_diff = observed_rev - sample_start_timing
 
-            '''
-            if observed_rev > averaged_sample[lowest_idx]:
-                to_add = smallest_diff * revs_left
-            else:
-                to_add = -smallest_diff * revs_left
-            '''
-            to_add = 0
+            ball_ratio = observed_diff / sample_diff
+            print(f"Ball ratio: {ball_ratio:.2f}")
+            
+            first_add = int(round(sample_end_timing * (1 - ball_ratio)))
+            print(f"Added timing sum {first_add} instead of the next timing {sample_end_timing}")
 
-
-            if smallest_diff < rev_tolerance:
-                print(f"Associating observed timing {observed_rev} with sample timing {averaged_sample[lowest_idx]}")
-                return sum(averaged_sample[lowest_idx + 1:], to_add) + end_diff
-            else:
-                return -1
+            #print(f"Associating observed timing {observed_rev} with sample timing {averaged_sample[lowest_idx]}")
+            print(f"Summing the following: {averaged_sample[sample_idx+2:]} as well as {first_add}")
+            return sum(averaged_sample[sample_idx+2:], first_add) + end_diff
         else:
             return -1
 
@@ -150,7 +161,7 @@ class BallSample:
 
             # determine if sample is VPS correct
             if len(l) >= vps:
-                samples.append(Sample(new_sample, direction))
+                samples.append(Sample(new_sample, self.target_time, direction))
                 print(f"Sample updated: {new_sample}")
                 self.update_averaged_sample(direction)
             else:
@@ -184,7 +195,7 @@ class BallSample:
                 new_averaged_sample.append(averaged_rev)
 
             print(f"New averaged sample: {new_averaged_sample}")
-            averaged_sample = Sample(new_averaged_sample, direction)
+            averaged_sample = Sample(new_averaged_sample, self.target_time, direction, averaged=True)
 
         else:
             averaged_sample = []

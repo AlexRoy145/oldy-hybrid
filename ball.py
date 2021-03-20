@@ -147,30 +147,6 @@ class Ball:
                                 winsound.Beep(1000, 50)
                                 did_beep = True
 
-                        # fall accuracy evaluation
-                        if not ball_fall_out_queue.empty():
-                            ball_fall_out_msg = ball_fall_out_queue.get()
-                            out_queue.put({"state" : "ball_fell", "fall_point" : ball_fall_out_msg["fall_point"], "ball_revs" : ball_revs})
-                            fall_point = ball_fall_out_msg["fall_point"]
-                            true_ball_fall_timestamp = ball_fall_out_msg["timestamp"]
-                            expected_ball_fall_timestamp = fall_time_timestamp + fall_time / 1000
-                            diff = int((expected_ball_fall_timestamp - true_ball_fall_timestamp) * 1000)
-                            if diff <= 0:
-                                print(f"The ball fall beep was {-diff}ms early.")
-                            else:
-                                print(f"The ball fall beep was {diff}ms late.")
-
-                            # calculate how much time passed since last rev timing and when the ball fell
-                            fall_time_last_rev = int(round(true_ball_fall_timestamp * 1000 - timestamps[CENTER_ANGLE_IDX]))
-                            print(f"Fall time after last rev was {fall_time_last_rev} ms")
-                            current_ball_sample[-1] += fall_time_last_rev
-
-                            ball_fall_in_queue.put({"state" : "quit"})
-                            '''
-                            ball_fall_proc.join()
-                            ball_fall_proc.close()
-                            '''
-
                         if Util.time() - spin_start_time > MAX_SPIN_DURATION:
                             out_msg = {"state" : "ball_update", "current_ball_sample" : current_ball_sample, "fall_point" : fall_point, "ball_revs" : ball_revs}
                             out_queue.put(out_msg)
@@ -233,10 +209,12 @@ class Ball:
                                     else:
                                         rev_tol = ball_sample.rev_tolerance_clock
 
+                                    '''
                                     if (diamond_target_time_diff < 0 and diamond_target_time_diff >= -10) or (diamond_target_time_diff >= 0 and diamond_target_time_diff < rev_tol):
                                         print("clicking diamond")
                                         mouse.position = diamond_targeting_button_zone
                                         mouse.click(Button.left)
+                                    '''
 
                                     # increase refractory period as laps get slower
                                     if not previous_lap_time:
@@ -269,6 +247,8 @@ class Ball:
 
                                         if fall_time < 0:
                                             fall_time = ball_sample.get_fall_time_averaged(lap_time, direction)
+
+                                            
                                             '''
                                             if len(current_ball_sample) >= NUMBER_OF_CLICKS:
                                                 fall_time = ball_sample.get_fall_time(current_ball_sample[-NUMBER_OF_CLICKS:]) 
@@ -277,6 +257,17 @@ class Ball:
                                             #fall_time = ball_sample.get_fall_time_averaged(lap_time)
                                             #fall_time = ball_sample.get_fall_time(lap_time)
                                             if fall_time > 0:
+                                                center_angle_idx = len(angles) // 2
+                                                center_timestamp = timestamps[center_angle_idx]
+                                                if "a" in direction:
+                                                    last_timestamp = timestamps[-1]
+                                                else:
+                                                    last_timestamp = timestamps[0]
+
+                                                subtract_from_fall = abs(last_timestamp - center_timestamp)
+                                                fall_time -= subtract_from_fall
+                                                print(f"Fall adjustment: {subtract_from_fall}ms")
+
                                                 fall_time_timestamp = Util.time()
                                                 #print(f"FALL TIME CALCULATED TO BE {fall_time} MS FROM NOW")
                                                 out_msg = {"state": "fall_time_calculated",
@@ -287,7 +278,31 @@ class Ball:
                                 previous_angle = angle_from_ref
 
                                 break
+                        
+                        # fall accuracy evaluation
+                        if not ball_fall_out_queue.empty():
+                            ball_fall_out_msg = ball_fall_out_queue.get()
+                            out_queue.put({"state" : "ball_fell", "fall_point" : ball_fall_out_msg["fall_point"], "ball_revs" : ball_revs})
+                            fall_point = ball_fall_out_msg["fall_point"]
+                            true_ball_fall_timestamp = ball_fall_out_msg["timestamp"]
+                            expected_ball_fall_timestamp = fall_time_timestamp + fall_time / 1000
+                            diff = int((expected_ball_fall_timestamp - true_ball_fall_timestamp) * 1000)
+                            if diff <= 0:
+                                print(f"The ball fall beep was {-diff}ms early.")
+                            else:
+                                print(f"The ball fall beep was {diff}ms late.")
 
+                            # calculate how much time passed since last rev timing and when the ball fell
+                            center_angle_idx = len(angles) // 2
+                            fall_time_last_rev = int(round(true_ball_fall_timestamp * 1000 - timestamps[center_angle_idx]))
+                            print(f"Fall time after last rev was {fall_time_last_rev} ms")
+                            current_ball_sample[-1] += fall_time_last_rev
+
+                            ball_fall_in_queue.put({"state" : "quit"})
+                            '''
+                            ball_fall_proc.join()
+                            ball_fall_proc.close()
+                            '''
 
                 
                 if start_ball_timings:
@@ -348,7 +363,9 @@ class Ball:
 
     @staticmethod
     def reject_outliers(data, m = 6.):
-        #return data
+        all_same = all(ele == data[0] for ele in data) 
+        if all_same:
+            return data
         d = np.abs(data - np.mean(data))
         mdev = np.mean(d)
         s = d/mdev if mdev else 0.

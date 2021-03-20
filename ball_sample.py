@@ -33,6 +33,7 @@ class Sample:
 
         def adjust_sample(self):
             # adjust sample to target time
+            # The below uses multiplicative ratios
             '''
             ratio = self.target_time / self.full_sample[-1]
             self.adjusted_sample = [int(round(x * ratio)) for x in self.full_sample]
@@ -50,8 +51,14 @@ class Sample:
             self.adjusted_sample[-1] = self.target_time
             '''
 
+            # the below does simple translation
+            delta = self.full_sample[-1] - self.target_time
+            self.adjusted_sample = [x - delta for x in self.full_sample]
+
+            '''
             self.adjusted_sample = self.full_sample
             return
+            '''
 
             '''
             # normal averaging
@@ -76,7 +83,7 @@ class BallSample:
 
     def __init__(self):
         # array of ints representing milliseconds of ball rev times
-        self.target_time = 2230
+        self.target_time = 2120
         self.end_difference = 0
         initial_sample = [567, 601, 673, 746, 884, 1083, 1268, 1402, 1502, 1652, 1735, 1885, 2052]
         initial_sample = Sample(initial_sample, self.target_time)
@@ -277,7 +284,7 @@ class BallSample:
             plt.scatter(x, y)
 
             plt.xticks(range(1, longest_sample_len + 1))
-            plt.yticks(range(500, 2400, 100))
+            plt.yticks(range(500, 4000, 100))
             plt.xlabel("Revs")
             plt.ylabel("Rev duration in MS")
             plt.title("Samples")
