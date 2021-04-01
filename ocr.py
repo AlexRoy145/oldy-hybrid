@@ -428,7 +428,7 @@ class OCR:
                             self.ball_revs = ball_out_msg["ball_revs"]
                             
                             #TODO don't update with using steve's default sample
-                            #self.ball_sample.update_sample(current_ball_sample, direction)
+                            self.ball_sample.update_sample(current_ball_sample, direction)
                             #self.ball_sample.update_sample(current_ball_sample)
                             print(f"Sample: {current_ball_sample}")
                             self.most_recent_timings = current_ball_sample

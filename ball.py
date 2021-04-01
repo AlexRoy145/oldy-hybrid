@@ -1,3 +1,4 @@
+import autoit
 import cv2
 import imutils
 import multiprocessing as mp
@@ -179,9 +180,24 @@ class Ball:
                                 if not ball_in_detection_zone:
                                     timestamps, timings = Ball.measure_ball(direction, previous_angle, angle_from_ref, timestamps, timings, angles)
                                 #print(f"Timings: {timings}, Timestamps: {timestamps}")
+
+                                # if 0 is in between any two non-zero TIMESTAMPS, OR
+                                # depending on direction, if 0 is in the first or last timestamp and non-zero is after/before it,
+                                # reject the entire timing sequence.
+                                    '''
+                                    for i in range(1, len(timestamps) - 1):
+                                        if ((timestamps[i] == 0 and timestamps[i-1] != 0 and timestamps[i+1] != 0) or
+                                            ("a" in direction and timestamps[0] == 0 and timestamps[1] != 0) or
+                                            (not "a" in direction and timestamps[-1] == 0 and timestamps[-2] != 0)):
+                                            print(f"Rejected timings due to timing zone skip error: {timestamps}, {timings}")
+                                            timestamps = [0] * len(angles)
+                                            break
+                                    '''
+                                        
                                 
                                 if not 0 in timings or timings[len(angles) // 2] > DONT_NEED_AVERAGING_TIMING:
                                     now = int(round(Util.time() * 1000))
+                                    #autoit.send("z")
                                     diff = now - time_elapsed_since_frame
                                     if timings[len(angles) // 2] > DONT_NEED_AVERAGING_TIMING:
                                         lap_time = timings[len(angles) // 2] - diff
@@ -265,7 +281,7 @@ class Ball:
                                                     last_timestamp = timestamps[0]
 
                                                 subtract_from_fall = abs(last_timestamp - center_timestamp)
-                                                fall_time -= subtract_from_fall
+                                                #fall_time -= subtract_from_fall
                                                 print(f"Fall adjustment: {subtract_from_fall}ms")
 
                                                 fall_time_timestamp = Util.time()
@@ -335,7 +351,7 @@ class Ball:
                         if timestamps[i] != 0:
                             timings_to_return[i] = now - timestamps[i]
                 else:
-                    if angle_from_ref < angle and previous_angle > angle:
+                    if angle_from_ref < angle and previous_angle >= angle:
                         timestamps_to_return[i] = now
                         if timestamps[i] != 0:
                             timings_to_return[i] = now - timestamps[i]
@@ -351,7 +367,7 @@ class Ball:
                         if timestamps[i] != 0:
                             timings_to_return[i] = now - timestamps[i]
                 else:
-                    if angle_from_ref > angle and previous_angle < angle:
+                    if angle_from_ref > angle and previous_angle <= angle:
                         timestamps_to_return[i] = now
                         if timestamps[i] != 0:
                             timings_to_return[i] = now - timestamps[i]
