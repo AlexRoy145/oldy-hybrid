@@ -6,7 +6,7 @@ from clickbot import Clickbot
 from macro import Macro
 from ocr import OCR
 
-PROFILE_DIR = "../../../Documents/crm_saved_profiles"
+PROFILE_DIR = "C:/Users/AKurt/Documents/crm_saved_profiles"
 CLICKBOT_PROFILE = "profile.dat"
 MACRO_PROFILE = "macro.dat"
 OCR_PROFILE = "ocr.dat"

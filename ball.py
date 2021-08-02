@@ -423,6 +423,7 @@ class Ball:
                     ball_cnts = imutils.grab_contours(ball_cnts)
 
                     for c in ball_cnts:
+                        ball_fall_detected = True
                         M = cv2.moments(c)
                         center = int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"])
                         area = cv2.contourArea(c)
@@ -434,7 +435,7 @@ class Ball:
                         timestamp = Util.time()
                         print(f"BALL FALL DETECTED")
                         out_queue.put({"state" : "ball_fall_detected", "timestamp" : timestamp, "fall_point" : center})
-                        ball_fall_detected = True
+
 
                     '''
                     cv2.imshow(f"Ball Fall Detection", ball_thresh)

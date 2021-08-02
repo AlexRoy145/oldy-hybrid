@@ -16,7 +16,7 @@ from macro import Macro
 from scatter import Scatter
 from util import SpinData
 
-PROFILE_DIR = "../../../Documents/crm_saved_profiles"
+PROFILE_DIR = "C:/Users/AKurt/Documents/crm_saved_profiles"
 CLICKBOT_PROFILE = "profile.dat"
 ROTOR_ISOLATION_PROFILE = "rotor_isolation.json"
 OCR_PROFILE = "ocr.dat"

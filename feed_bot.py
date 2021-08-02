@@ -1,7 +1,7 @@
 import time
 from macro import Macro
 
-PROFILE_DIR = "../../../Documents/crm_saved_profiles"
+PROFILE_DIR = "C:/Users/AKurt/Documents/crm_saved_profiles"
 MACRO_PROFILE = "feed_macro.dat"
 
 SPIN_INTERVAL = 9
