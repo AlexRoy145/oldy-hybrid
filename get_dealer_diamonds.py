@@ -1,5 +1,5 @@
 import argparse
-import datetime 
+import datetime
 import pickle
 from scatter import Scatter
 from collections import Counter
@@ -13,6 +13,7 @@ MAX_BALL_REVS = 17
 MIN_ROTOR = 3500
 MAX_ROTOR = 6500
 MIN_C = .65
+
 
 def normalize_timestamp(timestamp):
     if timestamp.minute < 30:
@@ -43,19 +44,19 @@ def main():
     for datapoint in scatter['data']:
         # convert timestamp to EST
         timestamp_est = datapoint.timestamp + datetime.timedelta(hours=3)
-        timestamp_est = normalize_timestamp(timestamp_est) 
+        timestamp_est = normalize_timestamp(timestamp_est)
 
         # get the corresponding dealer
-        if not timestamp_est in timestamp_to_dealers:
+        if timestamp_est not in timestamp_to_dealers:
             # skip if data doesnt have corresponding dealer
             continue
         dealer = timestamp_to_dealers[timestamp_est]
-        if not dealer in dealers_to_data:
+        if dealer not in dealers_to_data:
             dealers_to_data[dealer] = [datapoint]
         else:
             dealers_to_data[dealer].append(datapoint)
 
-    #with open("dealer_info.csv^ 
+    # with open("dealer_info.csv^
     best_dealers = {}
     all_dealers = {}
 
@@ -74,7 +75,7 @@ def main():
 
         spins_anti = 0
         spins_clock = 0
-        
+
         for data in dealers_to_data[dealer]:
             diamond_hit = Scatter.convert_fall_point_to_diamond_hit(data.fall_zone, data.direction)
             if "a" in data.direction:
@@ -96,14 +97,15 @@ def main():
             if args.get_best:
                 if (MIN_BALL_REVS <= avg_revs_anti <= MAX_BALL_REVS and
                         MIN_ROTOR <= avg_rotor_anti <= MAX_ROTOR and
-                    c_proportion_anti >= MIN_C):
-                    
-                    dealer_str = f"{dealer_clean}'s ANTI diamond counts: {diamond_counts_anti}. C Proportion: {c_proportion_anti_str}. Avg Ball Revs: {avg_revs_anti}. Avg Rotor: {avg_rotor_anti}"
+                        c_proportion_anti >= MIN_C):
+                    dealer_str = f"{dealer_clean}'s ANTI diamond counts: {diamond_counts_anti}. C Proportion\
+                    : {c_proportion_anti_str}. Avg Ball Revs: {avg_revs_anti}. Avg Rotor: {avg_rotor_anti}"
                     best_dealers[dealer_clean] = dealer_str
                     print(dealer_str)
                     print()
             else:
-                dealer_str = f"{dealer_clean}'s ANTI diamond counts: {diamond_counts_anti}. C Proportion: {c_proportion_anti_str}. Avg Ball Revs: {avg_revs_anti}. Avg Rotor: {avg_rotor_anti}"
+                dealer_str = f"{dealer_clean}'s ANTI diamond counts: {diamond_counts_anti}. C Proportion\
+                : {c_proportion_anti_str}. Avg Ball Revs: {avg_revs_anti}. Avg Rotor: {avg_rotor_anti}"
                 print(dealer_str)
                 all_dealers[dealer_clean] = dealer_str
 
@@ -113,8 +115,9 @@ def main():
                 avg_rotor_clock = int(round(rotor_speed_clock / spins_anti))
                 c_proportion_clock = diamond_counts_clock["C"] / sum(diamond_counts_clock.values())
                 c_proportion_clock = "{0:.0%}".format(c_proportion_clock)
-                print(f"{dealer}'s CLOCK diamond counts: {diamond_counts_clock}. C Proportion: {c_proportion_clock}. Avg Ball Revs: {avg_revs_clock}. Avg Rotor: {avg_rotor_clock}")
-
+                print(
+                    f"{dealer}'s CLOCK diamond counts: {diamond_counts_clock}. C Proportion: {c_proportion_clock}. \
+                    Avg Ball Revs: {avg_revs_clock}. Avg Rotor: {avg_rotor_clock}")
 
     with open(ALL_DEALERS_FILE, "wb") as f:
         pickle.dump(all_dealers, f)
@@ -126,5 +129,6 @@ def main():
 
         with open(BEST_DEALER_DAT, "wb") as f:
             pickle.dump(best_dealers, f)
+
 
 main()

@@ -1,7 +1,6 @@
 import argparse
 import discord
 import os
-import requests
 import time
 import threading
 import pickle
@@ -30,6 +29,7 @@ MAX_MACRO_COUNT = 2
 # in minutes
 CHECK_INTERVAL = 15
 
+
 class CRMClient:
 
     def alert(self, msg):
@@ -47,13 +47,13 @@ class CRMClient:
         self.username = username
         self.password = password
         load_dotenv()
-        WEBHOOK_ID = os.getenv("WEBHOOK_ID")
-        WEBHOOK_TOKEN = os.getenv("WEBHOOK_TOKEN")
-        self.webhook = discord.Webhook.partial(WEBHOOK_ID, WEBHOOK_TOKEN, adapter=discord.RequestsWebhookAdapter())
+        webhook_id = os.getenv("WEBHOOK_ID")
+        webhook_token = os.getenv("WEBHOOK_TOKEN")
+        self.webhook = discord.Webhook.partial(webhook_id, webhook_token, adapter=discord.RequestsWebhookAdapter())
         self.hostname = gethostname()
 
         self.resize_cmd_window()
-        #self.resize_betting_window()
+        # self.resize_betting_window()
 
         # error metrics
         self.refreshes_used = 0
@@ -61,18 +61,20 @@ class CRMClient:
         self.time_received_last_msg = time.time()
 
         self.clickbot = Clickbot(PROFILE_DIR)
+        self.app_thread = None
         if not self.clickbot.load_profile(CLICKBOT_PROFILE):
             print("Could not find profile. Setting up from scratch.")
             self.clickbot.set_clicks()
             self.clickbot.save_profile(CLICKBOT_PROFILE)
-        
+
         self.ocr = OCR(PROFILE_DIR)
         if not self.ocr.load_profile(OCR_PROFILE):
             print("Could not find ocr data. Setting up from scratch.")
             self.ocr.set_screenshot_zone()
             self.ocr.save_profile(OCR_PROFILE)
 
-        # the refresh macro is created just to check screen condition of red outside bet, but it's as simple as sending f5 key so we don't record anything
+        # the refresh macro is created just to check screen condition of red outside bet, but it's as simple as
+        # sending f5 key so we don't record anything
         self.refresh_macro_name = f"refresh_macro.dat"
         self.refresh_macro = Macro(REFRESH_MACRO_DIR)
         if not self.refresh_macro.load_profile(self.refresh_macro_name):
@@ -88,7 +90,6 @@ class CRMClient:
 
             self.signin_macro.execute_macro(site=self.site, username=self.username, password=self.password)
 
-
         self.resize_betting_window()
 
         # TODO temporary to test macro functionality
@@ -98,8 +99,7 @@ class CRMClient:
             self.resize_betting_window()
         '''
 
-
-        #input("Press ENTER when ready to connect to server and to resize the betting window:")
+        # input("Press ENTER when ready to connect to server and to resize the betting window:")
         self.resize_betting_window()
         self.client = Client(self.server_ips, self.server_port)
         self.client.connect_to_server()
@@ -109,8 +109,6 @@ class CRMClient:
             self.signin_macro.execute_macro(site=self.site, username=self.username, password=self.password)
             self.resize_betting_window()
         '''
-
-
 
     def run(self):
         self.app_thread = threading.Thread(target=self.start_app, args=())
@@ -126,7 +124,8 @@ class CRMClient:
                     self.alert(f"WARNING: Used {self.refreshes_used} refreshes in the past {CHECK_INTERVAL} minutes.")
 
                 if self.error_count > 5:
-                    self.alert(f"WARNING: Received {self.error_count} misdetected predictions in the past {CHECK_INTERVAL} minutes.")
+                    self.alert(f"WARNING: Received {self.error_count} misdetected predictions in the past 
+                    {CHECK_INTERVAL} minutes.")
 
                 time_since_last_msg = int((time.time() - self.time_received_last_msg) / 60)
                 if time_since_last_msg >= CHECK_INTERVAL:
@@ -136,7 +135,6 @@ class CRMClient:
                 self.error_count = 0
                 duration = 0
             '''
-
 
     def start_app(self):
         k = Controller()
@@ -158,7 +156,6 @@ class CRMClient:
                     self.ocr.take_screenshot(SCREENSHOT_FILE)
                     self.send_screenshot("RESULTS OF SIGNIN MACRO")
                 continue
-                
 
             if msg.test_mode:
                 print("TEST MODE, NOT CLICKING.")
@@ -176,7 +173,9 @@ class CRMClient:
                 if self.refresh_macro.is_screen_condition_true():
                     while True:
                         if macro_count > MAX_MACRO_COUNT:
-                            err = f"CRITICAL: Used macro {macro_count} times in a row and CRM Client still can't see the betting board. CRM Client had to quit because it doesn't know what to do. Log in and fix."
+                            err = f"CRITICAL: Used macro {macro_count} times in a row and CRM Client still can't see \
+                            the betting board. CRM Client had to quit because it doesn't know what to do. \
+                            Log in and fix."
                             print(err)
                             self.alert(err)
                             self.client.close()
@@ -199,8 +198,8 @@ class CRMClient:
             self.send_screenshot(msg.seq_num)
             '''
 
-
-    def resize_betting_window(self):
+    @staticmethod
+    def resize_betting_window():
         def callback(handle, data):
             title = win32gui.GetWindowText(handle).lower()
             # try to also size the other browser windows
@@ -215,8 +214,8 @@ class CRMClient:
         else:
             print("Could not find appropriate window to resize.")
 
-
-    def resize_cmd_window(self):
+    @staticmethod
+    def resize_cmd_window():
         def callback(handle, data):
             title = win32gui.GetWindowText(handle).lower()
             if "command prompt" in title or "cmd" in title or "login" in title:
@@ -230,12 +229,13 @@ class CRMClient:
             print("Could not find appropriate window to resize.")
 
 
-
 def main():
     parser = argparse.ArgumentParser(description="Run the client betting program.")
     parser.add_argument("--server-ips", nargs="+", help="REQUIRED: The server IP addresses.")
     parser.add_argument("--server-port", type=int, help="REQUIRED: The server's port.")
-    parser.add_argument("--site-url", type=str, help="The url of the site (do NOT include www, but include the .com or .ag or .eu) for use with signin macros")
+    parser.add_argument("--site-url", type=str,
+                        help="The url of the site (do NOT include www, but include the .com or .ag or .eu) \
+                        for use with signin macros")
     parser.add_argument("--username", type=str, help="The username to use for the website for the signin macro.")
     parser.add_argument("--password", type=str, help="The password to use for the website for the signin macro.")
     args = parser.parse_args()
@@ -245,5 +245,6 @@ def main():
         app.run()
     except KeyboardInterrupt:
         exit()
+
 
 main()

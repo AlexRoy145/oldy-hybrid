@@ -4,14 +4,14 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-opencv-python = "*"
-imutils = "*"
-numpy = "*"
-pillow = "*"
-pynput = "*"
+opencv-python = "~=4.5.3.56"
+imutils = "~=0.5.4"
+numpy = "~=1.21.1"
+pillow = "~=8.3.1"
+pynput = "~=1.7.3"
 pyautoit = "*"
-mss = "*"
-matplotlib = "*"
+mss = "~=6.1.0"
+matplotlib = "~=3.4.2"
 
 [dev-packages]
 

@@ -13,28 +13,28 @@ a prediction/association algorithm that accounts for the default
 sample algorithm
 '''
 
+
 class Sample:
-        
-        def __init__(self, full_sample, target_time, averaged=False):
-            self.full_sample = full_sample
-            self.target_time = target_time
-            if averaged:
-                self.adjusted_sample = full_sample
-            else:
-                self.adjust_sample()
 
+    def __init__(self, full_sample, target_time, averaged=False):
+        self.full_sample = full_sample
+        self.target_time = target_time
+        if averaged:
+            self.adjusted_sample = full_sample
+        else:
+            self.adjust_sample()
 
-        def get_trimmed_sample(self, vps):
-            diff = len(self.adjusted_sample) - vps
-            if diff > 0:
-                return self.adjusted_sample[diff:]
-            else:
-                return self.adjusted_sample
+    def get_trimmed_sample(self, vps):
+        diff = len(self.adjusted_sample) - vps
+        if diff > 0:
+            return self.adjusted_sample[diff:]
+        else:
+            return self.adjusted_sample
 
-        def adjust_sample(self):
-            # adjust sample to target time
-            # The below uses multiplicative ratios
-            '''
+    def adjust_sample(self):
+        # adjust sample to target time
+        # The below uses multiplicative ratios
+        '''
             ratio = self.target_time / self.full_sample[-1]
             self.adjusted_sample = [int(round(x * ratio)) for x in self.full_sample]
 
@@ -51,16 +51,16 @@ class Sample:
             self.adjusted_sample[-1] = self.target_time
             '''
 
-            # the below does simple translation
-            delta = self.full_sample[-1] - self.target_time
-            self.adjusted_sample = [x - delta for x in self.full_sample]
+        # the below does simple translation
+        delta = self.full_sample[-1] - self.target_time
+        self.adjusted_sample = [x - delta for x in self.full_sample]
 
-            '''
+        '''
             self.adjusted_sample = self.full_sample
             return
             '''
 
-            '''
+        '''
             # normal averaging
             poly_order = 5
             x = list(range(len(self.full_sample)))
@@ -70,13 +70,11 @@ class Sample:
             self.adjusted_sample = [int(round(x)) for x in ffit]
             '''
 
+    def __len__(self):
+        return len(self.full_sample)
 
-        def __len__(self):
-            return len(self.full_sample)
-
-
-        def __str__(self):
-            return str(self.full_sample)
+    def __str__(self):
+        return str(self.full_sample)
 
 
 class BallSample:
@@ -93,7 +91,6 @@ class BallSample:
         self.averaged_sample = self.samples[0]
         self.vps = 10
         self.rev_tolerance = 50
-
 
     def get_fall_time_averaged(self, observed_rev):
         if self.averaged_sample:
@@ -112,7 +109,6 @@ class BallSample:
                     diff = abs(sample_rev - observed_rev)
                     differences.append(diff)
 
-
                 smallest_diff = min(differences)
                 lowest_idx = differences.index(smallest_diff)
 
@@ -126,15 +122,15 @@ class BallSample:
                 to_subtract = 0
 
                 if smallest_diff < self.rev_tolerance:
-                    print(f"Associating observed timing {observed_rev} with sample timing {averaged_sample[lowest_idx]}")
-                    return sum(averaged_sample[lowest_idx+1:], to_subtract) + self.end_difference
+                    print(
+                        f"Associating observed timing {observed_rev} with sample timing {averaged_sample[lowest_idx]}")
+                    return sum(averaged_sample[lowest_idx + 1:], to_subtract) + self.end_difference
                 else:
                     return -1
             else:
                 return -1
         else:
             return -1
-
 
     '''
     def get_fall_time_averaged(self, observed_rev):
@@ -180,26 +176,26 @@ class BallSample:
                 lowest_idx = sample_diff.index(smallest_diff)
 
                 if smallest_diff < self.rev_tolerance:
-                    results.append({"sample_idx" : i,
-                                    "smallest_diff" : smallest_diff,
-                                    "rev_idx" : lowest_idx})
+                    results.append({"sample_idx": i,
+                                    "smallest_diff": smallest_diff,
+                                    "rev_idx": lowest_idx})
 
             results.sort(key=lambda x: x["smallest_diff"])
             if results:
                 best_result = results[0]
                 sample = self.samples[best_result["sample_idx"]].get_trimmed_sample(self.vps)
                 sample_rev = best_result["rev_idx"]
-                print(f"Using sample #{best_result['sample_idx']}: {sample} and rev {sample[sample_rev]} for prediction.")
+                print(
+                    f"Using sample #{best_result['sample_idx']}: {sample} and rev {sample[sample_rev]} for prediction.")
                 return sum(sample[sample_rev + 1:]) + self.end_difference
             else:
                 return -1
         else:
             return -1
 
-    
     def update_sample(self, new_sample):
         # determine if monotonic
-        l = new_sample
+        l_sample = new_sample
         '''
         if l[-1] > self.target_time:
             print("Not updating ball sample because last timing is greater than target time.")
@@ -207,21 +203,21 @@ class BallSample:
             return
         '''
 
-        if all(l[i] <= l[i+1] for i in range(len(l)-1)):
+        if all(l_sample[i] <= l_sample[i + 1] for i in range(len(l_sample) - 1)):
 
             # determine if sample is VPS correct
-            if len(l) >= self.vps:
+            if len(l_sample) >= self.vps:
                 self.samples.append(Sample(new_sample, self.target_time))
                 print(f"Sample updated: {new_sample}")
                 self.update_averaged_sample()
             else:
-                print(f"Not updating ball sample because last spin had {len(l)} vps, but sample VPS is {self.vps}.")
+                print(f"Not updating ball sample because last spin had {len(l_sample)} vps, " +
+                      f"but sample VPS is {self.vps}.")
                 print(f"Sample: {new_sample}")
 
         else:
             print(f"Not updating ball sample because sample was not monotonically increasing.")
             print(f"Sample: {new_sample}")
-
 
     def update_averaged_sample(self):
         new_averaged_sample = []
@@ -243,7 +239,6 @@ class BallSample:
         else:
             self.averaged_sample = []
 
-
     def change_vps(self, new_vps):
         if new_vps > self.vps:
             print(f"Older samples with values fewer than {new_vps} will be deleted.")
@@ -256,10 +251,8 @@ class BallSample:
 
             self.samples = new_samples
 
-
         self.vps = new_vps
         self.update_averaged_sample()
-
 
     def change_max_samples(self, new_max_samples):
         new_deque = deque(maxlen=new_max_samples)
@@ -268,19 +261,18 @@ class BallSample:
         self.samples = new_deque
         self.update_averaged_sample()
 
-
     def graph_samples(self):
         if self.samples:
             longest_sample_len = max([len(x.full_sample) for x in self.samples])
             for i, sample in enumerate(self.samples):
                 x = list(range(longest_sample_len, longest_sample_len - len(sample.full_sample), -1))[::-1]
                 y = sample.adjusted_sample
-                plt.plot(x, y, label = f"Sample #{i}")
+                plt.plot(x, y, label=f"Sample #{i}")
                 plt.scatter(x, y)
 
             x = list(range(longest_sample_len, longest_sample_len - len(self.averaged_sample.full_sample), -1))[::-1]
             y = self.averaged_sample.adjusted_sample
-            plt.plot(x, y, label = f"Averaged Sample")
+            plt.plot(x, y, label=f"Averaged Sample")
             plt.scatter(x, y)
 
             plt.xticks(range(1, longest_sample_len + 1))

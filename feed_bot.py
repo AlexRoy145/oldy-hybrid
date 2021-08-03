@@ -7,8 +7,8 @@ MACRO_PROFILE = "feed_macro.dat"
 SPIN_INTERVAL = 9
 SLEEP_SECONDS = 50
 
-def main():
 
+def main():
     macro = Macro(PROFILE_DIR)
     if not macro.load_profile(MACRO_PROFILE):
         macro.set_screen_condition(green=True)
@@ -29,5 +29,6 @@ def main():
 
     except KeyboardInterrupt:
         exit()
+
 
 main()

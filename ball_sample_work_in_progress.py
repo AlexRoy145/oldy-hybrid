@@ -5,33 +5,33 @@ from collections import deque
 
 MINIMUM_REV_SPEED_FOR_DIFF = 750
 
+
 class Sample:
-        
-        def __init__(self, full_sample, target_time, direction, averaged=False):
-            self.target_time = target_time
-            self.full_sample = full_sample
-            self.direction = direction
-            if averaged:
-                self.adjusted_sample = full_sample
-            else:
-                self.adjust_sample()
 
+    def __init__(self, full_sample, target_time, direction, averaged=False):
+        self.target_time = target_time
+        self.full_sample = full_sample
+        self.direction = direction
+        if averaged:
+            self.adjusted_sample = full_sample
+        else:
+            self.adjust_sample()
 
-        def get_trimmed_sample(self, vps):
-            diff = len(self.adjusted_sample) - vps
-            if diff > 0:
-                return self.adjusted_sample[diff:]
-            else:
-                return self.adjusted_sample
+    def get_trimmed_sample(self, vps):
+        diff = len(self.adjusted_sample) - vps
+        if diff > 0:
+            return self.adjusted_sample[diff:]
+        else:
+            return self.adjusted_sample
 
-        def adjust_sample(self):
-            # TODO: miracle math to adjust sample to target time, then poly the result
-            '''
+    def adjust_sample(self):
+        # TODO: miracle math to adjust sample to target time, then poly the result
+        '''
             ratio = self.target_time / self.full_sample[-1] 
             self.adjusted_sample = [int(round(x * ratio)) for x in self.full_sample]
             '''
 
-            '''
+        '''
             poly_order = 5
             x = list(range(len(self.full_sample)))
             y = self.adjusted_sample
@@ -41,18 +41,17 @@ class Sample:
             self.adjusted_sample[-1] = self.target_time
             '''
 
-            # the below does simple translation
-            '''
+        # the below does simple translation
+        '''
             delta = self.full_sample[-1] - self.target_time
             self.adjusted_sample = [x - delta for x in self.full_sample]
             '''
 
+        self.adjusted_sample = self.full_sample
+        # return
 
-            self.adjusted_sample = self.full_sample
-            #return
-
-            # normal averaging
-            '''
+        # normal averaging
+        '''
             poly_order = 5
             x = list(range(len(self.full_sample)))
             y = self.full_sample
@@ -61,13 +60,11 @@ class Sample:
             self.adjusted_sample = [int(round(x)) for x in ffit]
             '''
 
+    def __len__(self):
+        return len(self.full_sample)
 
-        def __len__(self):
-            return len(self.full_sample)
-
-
-        def __str__(self):
-            return str(self.full_sample)
+    def __str__(self):
+        return str(self.full_sample)
 
 
 class BallSample:
@@ -97,7 +94,6 @@ class BallSample:
         self.rev_tolerance_anti = 50
         self.rev_tolerance_clock = 50
 
-
     def get_fall_time_averaged(self, observed_rev, direction):
         if "a" in direction:
             averaged_sample = self.averaged_sample_anti.get_trimmed_sample(self.vps_anti)
@@ -122,27 +118,26 @@ class BallSample:
                     return -1
 
             sample_start_timing = averaged_sample[sample_idx]
-            sample_end_timing = averaged_sample[sample_idx+1]
+            sample_end_timing = averaged_sample[sample_idx + 1]
 
             sample_diff = sample_end_timing - sample_start_timing
             observed_diff = observed_rev - sample_start_timing
 
             ball_ratio = observed_diff / sample_diff
             print(f"Ball ratio: {ball_ratio:.2f}")
-            
+
             first_add = int(round(sample_end_timing * (1 - ball_ratio)))
             print(f"Added timing sum {first_add} instead of the next timing {sample_end_timing}")
 
-            #print(f"Associating observed timing {observed_rev} with sample timing {averaged_sample[lowest_idx]}")
-            print(f"Summing the following: {averaged_sample[sample_idx+2:]} as well as {first_add}")
-            return sum(averaged_sample[sample_idx+2:], first_add) + end_diff
+            # print(f"Associating observed timing {observed_rev} with sample timing {averaged_sample[lowest_idx]}")
+            print(f"Summing the following: {averaged_sample[sample_idx + 2:]} as well as {first_add}")
+            return sum(averaged_sample[sample_idx + 2:], first_add) + end_diff
         else:
             return -1
 
-    
     def update_sample(self, new_sample, direction):
         # determine if monotonic
-        l = new_sample
+        l_sample = new_sample
         '''
         if l[-1] > self.target_time:
             print("Not updating ball sample because last timing is greater than target time.")
@@ -157,21 +152,20 @@ class BallSample:
             samples = self.samples_clock
             vps = self.vps_clock
 
-        if all(l[i] <= l[i+1] for i in range(len(l)-1)):
+        if all(l_sample[i] <= l_sample[i + 1] for i in range(len(l_sample) - 1)):
 
             # determine if sample is VPS correct
-            if len(l) >= vps:
+            if len(l_sample) >= vps:
                 samples.append(Sample(new_sample, self.target_time, direction))
                 print(f"Sample updated: {new_sample}")
                 self.update_averaged_sample(direction)
             else:
-                print(f"Not updating ball sample because last spin had {len(l)} vps, but sample VPS is {vps}.")
+                print(f"Not updating ball sample because last spin had {len(l_sample)} vps, but sample VPS is {vps}.")
                 print(f"Sample: {new_sample}")
 
         else:
             print(f"Not updating ball sample because sample was not monotonically increasing.")
             print(f"Sample: {new_sample}")
-
 
     def update_averaged_sample(self, direction):
         if "a" in direction:
@@ -205,7 +199,6 @@ class BallSample:
         else:
             self.averaged_sample_clock = averaged_sample
 
-
     def change_vps(self, new_vps, direction):
         if "a" in direction:
             vps = self.vps_anti
@@ -230,14 +223,12 @@ class BallSample:
             else:
                 self.samples_clock = new_samples
 
-
         if "a" in direction:
             self.vps_anti = new_vps
         else:
             self.vps_clock = new_vps
 
         self.update_averaged_sample(direction)
-
 
     def change_max_samples(self, new_max_samples, direction):
         if "a" in direction:
@@ -247,7 +238,7 @@ class BallSample:
 
         new_deque = deque(maxlen=new_max_samples)
         new_deque.extend(samples)
-        
+
         if "a" in direction:
             self.max_samples_anti = new_max_samples
             self.samples_anti = new_deque
@@ -256,7 +247,6 @@ class BallSample:
             self.samples_clock = new_deque
 
         self.update_averaged_sample(direction)
-
 
     def graph_samples(self, direction):
         if "a" in direction:
@@ -271,12 +261,12 @@ class BallSample:
             for i, sample in enumerate(samples):
                 x = list(range(longest_sample_len, longest_sample_len - len(sample.full_sample), -1))[::-1]
                 y = sample.adjusted_sample
-                plt.plot(x, y, label = f"Sample #{i}")
+                plt.plot(x, y, label=f"Sample #{i}")
                 plt.scatter(x, y)
 
             x = list(range(longest_sample_len, longest_sample_len - len(averaged_sample.full_sample), -1))[::-1]
             y = averaged_sample.adjusted_sample
-            plt.plot(x, y, label = f"Averaged Sample")
+            plt.plot(x, y, label=f"Averaged Sample")
             plt.scatter(x, y)
 
             plt.xticks(range(1, longest_sample_len + 1))

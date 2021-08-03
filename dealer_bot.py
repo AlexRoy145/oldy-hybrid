@@ -21,14 +21,17 @@ OCR_PROFILE_ALERT = "dealer_ocr.dat.alert"
 
 DEALER_TIMES_FILE = os.path.join(PROFILE_DIR, "dealer_times.dat")
 
+
 def serialize(time_dealer_map):
     with open(DEALER_TIMES_FILE, "wb") as f:
         pickle.dump(time_dealer_map, f)
+
 
 def view(time_dealer_map):
     timestamps = sorted(list(time_dealer_map.keys()))
     for timestamp in timestamps:
         print(f"{calendar.day_name[timestamp.weekday()]},{timestamp},{time_dealer_map[timestamp]}")
+
 
 def add_dealers_to_dict(time_dealer_map):
     while True:
@@ -42,7 +45,7 @@ def add_dealers_to_dict(time_dealer_map):
             print(f"User quit.")
             serialize(time_dealer_map)
             return
-            
+
 
 def normalize_timestamp(timestamp):
     if timestamp.minute < 30:
@@ -57,13 +60,21 @@ def normalize_timestamp(timestamp):
 
 
 def main():
-
-    parser = argparse.ArgumentParser(description="Run the dealer bot that logs in and checks what dealer is playing in 30 mins")
-    parser.add_argument("--site-url", type=str, help="The url of the site (do NOT include www, but include the .com or .ag or .eu) for use with signin macros")
+    parser = argparse.ArgumentParser(
+        description="Run the dealer bot that logs in and checks what dealer is playing in 30 mins"
+    )
+    parser.add_argument(
+        "--site-url", type=str,
+        help="The url of the site (do NOT include www, but include the .com or .ag or .eu) for use with signin macros"
+    )
     parser.add_argument("--username", type=str, help="The username to use for the website for the signin macro.")
     parser.add_argument("--password", type=str, help="The password to use for the website for the signin macro.")
-    parser.add_argument("--record-dealers", action="store_true", help="Specify recording dealers to data file for later analysis")
-    parser.add_argument("--add", action="store_true", help="Add dealers to the timestamp dealer dictionary interactively")
+    parser.add_argument(
+        "--record-dealers", action="store_true", help="Specify recording dealers to data file for later analysis"
+    )
+    parser.add_argument(
+        "--add", action="store_true", help="Add dealers to the timestamp dealer dictionary interactively"
+    )
     parser.add_argument("--view", action="store_true", help="View the timestamp to dealer dictionary.")
     args = parser.parse_args()
 
@@ -87,9 +98,9 @@ def main():
         ocr.save_profile(ocr_profile)
 
     load_dotenv()
-    WEBHOOK_ID = os.getenv("WEBHOOK_ID")
-    WEBHOOK_TOKEN = os.getenv("WEBHOOK_TOKEN")
-    webhook = discord.Webhook.partial(WEBHOOK_ID, WEBHOOK_TOKEN, adapter=discord.RequestsWebhookAdapter())
+    webhook_id = os.getenv("WEBHOOK_ID")
+    webhook_token = os.getenv("WEBHOOK_TOKEN")
+    webhook = discord.Webhook.partial(webhook_id, webhook_token, adapter=discord.RequestsWebhookAdapter())
 
     i = 0
     time_dealer_map = {}
@@ -111,9 +122,9 @@ def main():
                 now = datetime.now()
                 minute = now.minute
                 if minute == 3 or minute == 33:
-                #if True:
+                    # if True:
                     macro.execute_macro(site=args.site_url, username=args.username, password=args.password)
-                
+
                     # capture dealer name
                     dealer_name = ocr.read(zone=ocr.dealer_name_zone, get_letters=True, pageseg=8, invert=True)
                     if dealer_name:
@@ -152,32 +163,39 @@ def main():
             try:
                 # execute on the 2nd minute and 32nd minute of each hour
                 now = datetime.now()
-                minute = now.minute        
+                minute = now.minute
                 future_by_30 = now + timedelta(minutes=30)
                 normalized_timestamp_future = normalize_timestamp(future_by_30)
 
                 if minute == 4 or minute == 34:
                     macro.execute_macro(site=args.site_url, username=args.username, password=args.password)
-                    
+
                     # capture dealer name
                     dealer_name = ocr.read(zone=ocr.dealer_name_zone, get_letters=True, pageseg=8, invert=True)
-                    dealer_name = dealer_name.replace("‘", "").replace(".", "").replace(",", "").replace("\n","")
+                    dealer_name = dealer_name.replace("‘", "").replace(".", "").replace(",", "").replace("\n", "")
                     print(dealer_name)
                     found = False
                     time_dealer_map[normalized_timestamp_future] = dealer_name
                     serialize(time_dealer_map)
-                    for dealer_name_key in best_dealer_dict.keys():     
+                    for dealer_name_key in best_dealer_dict.keys():
                         if dealer_name.lower() in dealer_name_key.lower():
                             found = True
-                            webhook.send(f"ATTENTION! {dealer_name} will be dealing roulette in 30 minutes.\n{best_dealer_dict[dealer_name]}")
+                            webhook.send(
+                                f"""ATTENTION! {dealer_name} 
+will be dealing roulette in 30 minutes.\n{best_dealer_dict[dealer_name]}"""
+                            )
                     if not found:
                         try:
-                            webhook.send(f"{dealer_name} will be dealing roulette in 30 minutes.\n{all_dealers_dict[dealer_name]}")
+                            webhook.send(
+                                f"{dealer_name} will be dealing roulette in 30\
+                                 minutes.\n{all_dealers_dict[dealer_name]"
+                            )
                         except KeyError:
                             webhook.send(f"Unknown dealer {dealer_name} will be dealing roulette in 30 minutes.")
 
                 time.sleep(60)
             except KeyboardInterrupt:
                 exit()
+
 
 main()

@@ -8,20 +8,21 @@ from PIL import Image
 from util import Util
 from pynput.keyboard import Key, Controller
 
-
 GREEN_LOWER = (29, 86, 6)
 GREEN_UPPER = (64, 255, 255)
-GIVE_UP_LOOKING_FOR_RAW = 10 #seconds
+GIVE_UP_LOOKING_FOR_RAW = 10  # seconds
 MAX_MISDETECTIONS_BEFORE_RESETTING_STATE = 60
 DIFF_RATIO = 9
 MORPH_KERNEL_RATIO = .0005
 LOOKBACK = 30
 DELAY_FOR_RAW_UPDATE = .1
 
+
 class Rotor:
 
     @staticmethod
-    def start_capture(in_queue, out_queue, wheel_detection_zone, wheel_detection_area, wheel_center_point, reference_diamond_point, diff_thresh, rotor_angle_ellipse, time_for_stable_direction):
+    def start_capture(in_queue, out_queue, wheel_detection_zone, wheel_detection_area, wheel_center_point,
+                      reference_diamond_point, diff_thresh, rotor_angle_ellipse, time_for_stable_direction):
         # ROTOR VARS
         pts = deque(maxlen=LOOKBACK)
         current_direction = ""
@@ -33,13 +34,13 @@ class Rotor:
         direction_changed = False
         direction_confirmed = False
         misdetections = 0
-        kernel_size = int((MORPH_KERNEL_RATIO * wheel_detection_area)**.5)
+        kernel_size = int((MORPH_KERNEL_RATIO * wheel_detection_area) ** .5)
 
         counter = 0
         frames_seen = 0
         bbox = wheel_detection_zone
-        width = bbox[2]-bbox[0]
-        height = bbox[3]-bbox[1]
+        width = bbox[2] - bbox[0]
+        height = bbox[3] - bbox[1]
         wheel_center = wheel_center_point
         ref_diamond = reference_diamond_point
 
@@ -55,7 +56,7 @@ class Rotor:
         fall_time = -1
         fall_time_timestamp = -1
         sent_fall = False
-        EPSILON = 50 #ms
+        epsilon = 50  # ms
 
         while True:
             if in_queue.empty():
@@ -73,7 +74,6 @@ class Rotor:
                 if "fall_time" in in_msg:
                     fall_time = in_msg["fall_time"]
                     fall_time_timestamp = in_msg["fall_time_timestamp"]
-            
 
             blurred = cv2.GaussianBlur(frame, (11, 11), 0)
             hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
@@ -82,24 +82,24 @@ class Rotor:
             mask = cv2.erode(mask, None, iterations=2)
             mask = cv2.dilate(mask, None, iterations=2)
 
-            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size,kernel_size)));
+            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE,
+                                    cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size)));
 
             cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             cnts = imutils.grab_contours(cnts)
-
 
             center = None
             if len(cnts) > 0:
                 c = max(cnts, key=cv2.contourArea)
                 ((x, y), radius) = cv2.minEnclosingCircle(c)
-                M = cv2.moments(c)
-                center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+                m = cv2.moments(c)
+                center = (int(m["m10"] / m["m00"]), int(m["m01"] / m["m00"]))
                 # only proceed if the radius meets a minimum size
                 if radius > 10:
                     # draw the circle and centroid on the frame,
                     # then update the list of tracked points
                     cv2.circle(frame, (int(x), int(y)), int(radius),
-                            (0, 255, 255), 2)
+                               (0, 255, 255), 2)
                     cv2.circle(frame, center, 5, (0, 0, 255), -1)
                     # update the points queue
                     pts.appendleft(center)
@@ -107,11 +107,10 @@ class Rotor:
                     # Code to determine if we need to send rotor position out
                     if fall_time > 0:
                         elapsed_time = (Util.time() - fall_time_timestamp) * 1000
-                        if not sent_fall and abs(elapsed_time - fall_time) < EPSILON:
-                            out_queue.put({"state" : "green_position_update", "green_position" : center})
+                        if not sent_fall and abs(elapsed_time - fall_time) < epsilon:
+                            out_queue.put({"state": "green_position_update", "green_position": center})
                             sent_fall = True
 
-                    
                     if direction_change_stable:
                         if not rotor_start_point:
                             rotor_start_point = center
@@ -125,21 +124,22 @@ class Rotor:
                                 rotor_end_point = center
                                 rotor_measure_complete_timestamp = Util.time()
                                 rotor_measure_duration = rotor_measure_complete_timestamp - rotor_measure_start_time
-                                # converting from degrees/second to seconds/degrees to seconds/rotation to milliseconds/rotation
+                                # converting from degrees/second to seconds/degrees to seconds/rotation to
+                                # milliseconds/rotation
                                 rotor_speed = (1 / (degrees / rotor_measure_duration)) * 360 * 1000
 
-                                out_msg = {"state" : "rotor_measure_complete", 
-                                            "rotor_start_point" : rotor_start_point,
-                                            "rotor_end_point" : rotor_end_point,
-                                            "rotor_measure_complete_timestamp" : rotor_measure_complete_timestamp,
-                                            "rotor_measure_duration" : rotor_measure_duration,
-                                            "rotor_speed" : rotor_speed,
-                                            "degrees" : degrees}
+                                out_msg = {"state": "rotor_measure_complete",
+                                           "rotor_start_point": rotor_start_point,
+                                           "rotor_end_point": rotor_end_point,
+                                           "rotor_measure_complete_timestamp": rotor_measure_complete_timestamp,
+                                           "rotor_measure_duration": rotor_measure_duration,
+                                           "rotor_speed": rotor_speed,
+                                           "degrees": degrees}
 
                                 out_queue.put(out_msg)
 
                     if in_msg["state"] == "ball_fell" or in_msg["state"] == "winning_number":
-                        out_queue.put({"state" : "green_position_update", "green_position" : center})
+                        out_queue.put({"state": "green_position_update", "green_position": center})
 
 
                 else:
@@ -161,7 +161,7 @@ class Rotor:
                 misdetections = 0
                 continue
 
-            if len(pts) == LOOKBACK: 
+            if len(pts) == LOOKBACK:
                 previous = pts[-1]
                 current = pts[0]
 
@@ -170,9 +170,8 @@ class Rotor:
 
                 if np.abs(dx) > diff_thresh or np.abs(dy) > diff_thresh:
                     # get direction of wheel movement
-                    is_anticlockwise = ((previous[0] - wheel_center[0]) * (current[1] - wheel_center[1]) - 
+                    is_anticlockwise = ((previous[0] - wheel_center[0]) * (current[1] - wheel_center[1]) -
                                         (previous[1] - wheel_center[1]) * (current[0] - wheel_center[0])) < 0;
-
 
                     if is_anticlockwise:
                         if current_direction == "clockwise":
@@ -191,7 +190,7 @@ class Rotor:
                                     current_direction = ""
                         if current_direction == "":
                             seen_direction_start_time = Util.time()
-                            
+
                         current_direction = "anticlockwise"
                     else:
                         if current_direction == "anticlockwise":
@@ -216,9 +215,8 @@ class Rotor:
                     # reset some state so this block doesn't happen again
                     direction_changed = False
 
-                    out_msg = {"state" : "direction_change_stable", "direction" : current_direction}
+                    out_msg = {"state": "direction_change_stable", "direction": current_direction}
                     out_queue.put(out_msg)
-
 
             cv2.putText(frame, current_direction, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 255), 3)
             # show the frame to our screen
@@ -233,10 +231,9 @@ class Rotor:
             if counter <= LOOKBACK:
                 counter += 1
 
-
-
     @staticmethod
-    def measure_rotor_acceleration(in_queue, out_queue, wheel_detection_zone, wheel_detection_area, wheel_center_point, reference_diamond_point, diff_thresh):
+    def measure_rotor_acceleration(in_queue, out_queue, wheel_detection_zone, wheel_detection_area, wheel_center_point,
+                                   reference_diamond_point, diff_thresh):
 
         rotor_start_point = None
         rotor_end_point = None
@@ -246,7 +243,7 @@ class Rotor:
         initial_speed = 0
         ending_speed = 0
         total_degrees = 0
-        kernel_size = int((MORPH_KERNEL_RATIO * wheel_detection_area)**.5)
+        kernel_size = int((MORPH_KERNEL_RATIO * wheel_detection_area) ** .5)
 
         while True:
             if in_queue.empty():
@@ -267,26 +264,26 @@ class Rotor:
             mask = cv2.erode(mask, None, iterations=2)
             mask = cv2.dilate(mask, None, iterations=2)
 
-            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size,kernel_size)));
+            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE,
+                                    cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size)))
 
             cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             cnts = imutils.grab_contours(cnts)
-
 
             center = None
             if len(cnts) > 0:
                 c = max(cnts, key=cv2.contourArea)
                 ((x, y), radius) = cv2.minEnclosingCircle(c)
-                M = cv2.moments(c)
-                center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+                m = cv2.moments(c)
+                center = (int(m["m10"] / m["m00"]), int(m["m01"] / m["m00"]))
                 # only proceed if the radius meets a minimum size
                 if radius > 10:
                     # draw the circle and centroid on the frame,
                     # then update the list of tracked points
                     cv2.circle(frame, (int(x), int(y)), int(radius),
-                            (0, 255, 255), 2)
+                               (0, 255, 255), 2)
                     cv2.circle(frame, center, 5, (0, 0, 255), -1)
-                    
+
                     if not rotor_start_point:
                         rotor_start_point = center
                         rotor_measure_start_time = Rotor.time()
@@ -312,16 +309,14 @@ class Rotor:
                             else:
                                 ending_speed = degrees / rotor_measure_duration
                                 total_degrees += degrees
-                                acceleration = ( ending_speed ** 2 - initial_speed ** 2 ) / ( 2 * total_degrees )
+                                acceleration = (ending_speed ** 2 - initial_speed ** 2) / (2 * total_degrees)
                                 print(f"Ending speed: {ending_speed} degrees/second")
-                                out_queue.put({"state" : "done", "acceleration" : acceleration})
+                                out_queue.put({"state": "done", "acceleration": acceleration})
                                 cv2.destroyAllWindows()
                                 return
-
 
             # show the frame to our screen
             cv2.circle(frame, wheel_center_point, 5, (0, 0, 255), -1)
             cv2.circle(frame, reference_diamond_point, 5, (0, 0, 255), -1)
             cv2.imshow("Wheel Detection", frame)
             key = cv2.waitKey(1) & 0xFF
-

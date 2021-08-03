@@ -1,8 +1,9 @@
 import math
 import time as t
 
+
 class SpinData:
-    
+
     def __init__(self, direction, diamond_hit, ball_revs, rotor_speed):
         self.direction = direction
         self.diamond_hit = diamond_hit
@@ -11,25 +12,25 @@ class SpinData:
 
 
 class Util:
-
-    EUROPEAN_WHEEL = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26]
+    EUROPEAN_WHEEL = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14,
+                      31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26]
 
     @staticmethod
     def get_angle(a, b, c):
-        ang = math.degrees(math.atan2(c[1]-b[1], c[0]-b[0]) - math.atan2(a[1]-b[1], a[0]-b[0]))
+        ang = math.degrees(math.atan2(c[1] - b[1], c[0] - b[0]) - math.atan2(a[1] - b[1], a[0] - b[0]))
         return (ang + 360) if ang < 0 else ang
 
     @staticmethod
     def get_distance(a, b):
-        return math.sqrt( (a[0] - b[0])**2 + (a[1] - b[1])**2 )
+        return math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
 
     @staticmethod
     def time():
         return t.time_ns() / 1000000000
 
-
     @staticmethod
-    def calculate_rotor(direction, green_point, degrees, rotor_measure_duration, fall_time_from_now, reference_diamond, rotor_acceleration, wheel_center_point):
+    def calculate_rotor(direction, green_point, degrees, rotor_measure_duration, fall_time_from_now, reference_diamond,
+                        rotor_acceleration, wheel_center_point):
         # first get the measured speed of the rotor in degrees/second
         speed = degrees / rotor_measure_duration
 
@@ -90,5 +91,5 @@ class Util:
         print(f"Rotor accel: {rotor_acceleration}")
         '''
 
-        return {"raw" : raw,
-                "green_calculated_offset" : green_calculated_offset}
+        return {"raw": raw,
+                "green_calculated_offset": green_calculated_offset}

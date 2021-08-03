@@ -61,6 +61,15 @@ class OCR:
         self.databot_mode = False
         self.start_ball_timings = False
         self.p = PyTessy()
+        self.data_file = None
+        self.winning_number = None
+        self.green_calculated_offset = None
+        self.raw = None
+        self.direction = None
+        self.rotor_speed = None
+        self.fall_zone = None
+        self.ball_revs = None
+        self.quit = None
 
     def load_profile(self, data_file):
         path = os.path.join(self.profile_dir, data_file)
@@ -226,7 +235,8 @@ class OCR:
                         ball_out_msg = ball_out_queue.get()
 
                         if self.databot_mode:
-                            # at this point, we have just about everything to calculate things for databot, so the rest of the code won't execute
+                            # at this point, we have just about everything to calculate things for databot,
+                            # so the rest of the code won't execute
                             if ball_out_msg["state"] == "failed_detect":
                                 print("Failed to detect ball, restarting state...")
                                 ball_in_queue.put({"state": "quit"})
@@ -252,8 +262,8 @@ class OCR:
                                     true_raw = Util.EUROPEAN_WHEEL[ratio]
                                     break
 
-                            WAIT_FOR_WINNING_NUMBER = 7  # seconds
-                            time.sleep(WAIT_FOR_WINNING_NUMBER)
+                            wait_for_winning_number = 7  # seconds
+                            time.sleep(wait_for_winning_number)
 
                             # do template matching to get winning number
                             frame = sct.grab(
@@ -370,7 +380,8 @@ class OCR:
                             fall_time = ball_out_msg["fall_time"]
                             fall_time_timestamp = ball_out_msg["fall_time_timestamp"]
 
-                            diff_between_fall_timestamp_and_rotor_timestamp = fall_time_timestamp - rotor_measure_complete_timestamp
+                            diff_between_fall_timestamp_and_rotor_timestamp = fall_time_timestamp - \
+                                                                              rotor_measure_complete_timestamp
                             # converting fall time mS to seconds
                             fall_time_from_now = fall_time / 1000 + diff_between_fall_timestamp_and_rotor_timestamp
 
@@ -385,7 +396,8 @@ class OCR:
                             raw_calculated = True
 
                             # tell the rotor when the fall time is so it can capture the true raw at expected fall time
-                            # rotor_in_queue.put({"state" : "ball_info", "fall_time" : fall_time, "fall_time_timestamp" : fall_time_timestamp, "frame" : frame})
+                            # rotor_in_queue.put({"state" : "ball_info", "fall_time" : fall_time, "fall_time_timestamp"
+                            # : fall_time_timestamp, "frame" : frame})
                         else:
                             rotor_in_queue.put({"state": "quit"})
                             ball_in_queue.put({"state": "quit"})
@@ -467,7 +479,8 @@ class OCR:
                     if not rotor_out_queue.empty():
                         # ROTOR ACCURACY EVALUATION
                         true_green_position = rotor_out_queue.get()["green_position"]
-                        true_green_offset = Util.get_angle(true_green_position, self.wheel_center_point, self.reference_diamond_point)
+                        true_green_offset = Util.get_angle(true_green_position, self.wheel_center_point, 
+                        self.reference_diamond_point)
                         degrees_off = abs(true_green_offset - self.green_calculated_offset)
                         if degrees_off >= 180:
                             pockets_off = int(round((360 - degrees_off) / (360 / len(Util.EUROPEAN_WHEEL))))
@@ -543,7 +556,8 @@ class OCR:
         pil_image = Image.frombytes('RGB', sct_img.size, sct_img.rgb)
         pil_image.save(filename)
 
-    def post_process(self, prediction):
+    @staticmethod
+    def post_process(prediction):
         if prediction:
             prediction = prediction.replace("s", "5")
             prediction = prediction.replace("S", "5")
@@ -574,7 +588,8 @@ class OCR:
 
         return prediction
 
-    def is_valid_prediction(self, raw_prediction):
+    @staticmethod
+    def is_valid_prediction(raw_prediction):
         try:
             raw_prediction = int(raw_prediction)
         except (ValueError, TypeError) as e:
@@ -721,4 +736,5 @@ class OCR:
             self.add_ball_sample(parsed_sample, "clockwise")
         except ValueError:
             print(
-                f"There is an error in the sample. Either reset detection zone, or manually copy the above sample and add it manually with AS")
+                f"There is an error in the sample. Either reset detection zone, or manually copy the above sample "
+                f"and add it manually with AS")
