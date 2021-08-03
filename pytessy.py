@@ -194,7 +194,7 @@ class PyTessy(object):
     TESSERACT_DEFAULT_HORIZONTAL_DPI = 70
     VERSION = '0.0.1'
     LIB_PATH = r"C:\Program Files\Tesseract-OCR\libtesseract-5.dll"
-    DATA_PATH = r"C:\Program Files\Tesseract-OCR\tessdada"
+    DATA_PATH = r"C:\Program Files\Tesseract-OCR\tessdata"
 
 
 
@@ -237,8 +237,7 @@ class PyTessy(object):
             if isfile(lib_path):
                 no_lib = False
             else:
-                raise FileNotFoundError('PyTessy: lib_path: "{}" doesn\'t exist.'
-                                        .format(lib_path))
+                raise FileNotFoundError(f"PyTessy: lib_path: '{lib_path}' doesn't exist.")
         if no_lib:
             if verbose_search:
                 verbose = lambda *pa, **pk: print(*pa, **pk)

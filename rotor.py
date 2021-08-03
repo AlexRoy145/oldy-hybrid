@@ -183,8 +183,6 @@ class Rotor:
                                 if Util.time() - seen_direction_start_time > time_for_stable_direction:
                                     direction_changed = True
                                     keyboard = Controller()
-                                    keyboard.press("b")
-                                    keyboard.release("b")
                                     keyboard.press(Key.enter)
                                     keyboard.release(Key.enter)
                                     seen_direction_change_start_time = Util.time()

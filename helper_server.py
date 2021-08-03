@@ -1,22 +1,15 @@
-import autoit
-import sys
-import select
 import time
 import threading
-import pickle
-import msvcrt
 from collections import deque
-from pynput.keyboard import Key, Controller
-from pytessy import PyTessy
 from clickbot import Clickbot
 from message import Message
 from server import Server
 from ocr import OCR
-from macro import Macro
 from scatter import Scatter
 from util import SpinData
+from pynput.keyboard import Controller, Key
 
-PROFILE_DIR = "C:/Users/AKurt/Documents/crm_saved_profiles"
+PROFILE_DIR = "C:/Users/AlexR/Documents/crm_saved_profiles"
 CLICKBOT_PROFILE = "profile.dat"
 ROTOR_ISOLATION_PROFILE = "rotor_isolation.json"
 OCR_PROFILE = "ocr.dat"
@@ -146,11 +139,20 @@ KICK: Execute signin macro on all machines.
                 if self.is_running and self.ocr.is_running:
                     print("Direction detection already running.")
                     continue
+                # reselect the window first Wheel Detection
+                keys = Controller()
+                keys.press("b")
+                keys.release("b")
                 self.ocr.is_running = True
                 self.is_running = True
                 self.app_thread = threading.Thread(target=self.start_app, args=())
                 self.app_thread.daemon = True
                 self.app_thread.start()
+                time.sleep(1)
+                keys.press(Key.alt)
+                keys.press(Key.tab)
+                keys.release(Key.alt)
+                keys.release(Key.tab)
                 print("Direction detection started.")
                 continue
             elif choice == "w":
@@ -222,9 +224,10 @@ KICK: Execute signin macro on all machines.
                 if self.ocr.most_recent_timings:
                     print(f"You have 2 seconds to click into the anydesk window before typing happens.")
                     time.sleep(2)
+                    keys = Controller()
                     for timing in self.ocr.most_recent_timings:
-                        string = str(timing) + "{ENTER}"
-                        autoit.send(string)
+                        keys.press(Key.enter)
+                        keys.release(Key.enter)
                 continue
             elif choice == "mr":
                 # NEWEST SPINS ARE ON THE RIGHT OF THE DEQUE, SO REVERSE IT BEFORE FILTERING

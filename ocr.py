@@ -12,7 +12,7 @@ from collections import deque
 from PIL import Image
 from pytessy import PyTessy
 from ball_sample_work_in_progress import BallSample
-from ball import Ball 
+from ball import Ball
 from rotor import Rotor
 from util import Util
 from detection_zone import SetDetection
@@ -32,8 +32,8 @@ class OCR:
         self.ball_detection_zone = None
         self.winning_number_detection_zone = None
 
-        self.time_for_stable_direction = 1.5 #seconds
-        
+        self.time_for_stable_direction = 1.5  # seconds
+
         self.ball_fall_detection_zone = None
 
         # used for typing out to anydesk
@@ -48,9 +48,9 @@ class OCR:
         self.dealer_name_zone = []
         self.diff_thresh = 0
         self.wheel_detection_area = 0
-        self.rotor_acceleration = -.127 # degrees per second per second
+        self.rotor_acceleration = -.127  # degrees per second per second
         self.rotor_angle_ellipse = 150
-        
+
         self.profile_dir = profile_dir
 
         self.ball_sample = BallSample()
@@ -62,7 +62,6 @@ class OCR:
         self.start_ball_timings = False
         self.p = PyTessy()
 
-
     def load_profile(self, data_file):
         path = os.path.join(self.profile_dir, data_file)
         self.data_file = data_file
@@ -73,32 +72,31 @@ class OCR:
         else:
             return False
 
-
     def save_profile(self, data_file):
         self.data_file = data_file
         path = os.path.join(self.profile_dir, data_file)
         with open(path, "wb") as f:
-            d = {"wheel_detection_zone" : self.wheel_detection_zone,
-                 "wheel_center_point" : self.wheel_center_point,
-                 "sample_detection_zone" : self.sample_detection_zone,
-                 "winning_number_detection_zone" : self.winning_number_detection_zone,
-                 "reference_diamond_point" : self.reference_diamond_point,
-                 "time_for_stable_direction" : self.time_for_stable_direction,
-                 "ball_detection_zone" : self.ball_detection_zone,
-                 "dealer_name_zone" : self.dealer_name_zone,
-                 "screenshot_zone" : self.screenshot_zone,
-                 "diff_thresh" : self.diff_thresh,
-                 "wheel_detection_area" : self.wheel_detection_area,
-                 "rotor_acceleration" : self.rotor_acceleration,
-                 "rotor_angle_ellipse" : self.rotor_angle_ellipse,
-                 "ball_fall_detection_zone" : self.ball_fall_detection_zone,
-                 "ball_sample" : self.ball_sample,
-                 "most_recent_spin_data" : self.most_recent_spin_data,
-                 "diamond_target_time" : self.diamond_target_time,
-                 "diamond_targeting_button_zone" : self.diamond_targeting_button_zone}
+            d = {"wheel_detection_zone": self.wheel_detection_zone,
+                 "wheel_center_point": self.wheel_center_point,
+                 "sample_detection_zone": self.sample_detection_zone,
+                 "winning_number_detection_zone": self.winning_number_detection_zone,
+                 "reference_diamond_point": self.reference_diamond_point,
+                 "time_for_stable_direction": self.time_for_stable_direction,
+                 "ball_detection_zone": self.ball_detection_zone,
+                 "dealer_name_zone": self.dealer_name_zone,
+                 "screenshot_zone": self.screenshot_zone,
+                 "diff_thresh": self.diff_thresh,
+                 "wheel_detection_area": self.wheel_detection_area,
+                 "rotor_acceleration": self.rotor_acceleration,
+                 "rotor_angle_ellipse": self.rotor_angle_ellipse,
+                 "ball_fall_detection_zone": self.ball_fall_detection_zone,
+                 "ball_sample": self.ball_sample,
+                 "most_recent_spin_data": self.most_recent_spin_data,
+                 "diamond_target_time": self.diamond_target_time,
+                 "diamond_targeting_button_zone": self.diamond_targeting_button_zone}
             pickle.dump(d, f)
 
-    def set_ball_detection_zone(self):  
+    def set_ball_detection_zone(self):
         self.ball_detection_zone = SetDetection.set_ball_detection_zone(self.wheel_detection_zone)
 
     def set_wheel_detection_zone(self):
@@ -127,19 +125,27 @@ class OCR:
 
     def set_diamond_targeting_button_zone(self):
         self.diamond_targeting_button_zone = SetDetection.set_diamond_targeting_button_zone()
-    
+
     def start_capture(self):
         try:
             rotor_out_queue = mp.Queue()
             rotor_in_queue = mp.Queue()
             ball_out_queue = mp.Queue()
             ball_in_queue = mp.Queue()
-            rotor_proc = mp.Process(target=Rotor.start_capture, args=(rotor_in_queue, rotor_out_queue, self.wheel_detection_zone, self.wheel_detection_area, self.wheel_center_point, self.reference_diamond_point, self.diff_thresh, self.rotor_angle_ellipse, self.time_for_stable_direction))
+            rotor_proc = mp.Process(target=Rotor.start_capture, args=(
+                rotor_in_queue, rotor_out_queue, self.wheel_detection_zone, self.wheel_detection_area,
+                self.wheel_center_point, self.reference_diamond_point, self.diff_thresh, self.rotor_angle_ellipse,
+                self.time_for_stable_direction))
             rotor_proc.start()
             if self.databot_mode:
-                ball_proc = mp.Process(target=Ball.start_capture_databot, args=(ball_in_queue, ball_out_queue, self.ball_sample, self.ball_detection_zone, self.ball_fall_detection_zone, self.wheel_center_point, self.reference_diamond_point))
+                ball_proc = mp.Process(target=Ball.start_capture_databot, args=(
+                    ball_in_queue, ball_out_queue, self.ball_sample, self.ball_detection_zone,
+                    self.ball_fall_detection_zone, self.wheel_center_point, self.reference_diamond_point))
             else:
-                ball_proc = mp.Process(target=Ball.start_capture, args=(ball_in_queue, ball_out_queue, self.ball_sample, self.ball_detection_zone, self.ball_fall_detection_zone, self.wheel_center_point, self.reference_diamond_point, self.diamond_target_time, self.diamond_targeting_button_zone))
+                ball_proc = mp.Process(target=Ball.start_capture, args=(
+                    ball_in_queue, ball_out_queue, self.ball_sample, self.ball_detection_zone,
+                    self.ball_fall_detection_zone, self.wheel_center_point, self.reference_diamond_point,
+                    self.diamond_target_time, self.diamond_targeting_button_zone))
             ball_proc.start()
 
             direction = ""
@@ -156,17 +162,17 @@ class OCR:
             self.ball_revs = -1
 
             bbox = self.wheel_detection_zone
-            width = bbox[2]-bbox[0]
-            height = bbox[3]-bbox[1]
+            width = bbox[2] - bbox[0]
+            height = bbox[3] - bbox[1]
 
             with mss.mss() as sct:
 
                 # wait until we get the direction change stable state
                 while self.is_running:
-                    frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
-                    
-                    rotor_in_queue.put({"state" : "", "frame" : frame})
-                    ball_in_queue.put({"state" : "", "frame" : frame})
+                    frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon": 0})
+
+                    rotor_in_queue.put({"state": "", "frame": frame})
+                    ball_in_queue.put({"state": "", "frame": frame})
 
                     if not rotor_out_queue.empty():
                         out_msg = rotor_out_queue.get()
@@ -178,8 +184,8 @@ class OCR:
                             break
 
                 if not self.is_running:
-                    rotor_in_queue.put({"state" : "quit"})
-                    ball_in_queue.put({"state" : "quit"})
+                    rotor_in_queue.put({"state": "quit"})
+                    ball_in_queue.put({"state": "quit"})
                     rotor_proc.join()
                     rotor_proc.close()
                     if ball_proc:
@@ -188,26 +194,26 @@ class OCR:
                     self.quit = True
                     return
 
-
                 # start the ball process and wait until calculations are done
                 while self.is_running:
-                    frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
+                    frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon": 0})
 
                     if self.start_ball_timings and spin_start_time == 0:
                         spin_start_time = time.time()
-                        ball_in_queue.put({"state" : "", "frame" : frame, "spin_start_time" : spin_start_time, "start_ball_timings" : True, "direction" : direction}) 
+                        ball_in_queue.put({"state": "", "frame": frame, "spin_start_time": spin_start_time,
+                                           "start_ball_timings": True, "direction": direction})
 
                     elif self.start_ball_timings:
-                        ball_in_queue.put({"state" : "", "frame" : frame, "start_ball_timings": True, "direction" : direction})
+                        ball_in_queue.put(
+                            {"state": "", "frame": frame, "start_ball_timings": True, "direction": direction})
 
                     else:
-                        ball_in_queue.put({"state" : "", "frame" : frame})
+                        ball_in_queue.put({"state": "", "frame": frame})
 
+                    rotor_in_queue.put({"state": "", "frame": frame})
 
-                    rotor_in_queue.put({"state" : "", "frame" : frame})
-                    
                     # now wait until rotor calculation and ball fall calculations are complete
-                    
+
                     if not rotor_out_queue.empty():
                         rotor_out_msg = rotor_out_queue.get()
                         if rotor_out_msg["state"] == "rotor_measure_complete":
@@ -215,7 +221,7 @@ class OCR:
                             rotor_done = True
                         else:
                             print(f"Unexpected rotor message: {rotor_out_msg}")
-                    
+
                     if not ball_out_queue.empty():
                         ball_out_msg = ball_out_queue.get()
 
@@ -223,13 +229,13 @@ class OCR:
                             # at this point, we have just about everything to calculate things for databot, so the rest of the code won't execute
                             if ball_out_msg["state"] == "failed_detect":
                                 print("Failed to detect ball, restarting state...")
-                                ball_in_queue.put({"state" : "quit"})
-                                rotor_in_queue.put({"state" : "quit"})
+                                ball_in_queue.put({"state": "quit"})
+                                rotor_in_queue.put({"state": "quit"})
                                 self.quit = True
                                 return
                             fall_point = ball_out_msg["fall_point"]
                             ball_revs = ball_out_msg["ball_revs"]
-                            rotor_in_queue.put({"state" : "ball_fell", "frame" : frame})
+                            rotor_in_queue.put({"state": "ball_fell", "frame": frame})
 
                             while True:
                                 # wait for the rotor to come back with position
@@ -238,18 +244,20 @@ class OCR:
                                     green_position = rotor_out_msg["green_position"]
 
                                     # get the TRUE raw
-                                    green_offset = Util.get_angle(green_position, self.wheel_center_point, self.reference_diamond_point)
+                                    green_offset = Util.get_angle(green_position, self.wheel_center_point,
+                                                                  self.reference_diamond_point)
                                     ratio = int(round((green_offset / 360) * len(Util.EUROPEAN_WHEEL)))
                                     if ratio == len(Util.EUROPEAN_WHEEL):
                                         ratio = 0
                                     true_raw = Util.EUROPEAN_WHEEL[ratio]
                                     break
 
-                            WAIT_FOR_WINNING_NUMBER = 7 # seconds
+                            WAIT_FOR_WINNING_NUMBER = 7  # seconds
                             time.sleep(WAIT_FOR_WINNING_NUMBER)
-                            
+
                             # do template matching to get winning number
-                            frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
+                            frame = sct.grab(
+                                {"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon": 0})
                             frame_img = Image.frombytes('RGB', frame.size, frame.rgb)
                             frame_img = np.array(frame_img)
 
@@ -263,16 +271,17 @@ class OCR:
                             min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
                             top_left = min_loc
                             bottom_right = (top_left[0] + w, top_left[1] + h)
-                            ball_center = ( int(round((top_left[0] + bottom_right[0]) / 2)), int(round((top_left[1] + bottom_right[1]) / 2)) )
+                            ball_center = (int(round((top_left[0] + bottom_right[0]) / 2)),
+                                           int(round((top_left[1] + bottom_right[1]) / 2)))
 
                             # reset ball detection zone reference frame
-                            self.ball_fall_detection_zone.process_reference_frame(frame) 
+                            self.ball_fall_detection_zone.process_reference_frame(frame)
                             self.ball_fall_detection_zone.mask_reference_frame()
                             self.ball_detection_zone.process_reference_frame(frame)
                             self.ball_detection_zone.mask_reference_frame()
-                            
+
                             # pass the same frame into the rotor to get the green position
-                            rotor_in_queue.put({"state" : "winning_number", "frame" : frame})
+                            rotor_in_queue.put({"state": "winning_number", "frame": frame})
                             while self.is_running:
                                 if not rotor_out_queue.empty():
                                     rotor_out_msg = rotor_out_queue.get()
@@ -293,13 +302,14 @@ class OCR:
                                     '''
                                     break
 
-			    # kill the rotor and ball procs
-                            rotor_in_queue.put({"state" : "quit"})
-                            ball_in_queue.put({"state" : "quit"})
+                            # kill the rotor and ball procs
+                            rotor_in_queue.put({"state": "quit"})
+                            ball_in_queue.put({"state": "quit"})
 
                             # calculate fall angle. Degrees are relative to reference diamond
                             reference_point = self.reference_diamond_point
-                            fall_angle = int(round(Util.get_angle(fall_point, self.wheel_center_point, reference_point)))
+                            fall_angle = int(
+                                round(Util.get_angle(fall_point, self.wheel_center_point, reference_point)))
 
                             # update the variables main thread is listening for
                             self.raw = true_raw
@@ -311,15 +321,14 @@ class OCR:
                             time.sleep(5)
                             return
 
-
                         ball_done = True
 
                     if rotor_done and ball_done:
                         break
 
                 if not self.is_running:
-                    rotor_in_queue.put({"state" : "quit"})
-                    ball_in_queue.put({"state" : "quit"})
+                    rotor_in_queue.put({"state": "quit"})
+                    ball_in_queue.put({"state": "quit"})
                     rotor_proc.join()
                     rotor_proc.close()
                     if ball_proc:
@@ -328,11 +337,10 @@ class OCR:
                     self.quit = True
                     return
 
-
                 while self.is_running:
-                    frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
-                    ball_in_queue.put({"state" : "", "frame" : frame})
-                    rotor_in_queue.put({"state" : "", "frame" : frame})
+                    frame = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon": 0})
+                    ball_in_queue.put({"state": "", "frame": frame})
+                    rotor_in_queue.put({"state": "", "frame": frame})
 
                     if not raw_calculated:
                         # all information is present so we can now calculate raw
@@ -345,18 +353,18 @@ class OCR:
 
                         if ball_out_msg["state"] == "false_detections":
                             # destroy everything
-                            rotor_in_queue.put({"state" : "quit"})
-                            ball_in_queue.put({"state" : "quit"})
+                            rotor_in_queue.put({"state": "quit"})
+                            ball_in_queue.put({"state": "quit"})
                             self.quit = True
                             return
 
-                        #'''
+                        # '''
                         if "a" in direction:
                             samples = self.ball_sample.samples_anti
                         else:
                             samples = self.ball_sample.samples_clock
-                        #'''
-                        #samples = self.ball_sample.samples
+                        # '''
+                        # samples = self.ball_sample.samples
 
                         if len(samples) > 0:
                             fall_time = ball_out_msg["fall_time"]
@@ -366,19 +374,21 @@ class OCR:
                             # converting fall time mS to seconds
                             fall_time_from_now = fall_time / 1000 + diff_between_fall_timestamp_and_rotor_timestamp
 
-                            params = Util.calculate_rotor(direction, rotor_end_point, degrees, rotor_measure_duration, fall_time_from_now, self.reference_diamond_point, self.rotor_acceleration, self.wheel_center_point)
+                            params = Util.calculate_rotor(direction, rotor_end_point, degrees, rotor_measure_duration,
+                                                          fall_time_from_now, self.reference_diamond_point,
+                                                          self.rotor_acceleration, self.wheel_center_point)
                             raw = params["raw"]
                             self.green_calculated_offset = params["green_calculated_offset"]
                             self.raw = raw
                             self.direction = direction
                             self.rotor_speed = rotor_speed
                             raw_calculated = True
-                            
+
                             # tell the rotor when the fall time is so it can capture the true raw at expected fall time
-                            #rotor_in_queue.put({"state" : "ball_info", "fall_time" : fall_time, "fall_time_timestamp" : fall_time_timestamp, "frame" : frame})
+                            # rotor_in_queue.put({"state" : "ball_info", "fall_time" : fall_time, "fall_time_timestamp" : fall_time_timestamp, "frame" : frame})
                         else:
-                            rotor_in_queue.put({"state" : "quit"})
-                            ball_in_queue.put({"state" : "quit"})
+                            rotor_in_queue.put({"state": "quit"})
+                            ball_in_queue.put({"state": "quit"})
                             rotor_proc.join()
                             rotor_proc.close()
                             if ball_proc:
@@ -386,13 +396,12 @@ class OCR:
                                 ball_proc.close()
                             self.quit = True
                             return
-                           
 
-                    #while self.is_running:
+                    # while self.is_running:
                     if not ball_out_queue.empty():
                         ball_out_msg = ball_out_queue.get()
                         if ball_out_msg["state"] == "ball_fell":
-                            rotor_in_queue.put({"state" : "ball_fell", "frame" : frame})
+                            rotor_in_queue.put({"state": "ball_fell", "frame": frame})
 
                             while True:
                                 # wait for the rotor to come back with position
@@ -401,7 +410,8 @@ class OCR:
                                     green_position = rotor_out_msg["green_position"]
 
                                     # get the TRUE raw
-                                    green_offset = Util.get_angle(green_position, self.wheel_center_point, self.reference_diamond_point)
+                                    green_offset = Util.get_angle(green_position, self.wheel_center_point,
+                                                                  self.reference_diamond_point)
                                     ratio = int(round((green_offset / 360) * len(Util.EUROPEAN_WHEEL)))
                                     if ratio == len(Util.EUROPEAN_WHEEL):
                                         ratio = 0
@@ -423,13 +433,14 @@ class OCR:
 
                             # calculate fall angle. Degrees are relative to reference diamond
                             reference_point = self.reference_diamond_point
-                            self.fall_zone = int(round(Util.get_angle(fall_zone, self.wheel_center_point, reference_point)))
+                            self.fall_zone = int(
+                                round(Util.get_angle(fall_zone, self.wheel_center_point, reference_point)))
 
                             self.ball_revs = ball_out_msg["ball_revs"]
-                            
-                            #TODO don't update with using steve's default sample
+
+                            # TODO don't update with using steve's default sample
                             self.ball_sample.update_sample(current_ball_sample, direction)
-                            #self.ball_sample.update_sample(current_ball_sample)
+                            # self.ball_sample.update_sample(current_ball_sample)
                             print(f"Sample: {current_ball_sample}")
                             self.most_recent_timings = current_ball_sample
                             self.save_profile(self.data_file)
@@ -441,9 +452,9 @@ class OCR:
                             self.quit = True
                             return
                             '''
-                            #break
-                            rotor_in_queue.put({"state" : "quit"})
-                            ball_in_queue.put({"state" : "quit"})
+                            # break
+                            rotor_in_queue.put({"state": "quit"})
+                            ball_in_queue.put({"state": "quit"})
                             rotor_proc.join()
                             rotor_proc.close()
                             if ball_proc:
@@ -451,7 +462,6 @@ class OCR:
                                 ball_proc.close()
                             self.quit = True
                             return
-
 
                     '''
                     if not rotor_out_queue.empty():
@@ -466,10 +476,9 @@ class OCR:
                         print(f"Raw prediction was {pockets_off} pockets off of the TRUE raw.")
                     '''
 
-
                 if not self.is_running:
-                    rotor_in_queue.put({"state" : "quit"})
-                    ball_in_queue.put({"state" : "quit"})
+                    rotor_in_queue.put({"state": "quit"})
+                    ball_in_queue.put({"state": "quit"})
                     rotor_proc.join()
                     rotor_proc.close()
                     if ball_proc:
@@ -479,26 +488,25 @@ class OCR:
                     return
 
 
-                    
+
         except mss.exception.ScreenShotError:
             print(f"THREADING ERROR!! You need to quit the detection loop!")
 
         cv2.destroyAllWindows()
 
-    
     def read(self, test=False, capture=None, zone=None, get_letters=False, pageseg=5, invert=False):
         if not zone:
             zone = self.raw_detection_zone
         now = time.time()
         bbox = zone
-        width = bbox[2]-bbox[0]
-        height = bbox[3]-bbox[1]
+        width = bbox[2] - bbox[0]
+        height = bbox[3] - bbox[1]
         if capture:
-            sct_img = capture.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
+            sct_img = capture.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon": 0})
         else:
             try:
                 with mss.mss() as sct:
-                    sct_img = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
+                    sct_img = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon": 0})
             except mss.exception.ScreenShotError:
                 print("Threading issue!!! Close detection thread?")
                 return None
@@ -506,20 +514,18 @@ class OCR:
         if invert:
             pil_image = PIL.ImageOps.invert(pil_image)
         open_cv_image = np.array(pil_image)
-        open_cv_image = open_cv_image[:, :, ::-1].copy() 
+        open_cv_image = open_cv_image[:, :, ::-1].copy()
         finalimage = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2GRAY)
-        ret,thresholded = cv2.threshold(finalimage, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+        ret, thresholded = cv2.threshold(finalimage, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         if test:
             cv2.imshow("captured image", thresholded)
             cv2.waitKey(0)
-
-
 
         finalimage = thresholded
         end = time.time()
 
         now_2 = time.time()
-        prediction = self.p.read(finalimage.ctypes, finalimage.shape[1], finalimage.shape[0], 1, pageseg=pageseg) 
+        prediction = self.p.read(finalimage.ctypes, finalimage.shape[1], finalimage.shape[0], 1, pageseg=pageseg)
         end_2 = time.time()
 
         if not get_letters:
@@ -527,17 +533,15 @@ class OCR:
 
         return prediction
 
-    
     def take_screenshot(self, filename):
         bbox = self.screenshot_zone
         width = bbox[2] - bbox[0]
         height = bbox[3] - bbox[1]
         with mss.mss() as sct:
-            sct_img = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon":0})
+            sct_img = sct.grab({"left": bbox[0], "top": bbox[1], "width": width, "height": height, "mon": 0})
 
         pil_image = Image.frombytes('RGB', sct_img.size, sct_img.rgb)
         pil_image.save(filename)
-
 
     def post_process(self, prediction):
         if prediction:
@@ -570,7 +574,6 @@ class OCR:
 
         return prediction
 
-
     def is_valid_prediction(self, raw_prediction):
         try:
             raw_prediction = int(raw_prediction)
@@ -582,7 +585,6 @@ class OCR:
 
         return True
 
-
     def show_ball_samples(self, direction):
         if "a" in direction:
             samples = self.ball_sample.samples_anti
@@ -590,9 +592,9 @@ class OCR:
         else:
             samples = self.ball_sample.samples_clock
             averaged_sample = self.ball_sample.averaged_sample_clock
-        #samples = self.ball_sample.samples
-        #averaged_sample = self.ball_sample.averaged_sample
-        
+        # samples = self.ball_sample.samples
+        # averaged_sample = self.ball_sample.averaged_sample
+
         for i, sample in enumerate(samples):
             print(f"Sample #{i}: {sample}")
             print(f"Adjusted Sample #{i}: {sample.adjusted_sample}")
@@ -619,7 +621,6 @@ class OCR:
         print(f"Averaged sample: {averaged_sample.adjusted_sample}")
     '''
 
-
     def delete_ball_sample(self, idx, direction):
         if "a" in direction:
             samples = self.ball_sample.samples_anti
@@ -628,14 +629,13 @@ class OCR:
 
         try:
             del samples[idx]
-            #self.ball_sample.update_averaged_sample()
+            # self.ball_sample.update_averaged_sample()
         except IndexError:
             print("That sample doesn't exist.")
 
         self.ball_sample.update_averaged_sample(direction)
-        #self.ball_sample.update_averaged_sample()
+        # self.ball_sample.update_averaged_sample()
         self.save_profile(self.data_file)
-
 
     '''
     def delete_ball_sample(self, idx):
@@ -649,11 +649,9 @@ class OCR:
         self.save_profile(self.data_file)
     '''
 
-
     def add_ball_sample(self, sample, direction):
         self.ball_sample.update_sample(sample, direction)
         self.save_profile(self.data_file)
-
 
     '''
     def add_ball_sample(self, sample):
@@ -665,13 +663,11 @@ class OCR:
         self.ball_sample.change_vps(vps, direction)
         self.save_profile(self.data_file)
 
-
     '''
     def change_vps(self, vps):
         self.ball_sample.change_vps(vps)
         self.save_profile(self.data_file)
     '''
-
 
     def change_max_samples(self, new_max_samples, direction):
         if "a" in direction:
@@ -684,7 +680,6 @@ class OCR:
 
         self.save_profile(self.data_file)
 
-    
     '''
     def change_max_samples(self, new_max_samples):
         max_samples = self.ball_sample.max_samples
@@ -695,7 +690,6 @@ class OCR:
         self.save_profile(self.data_file)
     '''
 
-
     def graph_samples(self, direction):
         self.ball_sample.graph_samples(direction)
 
@@ -703,7 +697,6 @@ class OCR:
     def graph_samples(self):
         self.ball_sample.graph_samples()
     '''
-
 
     def scan_sample(self):
         '''
@@ -721,11 +714,11 @@ class OCR:
             sample_str = ""
             for rev in parsed_sample:
                 sample_str += f"{rev}, "
-                
+
             print(f"Scanned sample: {sample_str}")
             parsed_sample = [int(x) for x in parsed_sample]
             self.add_ball_sample(parsed_sample, "anticlockwise")
             self.add_ball_sample(parsed_sample, "clockwise")
         except ValueError:
-            print(f"There is an error in the sample. Either reset detection zone, or manually copy the above sample and add it manually with AS")
-
+            print(
+                f"There is an error in the sample. Either reset detection zone, or manually copy the above sample and add it manually with AS")

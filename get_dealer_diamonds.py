@@ -94,10 +94,8 @@ def main():
             c_proportion_anti = diamond_counts_anti["C"] / sum(diamond_counts_anti.values())
             c_proportion_anti_str = "{0:.0%}".format(c_proportion_anti)
             if args.get_best:
-                if (avg_revs_anti >= MIN_BALL_REVS and 
-                    avg_revs_anti <= MAX_BALL_REVS and 
-                    avg_rotor_anti >= MIN_ROTOR and 
-                    avg_rotor_anti <= MAX_ROTOR and
+                if (MIN_BALL_REVS <= avg_revs_anti <= MAX_BALL_REVS and
+                        MIN_ROTOR <= avg_rotor_anti <= MAX_ROTOR and
                     c_proportion_anti >= MIN_C):
                     
                     dealer_str = f"{dealer_clean}'s ANTI diamond counts: {diamond_counts_anti}. C Proportion: {c_proportion_anti_str}. Avg Ball Revs: {avg_revs_anti}. Avg Rotor: {avg_rotor_anti}"

@@ -115,7 +115,7 @@ class BallSample:
             sample_idx = -1
             for i, sample_rev in enumerate(averaged_sample):
                 if i < len(averaged_sample) - 1:
-                    if observed_rev >= sample_rev and observed_rev <= averaged_sample[i+1]:
+                    if sample_rev <= observed_rev <= averaged_sample[i + 1]:
                         sample_idx = i
                         break
                 else:

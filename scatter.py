@@ -155,7 +155,7 @@ class Scatter:
             fall_point_end = 360
 
         for datapoint in self.data:
-            if datapoint.direction == direction and datapoint.rotor_speed >= rotor_speed_start and datapoint.rotor_speed < rotor_speed_end and datapoint.fall_zone > fall_point_start and datapoint.fall_zone < fall_point_end:
+            if datapoint.direction == direction and rotor_speed_start <= datapoint.rotor_speed < rotor_speed_end and fall_point_start < datapoint.fall_zone < fall_point_end:
                 x.append(self.calculate_jump(datapoint.raw, datapoint.winning))
 
         print(f"Number of spins: {len(x)}")

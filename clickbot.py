@@ -172,7 +172,7 @@ class Clickbot:
                 split = rotor_speed_range.split("-")
                 start_speed = int(split[0])
                 end_speed = int(split[1])
-                if rotor_speed >= start_speed and rotor_speed < end_speed:
+                if start_speed <= rotor_speed < end_speed:
                     ball_rev_scatter = self.rotor_isolation_scatter[rotor_speed_range]
                     # find correct ball revs
                     for ball_rev_range in ball_rev_scatter.keys():
@@ -194,7 +194,7 @@ class Clickbot:
                 split = rotor_speed_range.split("-")
                 start_speed = int(split[0])
                 end_speed = int(split[1])
-                if rotor_speed >= start_speed and rotor_speed < end_speed:
+                if start_speed <= rotor_speed < end_speed:
                     scatter = self.rotor_isolation_scatter[rotor_speed_range]
                     if direction == "a":
                         return self.get_tuned_given_jumps(scatter["anticlockwise"], raw_prediction)

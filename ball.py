@@ -1,4 +1,3 @@
-import autoit
 import cv2
 import imutils
 import multiprocessing as mp
@@ -171,7 +170,7 @@ class Ball:
                             angle_from_ref = Util.get_angle(center, wheel_center_point, reference_diamond_point)
 
                             if ball_in_detection_zone:
-                                if angle_from_ref > 90 and angle_from_ref < 270:
+                                if 90 < angle_from_ref < 270:
                                     ball_in_detection_zone = False
 
                             if not previous_angle:
@@ -197,7 +196,6 @@ class Ball:
                                 
                                 if not 0 in timings or timings[len(angles) // 2] > DONT_NEED_AVERAGING_TIMING:
                                     now = int(round(Util.time() * 1000))
-                                    #autoit.send("z")
                                     diff = now - time_elapsed_since_frame
                                     if timings[len(angles) // 2] > DONT_NEED_AVERAGING_TIMING:
                                         lap_time = timings[len(angles) // 2] - diff
@@ -351,7 +349,7 @@ class Ball:
                         if timestamps[i] != 0:
                             timings_to_return[i] = now - timestamps[i]
                 else:
-                    if angle_from_ref < angle and previous_angle >= angle:
+                    if angle_from_ref < angle <= previous_angle:
                         timestamps_to_return[i] = now
                         if timestamps[i] != 0:
                             timings_to_return[i] = now - timestamps[i]
@@ -367,7 +365,7 @@ class Ball:
                         if timestamps[i] != 0:
                             timings_to_return[i] = now - timestamps[i]
                 else:
-                    if angle_from_ref > angle and previous_angle <= angle:
+                    if angle_from_ref > angle >= previous_angle:
                         timestamps_to_return[i] = now
                         if timestamps[i] != 0:
                             timings_to_return[i] = now - timestamps[i]
@@ -576,15 +574,15 @@ class Ball:
 
     @staticmethod
     def in_range(angle, start_angle, end_angle, extension=0):
-        return (angle < start_angle + extension and angle >= 0) or (angle > end_angle - extension and angle <= 360)
+        return (start_angle + extension > angle >= 0) or (end_angle - extension < angle <= 360)
 
     @staticmethod
     def in_left_sector(angle):
-        return (angle < 270 and angle > 90)
+        return (270 > angle > 90)
 
     @staticmethod
     def in_right_sector(angle):
-        return (angle < 90 and angle >= 0 or angle > 270 and angle <= 360)
+        return (90 > angle >= 0 or 270 < angle <= 360)
 
 
     @staticmethod

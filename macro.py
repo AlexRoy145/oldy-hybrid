@@ -4,7 +4,6 @@ import os
 import mss
 import time
 import pickle
-import autoit
 from pathlib import Path
 from pynput import mouse
 from pynput import keyboard
@@ -72,7 +71,7 @@ class Macro:
         pixel = sct_img.pixel(0, 0)
         if green:
             #print(f"pixel 0: {pixel[0]}, pixel 1: {pixel[1]}, pixel 2: {pixel[2]}")
-            return pixel[1] > Macro.GREEN_THRESH and pixel[1] < 240
+            return Macro.GREEN_THRESH < pixel[1] < 240
         return pixel[0] < Macro.RED_THRESH
 
 
@@ -141,6 +140,7 @@ class Macro:
                     break
 
         for event in self.macro:
+            mousy = self.m.Controller()
             if delay:
                 time.sleep(delay)
             else:
@@ -154,16 +154,21 @@ class Macro:
                     self.k.type(site)
                 else:
                     self.m.position = event.x, event.y
-                    # use autoit.mouse_down("left") and autoit.mouse_up("left") along with sleep to do longer presses
                     if event.button == mouse.Button.left:
-                        autoit.mouse_click("left", event.x, event.y, 1) 
+                        mousy.position(event.x, event.y)
+                        mousy.press(self.m.Button.left)
+                        mousy.release(self.m.Button.left)
                     elif event.button == mouse.Button.right:
-                        autoit.mouse_click("right", event.x, event.y, 1) 
+                        mousy.position(event.x, event.y)
+                        mousy.press(self.m.Button.right)
+                        mousy.release(self.m.Button.right)
             except AttributeError:
                 self.m.position = event.x, event.y
-                # use autoit.mouse_down("left") and autoit.mouse_up("left") along with sleep to do longer presses
                 if event.button == mouse.Button.left:
-                    autoit.mouse_click("left", event.x, event.y, 1) 
+                    mousy.position(event.x, event.y)
+                    mousy.press(self.m.Button.left)
+                    mousy.release(self.m.Button.left)
                 elif event.button == mouse.Button.right:
-                    autoit.mouse_click("right", event.x, event.y, 1) 
-
+                    mousy.position(event.x, event.y)
+                    mousy.press(self.m.Button.right)
+                    mousy.release(self.m.Button.right)
