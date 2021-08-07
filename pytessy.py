@@ -239,8 +239,8 @@ class PyTessy(object):
                     dirs.append(join(environ['PROGRAMFILES'], PyTessy.TESSERACT_DIRNAME))
                 if 'PROGRAMFILES(X86)' in environ:
                     dirs.append(join(environ['PROGRAMFILES(X86)'], PyTessy.TESSERACT_DIRNAME))
-                for dir in dirs:
-                    test = join(dir, '{}.dll'.format(lib_name))
+                for directory in dirs:
+                    test = join(directory, '{}.dll'.format(lib_name))
                     if isfile(test):
                         lib_path = test
                         verbose('    {} SUCCESS.'.format(test))

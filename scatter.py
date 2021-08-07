@@ -60,9 +60,9 @@ class Scatter:
     def convert_fall_point_to_diamond_hit(fall_zone, direction):
         diamond_order = [12, 1.5, 3, 4.5, 6, 7.5, 9, 10.5]
 
-        def get_previous_diamond(direction, diamond_hit):
-            diamond_idx = diamond_order.index(diamond_hit)
-            if "a" not in direction:
+        def get_previous_diamond(direction_of_spin, diamond_hit_arg):
+            diamond_idx = diamond_order.index(diamond_hit_arg)
+            if "a" not in direction_of_spin:
                 diamond_hit_idx = (diamond_idx + 1) % len(diamond_order)
                 return diamond_order[diamond_hit_idx]
             else:

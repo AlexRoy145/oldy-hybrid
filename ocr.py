@@ -714,10 +714,10 @@ class OCR:
     '''
 
     def scan_sample(self):
-        '''
+        """
         # not needed
         return
-        '''
+        """
         sample = self.read(zone=self.sample_detection_zone).split("\n")
         parsed_sample = []
 

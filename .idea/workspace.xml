@@ -20,31 +20,17 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0a7735f9-e248-43b8-b4c0-7f16d7a87c0b" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Pipfile" beforeDir="false" afterPath="$PROJECT_DIR$/Pipfile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Pipfile.lock" beforeDir="false" afterPath="$PROJECT_DIR$/Pipfile.lock" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ball.py" beforeDir="false" afterPath="$PROJECT_DIR$/ball.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ball_sample.py" beforeDir="false" afterPath="$PROJECT_DIR$/ball_sample.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ball_sample_slopes.py" beforeDir="false" afterPath="$PROJECT_DIR$/ball_sample_slopes.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ball_sample_work_in_progress.py" beforeDir="false" afterPath="$PROJECT_DIR$/ball_sample_work_in_progress.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/clickbot.py" beforeDir="false" afterPath="$PROJECT_DIR$/clickbot.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/client.py" beforeDir="false" afterPath="$PROJECT_DIR$/client.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/dealer_bot.py" beforeDir="false" afterPath="$PROJECT_DIR$/dealer_bot.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/detection_zone.py" beforeDir="false" afterPath="$PROJECT_DIR$/detection_zone.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/feed_bot.py" beforeDir="false" afterPath="$PROJECT_DIR$/feed_bot.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/get_dealer_diamonds.py" beforeDir="false" afterPath="$PROJECT_DIR$/get_dealer_diamonds.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/helper.py" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/helper_client.py" beforeDir="false" afterPath="$PROJECT_DIR$/helper_client.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/helper_server.py" beforeDir="false" afterPath="$PROJECT_DIR$/helper_server.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/macro.py" beforeDir="false" afterPath="$PROJECT_DIR$/macro.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/macro_editor.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/message.py" beforeDir="false" afterPath="$PROJECT_DIR$/message.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ocr.py" beforeDir="false" afterPath="$PROJECT_DIR$/ocr.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pytessy.py" beforeDir="false" afterPath="$PROJECT_DIR$/pytessy.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/rotor.py" beforeDir="false" afterPath="$PROJECT_DIR$/rotor.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/scatter.py" beforeDir="false" afterPath="$PROJECT_DIR$/scatter.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/server.py" beforeDir="false" afterPath="$PROJECT_DIR$/server.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/util.py" beforeDir="false" afterPath="$PROJECT_DIR$/util.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -114,9 +100,9 @@
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
     <state x="632" y="134" key="SettingsEditor/0.0.1920.1040@0.0.1920.1040" timestamp="1627923973789" />
-    <state x="794" y="227" width="672" height="678" key="search.everywhere.popup" timestamp="1628015596234">
+    <state x="794" y="227" width="672" height="678" key="search.everywhere.popup" timestamp="1628310692775">
       <screen x="0" y="0" width="1920" height="1040" />
     </state>
-    <state x="794" y="227" width="672" height="678" key="search.everywhere.popup/0.0.1920.1040@0.0.1920.1040" timestamp="1628015596234" />
+    <state x="794" y="227" width="672" height="678" key="search.everywhere.popup/0.0.1920.1040@0.0.1920.1040" timestamp="1628310692775" />
   </component>
 </project>

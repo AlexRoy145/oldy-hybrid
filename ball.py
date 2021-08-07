@@ -151,9 +151,13 @@ class Ball:
                                 did_beep = True
 
                         if Util.time() - spin_start_time > MAX_SPIN_DURATION:
-                            out_msg = {"state": "ball_update", "current_ball_sample": current_ball_sample,
-                                       "fall_point": fall_point, "ball_revs": ball_revs}
-                            out_queue.put(out_msg)
+                            try:
+                                out_msg = {"state": "ball_update", "current_ball_sample": current_ball_sample,
+                                           "fall_point": fall_point, "ball_revs": ball_revs}
+                                out_queue.put(out_msg)
+                            except ReferenceError:
+                                print("reference error :: ball.py :: line 159")
+                                continue
 
                         ball_frame_delta = cv2.absdiff(ball_reference_frame, gray)
                         ball_thresh = cv2.threshold(ball_frame_delta, THRESH, 255, cv2.THRESH_BINARY)[1]
@@ -587,11 +591,11 @@ class Ball:
 
     @staticmethod
     def in_left_sector(angle):
-        return (270 > angle > 90)
+        return 270 > angle > 90
 
     @staticmethod
     def in_right_sector(angle):
-        return (90 > angle >= 0 or 270 < angle <= 360)
+        return 90 > angle >= 0 or 270 < angle <= 360
 
     @staticmethod
     def get_extension(difference):

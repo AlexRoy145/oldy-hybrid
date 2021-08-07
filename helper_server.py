@@ -487,12 +487,20 @@ KICK: Execute signin macro on all machines.
                 continue
 
             print(f"Direction: {direction}")
-            print(f"Rotor Speed: {rotor_speed}")
+            try:
+                print(f"Rotor Speed: {rotor_speed}")
+            except ReferenceError:
+                print("reference error :: helper_server.py :: line 493")
+                continue
             print(f"Raw: {raw_prediction}")
             if self.databot_mode:
-                print(f"Winning Number: {winning_number}")
-                print(f"Fall Zone: {fall_zone}")
-                print(f"Ball Revs: {ball_revs}")
+                try:
+                    print(f"Winning Number: {winning_number}")
+                    print(f"Fall Zone: {fall_zone}")
+                    print(f"Ball Revs: {ball_revs}")
+                except ReferenceError:
+                    print("reference error :: helper_server.py :: line 501")
+                    continue
                 if self.direction == "anticlockwise":
                     new_direction = "acw"
                 else:

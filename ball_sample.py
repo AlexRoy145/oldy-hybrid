@@ -34,7 +34,7 @@ class Sample:
     def adjust_sample(self):
         # adjust sample to target time
         # The below uses multiplicative ratios
-        '''
+        """
             ratio = self.target_time / self.full_sample[-1]
             self.adjusted_sample = [int(round(x * ratio)) for x in self.full_sample]
 
@@ -49,7 +49,7 @@ class Sample:
             ffit = poly.polyval(x, coefs)
             self.adjusted_sample = [int(round(x)) for x in ffit]
             self.adjusted_sample[-1] = self.target_time
-            '''
+        """
 
         # the below does simple translation
         delta = self.full_sample[-1] - self.target_time

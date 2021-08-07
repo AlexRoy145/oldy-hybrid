@@ -200,11 +200,11 @@ class CRMClient:
 
     @staticmethod
     def resize_betting_window():
-        def callback(handle, data):
-            title = win32gui.GetWindowText(handle).lower()
+        def callback(handler, data):
+            title = win32gui.GetWindowText(handler).lower()
             # try to also size the other browser windows
             if "firefox" in title or "vivaldi" in title:
-                handles.append(handle)
+                handles.append(handler)
 
         handles = []
         win32gui.EnumWindows(callback, None)

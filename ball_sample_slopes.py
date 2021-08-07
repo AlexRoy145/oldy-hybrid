@@ -31,27 +31,23 @@ class Sample:
 
     def adjust_sample(self):
         # TODO: miracle math to adjust sample to target time, then poly the result
-        '''
+        """
             ratio = self.full_sample[-1] / self.target_time
             self.adjusted_sample = [int(round(x / ratio)) for x in self.full_sample]
             diff = self.target_time - self.full_sample[-1]
             self.adjusted_sample = [x + diff for x in self.full_sample[:-1]]
             self.adjusted_sample.append(self.target_time)
-            '''
 
-        '''
             poly_order = 5
             x = list(range(len(self.full_sample)))
             y = self.full_sample
             coefs = poly.polyfit(x, y, poly_order)
             ffit = poly.polyval(x, coefs)
             self.adjusted_sample = [int(round(x)) for x in ffit]
-            '''
 
-        '''
             self.adjusted_sample = self.full_sample
             return
-            '''
+        """
 
         # '''
         # normal averaging

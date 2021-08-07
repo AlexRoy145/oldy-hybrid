@@ -26,7 +26,7 @@ class Sample:
 
     def adjust_sample(self):
         # TODO: miracle math to adjust sample to target time, then poly the result
-        '''
+        """
             ratio = self.target_time / self.full_sample[-1] 
             self.adjusted_sample = [int(round(x * ratio)) for x in self.full_sample]
             '''
@@ -45,7 +45,7 @@ class Sample:
         '''
             delta = self.full_sample[-1] - self.target_time
             self.adjusted_sample = [x - delta for x in self.full_sample]
-            '''
+        """
 
         self.adjusted_sample = self.full_sample
         # return

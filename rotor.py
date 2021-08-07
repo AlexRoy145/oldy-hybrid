@@ -83,7 +83,7 @@ class Rotor:
             mask = cv2.dilate(mask, None, iterations=2)
 
             mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE,
-                                    cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size)));
+                                    cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size)))
 
             cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             cnts = imutils.grab_contours(cnts)
@@ -171,7 +171,9 @@ class Rotor:
                 if np.abs(dx) > diff_thresh or np.abs(dy) > diff_thresh:
                     # get direction of wheel movement
                     is_anticlockwise = ((previous[0] - wheel_center[0]) * (current[1] - wheel_center[1]) -
-                                        (previous[1] - wheel_center[1]) * (current[0] - wheel_center[0])) < 0;
+                                        (previous[1] - wheel_center[1]) * (current[0] - wheel_center[0])) < 0
+
+                    keyboard = Controller()
 
                     if is_anticlockwise:
                         if current_direction == "clockwise":
@@ -181,7 +183,6 @@ class Rotor:
                             else:
                                 if Util.time() - seen_direction_start_time > time_for_stable_direction:
                                     direction_changed = True
-                                    keyboard = Controller()
                                     keyboard.press(Key.enter)
                                     keyboard.release(Key.enter)
                                     seen_direction_change_start_time = Util.time()
@@ -199,6 +200,8 @@ class Rotor:
                             else:
                                 if Util.time() - seen_direction_start_time > time_for_stable_direction:
                                     direction_changed = True
+                                    keyboard.press(Key.enter)
+                                    keyboard.release(Key.enter)
                                     seen_direction_change_start_time = Util.time()
                                 else:
                                     current_direction = ""

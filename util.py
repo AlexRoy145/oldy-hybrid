@@ -73,8 +73,11 @@ class Util:
             print(f"degree_offset: {degree_offset}")
             print(f"degrees_green_travels: {degrees_green_travels}")
             print(f"degree_offset_after_travel: {degree_offset_after_travel}")
-            print(f"ratio_to_look: {ratio_to_look}")
-            print(f"idx: {idx}")
+            try:
+                print(f"ratio_to_look: {ratio_to_look}")
+                print(f"idx: {idx}")
+            except ReferenceError:
+                print("reference error :: util.py :: line 79")
 
             return 0
 
